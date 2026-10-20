@@ -3,7 +3,6 @@ from collections import Counter
 from dataclasses import dataclass
 import copy
 import unicodedata
-from bisect import bisect_left
 from rapidfuzz.distance import Levenshtein
 
 from .model import LyricLine,Unit,Highlight
@@ -100,16 +99,10 @@ def timing_basis(pairs,source,start,end,exact):
     return group_basis(parents,start,end,'lyric_match') if complete else derived('estimated',start,end,parents,'lyric_match_distribution')
 
 
-def anchored_opcodes(target,source,line_data,lines):
+def anchored_opcodes(target,source,line_data,lines,context):
     """Confirmed/locked lines bound the surrounding verses, without moving them."""
-    starts=[t.start for t in source];ends=[t.end for t in source]
     target_pos=source_pos=0
-    anchors=[]
-    for line,(begin,end,_) in zip(lines,line_data):
-        if not (line.locked or line.reviewed):continue
-        left=bisect_left(starts,line.start);right=bisect_left(ends,line.end+1)
-        if source_pos<=left<right<=len(source):anchors.append((begin,end,left,right));source_pos=right
-    source_pos=0
+    anchors=context['anchors']
     for begin,end,left,right in [*anchors,(len(target),len(target),len(source),len(source))]:
         for tag,a,b,c,d in Levenshtein.opcodes(target[target_pos:begin],''.join(t.char for t in source[source_pos:left])):
             yield tag,a+target_pos,b+target_pos,c+source_pos,d+source_pos
@@ -119,7 +112,7 @@ def anchored_opcodes(target,source,line_data,lines):
         target_pos=end;source_pos=right
 
 
-def _match_channel(lines,transcript,time_range=None,reading=False,candidates=True):
+def _match_channel(lines,transcript,time_range=None,reading=False,candidates=True,replace_manual=False):
     if not lines:
         raise ValueError('请先粘贴或导入普通歌词，不需要 LRC 时间标签')
     if len(lines)>3000:
@@ -151,19 +144,29 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
         raise ValueError('歌词没有可匹配的文字')
     # A single global edit path preserves order across different ASR line breaks.
     mapping=[None]*len(target);exact=[False]*len(target)
-    for tag,a,b,c,d in anchored_opcodes(target_text,source,line_data,lines):
+    from .matching_context import plan,protected
+    context=plan(target_text,source,line_data,lines,allow_text=not reading,time_range=time_range,replace_manual=replace_manual)
+    for tag,a,b,c,d in anchored_opcodes(target_text,source,line_data,lines,context):
         if tag in {'equal','replace'}:
             for i,j in zip(range(a,b),range(c,d)):
                 mapping[i]=j;exact[i]=target[i]==source[j].char
-    counts=Counter(target_text[a:b] for a,b,_ in line_data if b>a)
+    from .matching_context import spans
     suggestions=[];summary=Counter();previous_end=0
-    for line,(begin,end,members) in zip(lines,line_data):
+    for row,(line,(begin,end,members)) in enumerate(zip(lines,line_data)):
         key=target_text[begin:end]
+        lower,upper=context['hard_windows'][row]
+        # Character/word estimates touching a confirmed boundary are never
+        # allowed to carry a neighbouring line across that human position.
+        for i in range(begin,end):
+            j=mapping[i]
+            if j is not None and not lower<=source[j].start<=source[j].end<=upper:
+                mapping[i]=None;exact[i]=False
         assigned=[mapping[i] for i in range(begin,end) if mapping[i] is not None]
         exact_count=sum(exact[begin:end]);coverage=exact_count/max(1,end-begin)
         recognized=''.join(token.char for token in source[min(assigned):max(assigned)+1]) if assigned else ''
         score=Levenshtein.normalized_similarity(key,recognized) if key and recognized else 0.0
-        occurrences=source_text.count(key) if key else 0
+        left,right=context['regions'][row];local=source_text[left:right];counts=context['counts'][row]
+        occurrences=local.count(key) if key else 0
         ambiguous=bool(key and (occurrences>counts[key] or (counts[key]>1 and occurrences!=counts[key])))
         gap=any(source[right].start-source[left].end>2500 for left,right in zip(assigned,assigned[1:]))
         status='matched' if score>=.78 and coverage>=.7 else 'uncertain'
@@ -179,13 +182,15 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
         info={'status':status,'score':round(float(score),4),'coverage':round(coverage,4),
               'recognized':recognized,'reason':'；'.join(reasons),'source':'transcript',
               'ambiguous':ambiguous,'timing':'rough','method':'reading' if reading else 'text',
-              'original_layout_preserved':True}
-        protected=line.locked or line.reviewed or any(unit.locked for unit in line.units)
-        if protected or status=='unmatched':
+              'original_layout_preserved':True,'context_range':context['windows'][row],
+              'hard_context_range':context['hard_windows'][row],
+              'source_spans':spans(assigned,source)}
+        fixed=protected(line,replace_manual)
+        if fixed or status=='unmatched':
             value=copy.deepcopy(line)
-            if protected:
-                info['status']='protected';info['reason']='本行已锁定或人工确认，保留现有时间'
-                if line.locked or line.reviewed:previous_end=max(previous_end,line.end)
+            if fixed:
+                info['status']='protected';info['reason']='本行有锁定、人工确认或手调时间，保留现有内容'
+                previous_end=max(previous_end,line.end)
             value.match=info;suggestions.append(value);summary[info['status']]+=1
             continue
         first=source[min(assigned)].start;last=max(first+10,source[max(assigned)].end)
@@ -244,25 +249,32 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
             for position in sorted(hits,key=lambda p:abs(source[p].start-value.start))[:8]:
                 start,end_time=source[position].start,source[position+len(key)-1].end
                 if end_time<=start:continue
-                candidate=_match_channel([line],transcript,[start,end_time],reading,False)['suggestions'][0]
+                lower,upper=value.match['hard_context_range']
+                if start<lower or end_time>upper:continue
+                candidate=_match_channel([line],transcript,[start,end_time],reading,False,replace_manual)['suggestions'][0]
                 if candidate['match']['status']=='unmatched':continue
-                choices.append({**{name:candidate[name] for name in ('start','end','units')},
-                                **{name:candidate['match'][name] for name in ('score','coverage','recognized','method')}})
+                lower,upper=value.match['context_range']
+                choices.append({**{name:candidate[name] for name in ('start','end','units','timing_origin')},
+                                **{name:candidate['match'][name] for name in ('score','coverage','recognized','method','source_spans')},
+                                'outside_context':start<lower or end_time>upper})
             value.match['candidates']=sorted(choices,key=lambda c:c['start'])
-    return {'suggestions':[value.to_dict() for value in suggestions],
+    return {'suggestions':[value.to_dict() for value in suggestions],'_context_issues':context['conflicts'],
             'match_summary':{'total':len(lines),**{name:summary[name] for name in ('matched','uncertain','unmatched','protected')}},
-            'review_required':True,'matching_version':2,'local':True}
+            'review_required':True,'matching_version':3,'local':True}
 
 
-def match_lyrics(lines,transcript,time_range=None):
-    raw=_match_channel(lines,transcript,time_range)
-    phonetic=_match_channel(lines,transcript,time_range,True)
+def match_lyrics(lines,transcript,time_range=None,replace_manual=False):
+    raw=_match_channel(lines,transcript,time_range,replace_manual=replace_manual)
+    phonetic=_match_channel(lines,transcript,time_range,True,replace_manual=replace_manual)
     merged=[];summary=Counter()
     for direct,sound in zip(raw['suggestions'],phonetic['suggestions']):
         a,b=direct['match'],sound['match']
         better=(b['status']!='protected' and b['score']*b['coverage']>a['score']*a['coverage']+.08 and b['coverage']>=.7)
+        lower,upper=a['context_range']
+        better=better and lower<=sound['start']<sound['end']<=upper
         value=sound if better else direct
         if better:
+            for key in ('context_range','hard_context_range'):value['match'][key]=copy.deepcopy(a[key])
             info=value['match'];info['reason']=('按词典读音辅助匹配；特殊唱法请试听。'+info['reason']).rstrip('；')
             if len(morae(value['kana'] or value['text']))<=2 and info['status']=='matched':info['status']='uncertain';info['reason']+='短读音可能存在同音词。'
         if merged and value['match']['status'] in {'matched','uncertain'}:
@@ -271,4 +283,8 @@ def match_lyrics(lines,transcript,time_range=None):
                 value=copy.deepcopy(direct);value['match']['status']='unmatched';value['match']['reason']='不同匹配方式的时间交叉，请选择候选或限定范围'
                 value['start']=lines[len(merged)].start;value['end']=lines[len(merged)].end;value['units']=copy.deepcopy(lines[len(merged)].to_dict()['units'])
         merged.append(value);summary[value['match']['status']]+=1
-    return {**raw,'suggestions':merged,'match_summary':{'total':len(lines),**{name:summary[name] for name in ('matched','uncertain','unmatched','protected')}},'original_layout_preserved':True}
+    from .matching_context import review
+    context_issues=raw.pop('_context_issues',[])
+    sequence=review(lines,transcript_tokens(transcript,time_range),merged,context_issues)
+    summary=Counter(v['match']['status'] for v in merged)
+    return {**raw,'suggestions':merged,'match_summary':{'total':len(lines),**{name:summary[name] for name in ('matched','uncertain','unmatched','protected')}},'original_layout_preserved':True,'sequence_review':sequence}

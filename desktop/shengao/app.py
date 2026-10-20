@@ -1563,6 +1563,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if len(lines)!=len(set(line_ids)):self.message('歌词选择已变化，请重新选择范围');return
             if any(line.locked or any(unit.locked for unit in line.units) for line in lines):self.message('所选范围包含锁定内容，请先解除锁定');return
         elif only_current and self.line:lines=[self.line]
+        elif action in {'match','transcribe_match'}:
+            # Confirmed/locked rows remain immutable context for whole-song
+            # matching. Removing them here would let repeated verses cross the
+            # very human positions that the backend is meant to respect.
+            from studio_backend.matching_context import protected
+            lines=list(self.project.lines) if any(not protected(x) for x in self.project.lines) else []
         elif action in {'refine','annotate'}:lines=[x for x in self.project.lines if not x.locked and not self.project.checks.get(x.id,{}).get('reading')]
         else:lines=[x for x in self.project.lines if not x.reviewed and not x.locked]
         if not lines:self.message('当前范围已经确认或锁定；可以选中具体一句再操作');return
@@ -1641,9 +1647,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.remember_transcript(self.pending['result'],context)
         dialog=ReviewDialog(self.project,self.pending['result'],self.playback,self)
         if dialog.exec()==QDialog.DialogCode.Accepted:self.apply_suggestions(dialog.selected())
+        elif dialog.rematch_uid:
+            if self.shelve_for_manual(dialog.rematch_uid):self.rematch_timing_scope(only_current=True)
         elif dialog.manual_uid:self.shelve_for_manual(dialog.manual_uid)
     def shelve_for_manual(self,uid):
-        if not self.pending:return
+        if not self.pending:return False
         import uuid
         folder=self.home/'desktop-tasks'/uuid.uuid4().hex
         request={'action':'review_saved','_studio_origin_action':self.pending.get('action'),
@@ -1651,10 +1659,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                  '_studio_checks':self.pending.get('checks'),'lines':list(self.pending.get('snapshots',{}).values())}
         try:
             atomic_json(folder/'request.json',request);atomic_json(folder/'result.json',{'ok':True,**self.pending['result']})
-        except OSError:self.message('建议暂存失败，当前建议保留；请检查保存目录后重试。');return
+        except OSError:self.message('建议暂存失败，当前建议保留；请检查保存目录后重试。');return False
         self.pending=None;self.current=next((i for i,line in enumerate(self.project.lines) if line.id==uid),self.current)
         self.time_scope.setCurrentIndex(0);self.set_stage(2);self.refresh(True);self.select_entire_line();self.save_recovery()
         self.message('本次建议已暂存到任务记录，原内容保留。现在可改本句假名、整句范围或直接划音。')
+        return True
     def apply_suggestions(self,selected):
         if not self.flush_edits():return
         context=self.pending.get('context',{}) if self.pending else {}
@@ -1690,7 +1699,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.edit('采用审核建议',apply)
         if self.validation_error:return
         if self.pending:
-            self.pending['result']['suggestions']=[value for value in self.pending['result'].get('suggestions',[]) if value['id'] not in accepted]
+            sequence=bool(self.pending['result'].get('sequence_review'))
+            self.pending['result']['suggestions']=[value for value in self.pending['result'].get('suggestions',[]) if value['id'] not in accepted and not (sequence and value.get('match',{}).get('status')=='protected')]
             if not self.pending['result']['suggestions']:self.pending=None
         self.save_recovery();self.refresh()
         self.message(f'已采用 {len(accepted)} 行建议。'+(f'{len(skipped)} 行已修改或锁定，保留当前内容；未采用的建议仍可审核。' if skipped else '其余建议仍可继续审核。' if self.pending else '请试听并确认时间与读音。'))

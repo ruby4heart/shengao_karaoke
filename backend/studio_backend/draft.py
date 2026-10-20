@@ -103,7 +103,7 @@ def summary(state):
 def result(state):
     # Only completed, validated checkpoints contribute suggestions. A partly
     # returned reading batch is merged with the preceding complete draft.
-    values = []; transcript = []; diagnostics = {};media_fingerprint='';acoustic=None
+    values = []; transcript = []; diagnostics = {};media_fingerprint='';acoustic=None;sequence=None
     for stage in state['stages']:
         if stage['state'] not in {'completed', 'partial'} and not stage.get('result',{}).get('partial'):
             continue
@@ -116,6 +116,7 @@ def result(state):
         if data.get('diagnostics'):
             diagnostics[stage['key']] = data['diagnostics']
         if stage['key']=='acoustic':acoustic=data.get('acoustic')
+        if stage['key']=='matching':sequence=data.get('sequence_review')
     complete = state['status'] == 'completed'
     notice = ('初稿流程完成，请审核后采用。' if complete else '流程未全部完成；已完成的初稿可以先审核或继续。')
     notice += (f'歌声候选 {acoustic["aligned"]} 句，保留初稿待手工 {acoustic["needs_manual"]} 句，尚未处理 {acoustic["total"]-acoustic["processed"]} 句；读音和时间仍需确认。' if acoustic else '字符／词组对齐不是演唱音节识别，细音节仍可能均分估算，需试听。')
@@ -123,7 +124,8 @@ def result(state):
             'media_fingerprint':media_fingerprint,
             'diagnostics': diagnostics, 'review_required': True, 'partial': not complete,
             'message': notice + ('\n' + state.get('message', '') if not complete else ''),
-            'workflow': summary(state),**({'acoustic':copy.deepcopy(acoustic)} if acoustic else {})}
+            'workflow': summary(state),**({'acoustic':copy.deepcopy(acoustic)} if acoustic else {}),
+            **({'sequence_review':copy.deepcopy(sequence)} if sequence else {})}
 
 
 def saved_result(request, root):

@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt,QSignalBlocker
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPlainTextEdit,QDialogButtonBox,
     QComboBox,QListWidget,QListWidgetItem,QPushButton,QTableWidget,QTableWidgetItem,QHeaderView,
-    QLineEdit,QFormLayout,QCheckBox,QMessageBox,QApplication)
+    QLineEdit,QFormLayout,QCheckBox,QMessageBox,QApplication,QWidget,QScrollArea)
 from .timing import pauses,leaves,merge_pauses
 from .timeline import stamp
 
@@ -69,8 +69,9 @@ class PauseDialog(QDialog):
 
 class ReviewDialog(QDialog):
     def __init__(self,project,result,playback,parent=None):
-        super().__init__(parent);self.setWindowTitle('审核建议，再加入工程');screen=QApplication.primaryScreen().availableGeometry();self.resize(min(1020,max(720,screen.width()-40)),min(760,max(420,screen.height()-80)));self.result=result;self.project=project;self.playback=playback;self.manual_uid=None
-        layout=QVBoxLayout(self);message=result.get('message') or '原歌词保持不变；自动生成的时间和读音仍需试听确认。勾选需要采用的行。'
+        super().__init__(parent);self.setWindowTitle('审核建议，再加入工程');screen=QApplication.primaryScreen().availableGeometry();self.resize(min(1020,max(720,screen.width()-40)),min(760,max(420,screen.height()-80)));self.result=result;self.project=project;self.playback=playback;self.manual_uid=None;self.rematch_uid=None
+        root=QVBoxLayout(self);body=QWidget();layout=QVBoxLayout(body);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(body);root.addWidget(scroll,1)
+        message=result.get('message') or '原歌词保持不变；自动生成的时间和读音仍需试听确认。勾选需要采用的行。'
         if project.source_ass_active and (result.get('action')=='acoustic' or result.get('acoustic')):message+=' 采用歌声候选后使用声稿样式，原 ASS 保留，可撤销。'
         notice=QLabel(message);notice.setWordWrap(True);layout.addWidget(notice)
         self.values=copy.deepcopy(result.get('suggestions',[]));self.recommended=copy.deepcopy(self.values);self.table=QTableWidget(len(self.values),4);self.table.setHorizontalHeaderLabels(['采用','原歌词','建议时间','建议读音／译文']);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeMode.Stretch);self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.ResizeMode.Stretch)
@@ -84,6 +85,7 @@ class ReviewDialog(QDialog):
             self.table.setColumnCount(5);self.table.setHorizontalHeaderLabels(['采用','原歌词','建议时间','建议读音／译文','音节状态']);self.table.setColumnWidth(4,190)
         for row,line in enumerate(self.values):
             check=QTableWidgetItem();check.setFlags(Qt.ItemFlag.ItemIsEnabled|Qt.ItemFlag.ItemIsUserCheckable);check.setCheckState(Qt.CheckState.Unchecked)
+            if result.get('sequence_review') and line.get('match',{}).get('status')=='protected':check.setFlags(Qt.ItemFlag.NoItemFlags);check.setToolTip('人工内容仅作匹配前后文，保留现有值，无需采用。')
             self.table.setItem(row,0,check)
             for col,text in [(1,line['text']),(2,f'{stamp(line["start"])} → {stamp(line["end"])}'),(3,(line.get('kana') or ' '.join(u.get('kana','') for u in line.get('units',[])))+'\n'+line.get('translation',''))]:
                 item=QTableWidgetItem(text);item.setFlags(item.flags()&~Qt.ItemFlag.ItemIsEditable);self.table.setItem(row,col,item)
@@ -96,25 +98,43 @@ class ReviewDialog(QDialog):
                 text+='\n'+origin_text
                 if status.get('reason') and kind!='aligned':text+='\n'+status['reason']
                 item=QTableWidgetItem(text);item.setToolTip(text+'\n'+status.get('reason',''));item.setFlags(item.flags()&~Qt.ItemFlag.ItemIsEditable);self.table.setItem(row,4,item);self.table.setRowHeight(row,94)
-        layout.addWidget(self.table,1)
+        self.table.setMinimumHeight(170);layout.addWidget(self.table,1)
         row=QHBoxLayout();row.addWidget(button('全选',lambda:self.check_all(True)));row.addWidget(button('清空',lambda:self.check_all(False)));row.addStretch();row.addWidget(button('试听所选行',self.listen));row.addWidget(button('停止',playback.stop));layout.addLayout(row)
         self.evidence=QLabel('读音依据显示在单元格提示中。转录与原文相同的汉字，并不能证明实际唱法。');self.evidence.setWordWrap(True);layout.addWidget(self.evidence)
+        self.sequence=None
+        if result.get('sequence_review'):
+            from .sequence_review import SequenceReview
+            self.sequence=SequenceReview(result['sequence_review'],self.values,project,playback,self);layout.addWidget(self.sequence)
+            self.sequence.focus_requested.connect(self.focus_sequence_line)
+            self.sequence.manual_requested.connect(lambda uid:self.handoff_sequence(uid,False))
+            self.sequence.rematch_requested.connect(lambda uid:self.handoff_sequence(uid,True))
         self.candidates=QComboBox();self.candidates.setToolTip('重复副歌可能匹配到多个位置；选择后先试听再决定采用。分数是文字相似度，不是声音识别置信度。');layout.addWidget(self.candidates)
-        self.details_toggle=QPushButton('展开音节对照与读音依据');self.details_toggle.setCheckable(True);self.details_toggle.setChecked(not bool(result.get('acoustic')));self.details_toggle.setVisible(bool(result.get('acoustic')));layout.addWidget(self.details_toggle)
+        compact=bool(result.get('acoustic') or self.sequence)
+        self.details_toggle=QPushButton('展开音节对照与读音依据');self.details_toggle.setCheckable(True);self.details_toggle.setChecked(not compact);self.details_toggle.setVisible(compact);layout.addWidget(self.details_toggle)
         self.details=QPlainTextEdit();self.details.setReadOnly(True);self.details.setMaximumHeight(150);self.details.setVisible(self.details_toggle.isChecked());layout.addWidget(self.details)
         self.details_toggle.toggled.connect(lambda visible:(self.details.setVisible(visible),self.details_toggle.setText('收起音节对照与读音依据' if visible else '展开音节对照与读音依据')))
         self.manual_button=button('本句先手工校对（建议留在任务记录）',self.open_manual);self.manual_button.setVisible(bool(result.get('acoustic')));layout.addWidget(self.manual_button)
         row=QHBoxLayout();self.acoustic_mora=QComboBox();row.addWidget(self.acoustic_mora,1);self.acoustic_listen=button('试听这个音节（带前后音）',self.listen_acoustic_mora);row.addWidget(self.acoustic_listen);layout.addLayout(row)
         self.table.currentCellChanged.connect(lambda *_:self.show_evidence());self.candidates.currentIndexChanged.connect(self.choose_candidate)
-        controls=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);self.apply_button=controls.button(QDialogButtonBox.StandardButton.Ok);self.apply_button.setText('先勾选需要采用的行');self.apply_button.setEnabled(False);controls.button(QDialogButtonBox.StandardButton.Cancel).setText('稍后审核');controls.accepted.connect(self.accept);controls.rejected.connect(self.reject);layout.addWidget(controls)
+        controls=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);self.apply_button=controls.button(QDialogButtonBox.StandardButton.Ok);self.apply_button.setText('先勾选需要采用的行');self.apply_button.setEnabled(False);controls.button(QDialogButtonBox.StandardButton.Cancel).setText('稍后审核');controls.accepted.connect(self.accept);controls.rejected.connect(self.reject);root.addWidget(controls)
         self.table.itemChanged.connect(self.selection_count)
         self.finished.connect(lambda _:playback.stop())
         if self.values:self.table.setCurrentCell(0,1)
+        if self.sequence:self.sequence.changed()
+    def focus_sequence_line(self,uid):
+        row=next((i for i,v in enumerate(self.values) if v['id']==uid),None)
+        if row is not None:self.table.setCurrentCell(row,1);self.table.scrollToItem(self.table.item(row,1))
+    def handoff_sequence(self,uid,rematch):
+        if rematch:self.rematch_uid=uid
+        else:self.manual_uid=uid
+        self.reject()
     def check_all(self,checked):
-        for i in range(self.table.rowCount()):self.table.item(i,0).setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+        for i in range(self.table.rowCount()):
+            item=self.table.item(i,0)
+            if item.flags()&Qt.ItemFlag.ItemIsUserCheckable:item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
     def selection_count(self,*args):
         count=len(self.selected());self.apply_button.setEnabled(count>0);self.apply_button.setText(f'采用 {count} 行建议' if count else '先勾选需要采用的行')
-    def selected(self):return [value for i,value in enumerate(self.values) if self.table.item(i,0).checkState()==Qt.CheckState.Checked]
+    def selected(self):return [value for i,value in enumerate(self.values) if self.table.item(i,0).flags()&Qt.ItemFlag.ItemIsUserCheckable and self.table.item(i,0).checkState()==Qt.CheckState.Checked]
     def listen(self):
         row=self.table.currentRow()
         if row>=0:self.playback.audition(self.values[row]['start'],self.values[row]['end'])
@@ -163,7 +183,7 @@ class ReviewDialog(QDialog):
         for word in review.get('words',[]):
             text=word.get('text','');before=word.get('before','');after=word.get('suggested','')
             parts.append(f'{text}：{before} → {after}；'+word.get('reason','')+' '+str(word.get('basis','')))
-        if match:parts.extend(['识别原文：'+match.get('recognized',''),'匹配依据：'+match.get('reason','')])
+        if match:parts.extend(['归一化识别文字：'+match.get('recognized',''),'匹配依据：'+match.get('reason','')])
         if not review and not match:parts.append('词典／LLM 生成的建议仍需结合实际演唱试听。')
         from studio_backend.model import LyricLine
         from studio_backend.provenance import line_summary,summary
@@ -176,7 +196,8 @@ class ReviewDialog(QDialog):
         self.details.setPlainText('\n'.join(parts));blocker=QSignalBlocker(self.candidates);self.candidates.clear()
         self.candidates.addItem('推荐时段：'+stamp(self.recommended[row]['start'])+' — '+stamp(self.recommended[row]['end']),-1)
         for i,candidate in enumerate(self.recommended[row].get('match',{}).get('candidates',[])):
-            self.candidates.addItem(f'候选 {i+1}：{stamp(candidate["start"])} — {stamp(candidate["end"])} · 文字相似度 {candidate.get("score",0):.0%}',i)
+            warning=' · 超出前后文，谨慎选择' if candidate.get('outside_context') else ''
+            self.candidates.addItem(f'候选 {i+1}：{stamp(candidate["start"])} — {stamp(candidate["end"])} · 文字相似度 {candidate.get("score",0):.0%}'+warning,i)
         self.candidates.setEnabled(self.candidates.count()>1)
     def choose_candidate(self):
         row=self.table.currentRow();choice=self.candidates.currentData()
@@ -186,7 +207,10 @@ class ReviewDialog(QDialog):
         if choice>=0:
             candidate=value['match']['candidates'][choice]
             for key in ('start','end','units'):value[key]=copy.deepcopy(candidate[key])
+            if 'timing_origin' in candidate:value['timing_origin']=copy.deepcopy(candidate['timing_origin'])
             for key in ('score','coverage','recognized','method'):value['match'][key]=candidate.get(key,value['match'].get(key))
+            if 'source_spans' in candidate:value['match']['source_spans']=copy.deepcopy(candidate['source_spans'])
+            value['match']['status']='uncertain'
             value['match']['reason']='人工选择的候选时段；仍需试听校准。'
         from studio_backend.model import LyricLine
         try:LyricLine.from_dict(value)

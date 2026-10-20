@@ -169,7 +169,7 @@ async def operation(request, root, report):
             transcript=request.get('transcript',[])
         report('matching','正在本机按顺序和文字相似度分行；粗轴仍需试听校准')
         try:
-            result=await asyncio.to_thread(match_lyrics,lines,[LyricLine.from_dict(value) for value in transcript],request.get('match_range'))
+            result=await asyncio.to_thread(match_lyrics,lines,[LyricLine.from_dict(value) for value in transcript],request.get('match_range'),request.get('rematch_confirmed') is True)
             result=timing_result(result,request)
         except ValueError as error:
             if action=='transcribe_match':

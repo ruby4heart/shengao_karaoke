@@ -48,6 +48,22 @@ def test_legacy_v018_completed_checkpoint_keeps_signature_and_never_reruns(tmp_p
     assert draft.load(home,state['id'])['signature']==state['signature']
 
 
+def test_sequence_review_survives_later_stages_and_completed_checkpoint_recovery(tmp_path,monkeypatch):
+    from studio_backend.matching import match_lyrics
+    req=request(tmp_path,True);home=tmp_path/'home';calls=[]
+    monkeypatch.setattr(Settings,'key',lambda *args:'test-never-sent')
+    async def operation(value,root,report):
+        calls.append(value['action'])
+        if value['action']=='transcribe':return {'suggestions':[LyricLine('asr','今日も歌う追加の語句',1000,4000).to_dict()]}
+        if value['action']=='match':return match_lyrics([LyricLine.from_dict(v) for v in value['lines']],[LyricLine.from_dict(v) for v in value['transcript']])
+        return {'suggestions':copy.deepcopy(value['lines'])}
+    data=run(req,home,operation);evidence=data['sequence_review']
+    assert not data['partial'] and evidence['unassigned_transcript']
+    assert evidence==next(s for s in stages(req,home) if s['key']=='matching')['result']['sequence_review']
+    calls.clear();again=run({**req,'resume':True},home,operation)
+    assert calls==[] and again['sequence_review']==evidence and again['suggestions']==data['suggestions']
+
+
 def test_offline_pipeline_executes_real_dictionary_preview_and_roundtrip(tmp_path,monkeypatch):
     req=request(tmp_path);home=tmp_path/'home'
     async def forbidden(*args):raise AssertionError('offline workflow must not call cloud')
