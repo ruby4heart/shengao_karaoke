@@ -8,7 +8,7 @@ import copy
 
 KINDS={'character','word','estimated','acoustic','manual','imported','reference','unknown'}
 PROVIDERS={'local','elevenlabs','microsoft','tifa','ass','srt','lrc','mixed','unknown'}
-OPERATIONS={'shift','stretch','manual_boundary','automatic_gap','regroup','clamp'}
+OPERATIONS={'shift','stretch','manual_boundary','automatic_gap','sound_gap','regroup','clamp'}
 
 
 def validate(value):
@@ -91,7 +91,7 @@ def legacy_manual_reading(unit):
 
 def effective_kind(value):
     ops=set(value.get('operations',[]))
-    return 'manual' if 'manual_boundary' in ops else 'estimated' if ops&{'stretch','automatic_gap','clamp'} else value['kind']
+    return 'manual' if 'manual_boundary' in ops else 'estimated' if ops&{'stretch','automatic_gap','sound_gap','clamp'} else value['kind']
 
 
 def derived(kind,start,end,items,method,reading=None):
@@ -172,6 +172,7 @@ def summary(item,confirmed=False,mora=False):
     if 'shift' in ops:detail.append('整体手动平移过；内部相对时间未因此得到逐音验证。')
     if 'stretch' in ops:detail.append('按比例／分段调整过；内部边界需要重新试听。')
     if 'automatic_gap' in ops:issues.append('曾按固定短间隙规则延续／调整边界，并非声音休止判断。')
+    if 'sound_gap' in ops:detail.append('按声音连续候选延续过高亮，后一音节起点保持；不等于重新识别逐音边界。')
     if 'clamp' in ops:issues.append('返回的时间重叠曾被整理，请核对边界。')
     if kind=='estimated':
         detail.append(('原始轴' if 'manual_boundary' in ops else '当前轴')+'由已有范围内插或按假名分配，未识别到每个演唱音节的声音起点。')

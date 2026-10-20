@@ -1,12 +1,12 @@
 # 声稿 Karaoke Studio
 
-Windows 日语卡拉 OK 字幕制作软件，使用独立 Qt 工作台。当前为 **0.21.0 开发预发布版**，面向个人非商业制作，尚未达到完整 1.0 验收标准。
+Windows 日语卡拉 OK 字幕制作软件，使用独立 Qt 工作台。当前为 **0.22.0 开发预发布版**，面向个人非商业制作，尚未达到完整 1.0 验收标准。
 
-**0.21.0 时间来源与校对提示**：选词组或音节时直接看见字符／词参考、估算音节、歌声候选或人工调整；“来源／提示”可比较原始依据和当前范围，筛选、试听并跳回相应音节。整体移动不会把估算称为逐音校准，确认时间仍保留原始依据。整首歌声初稿、取消续算、人声 A/B 与原唱／伴奏换源保留。TIFA 模型限个人非商业用途（CC BY-NC-SA 4.0）。
+**0.22.0 按声音检查空白**：先分析原声／人声及保留的歌声音素依据，再逐项试听、保留或延续高亮；可直接跳回对应音节手调、保存或一步撤销。下一起音与人工边界保持。新初稿默认保留间隔，固定时长收拢移至进阶选项。缓存和采用核对素材真实内容。歌声模型继续限个人非商业用途（CC BY-NC-SA 4.0）。
 
-新工程格式为第 8 版，读取第 1–8 版，保存时间来源、变更、声音依据与人声资源。0.20.0 及更旧程序会拒绝第 8 版，请另存副本；旧任务快照和检查点兼容读取。
+新工程格式为第 9 版，读取第 1–9 版，保存时间来源、变更、声音依据与人声资源。0.21.0 及更旧程序会拒绝第 9 版，请另存副本；旧任务快照和检查点兼容读取。
 
-说明见 [第一次制作](docs/DESKTOP-USER-GUIDE.md)、[0.21.0 验收](docs/V021-ACCEPTANCE.md)、[0.20.0 整首初稿](docs/V020-ACCEPTANCE.md)、[完整待办](docs/WORKFLOW-TODO.md)、[构建步骤](docs/DESKTOP-BUILD.md)。每个功能项单独发行；旧包及原始 Aegisub 保留。自动候选仍需试听，整首成品与真人新手验收继续实施。
+说明见 [第一次制作](docs/DESKTOP-USER-GUIDE.md)、[0.22.0 验收](docs/V022-ACCEPTANCE.md)、[0.20.0 整首初稿](docs/V020-ACCEPTANCE.md)、[完整待办](docs/WORKFLOW-TODO.md)、[构建步骤](docs/DESKTOP-BUILD.md)。每个功能项单独发行；旧包及原始 Aegisub 保留。自动候选仍需试听，整首成品与真人新手验收继续实施。
 
 正式版缺项与完成标准见 [1.0 清单](docs/RELEASE-1.0-CHECKLIST.md)。从 0.21.0 起，每个完成的版本同时提交到本仓库，并在 [Releases](https://github.com/ruby4heart/shengao_karaoke/releases) 附 Windows 运行包、完整源码、公开验收和指纹；GitHub 自动生成的源码快照不包含大型第三方资源，构建请使用 Release 中命名的完整源码 ZIP。发布流程见 [GitHub 交付](docs/GITHUB-RELEASE.md)。
 
@@ -32,5 +32,5 @@ API 密钥由当前 Windows 用户的 DPAPI 加密保存在本机，不进入工
 
 本仓库包含应用代码、测试、原生适配、文档和演示。请下载 Release 附带的完整源码 ZIP 获取匹配的第三方资源，再按 [构建步骤](docs/DESKTOP-BUILD.md) 操作。依赖说明见 [vendor/GIT-SOURCE-NOTES.md](vendor/GIT-SOURCE-NOTES.md)。
 
-当前变更见 [0.21.0 说明](docs/releases/0.21.0.md) 与 [验收范围](docs/V021-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
+当前变更见 [0.22.0 说明](docs/releases/0.22.0.md) 与 [验收范围](docs/V022-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
 

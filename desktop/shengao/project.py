@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=8
+SCHEMA=9
 
 @dataclass
 class Style:
@@ -139,7 +139,7 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if version not in (1,2,3,4,5,6,7,8): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version not in (1,2,3,4,5,6,7,8,9): raise ValueError('工程版本较新，请使用对应版本软件')
         fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')

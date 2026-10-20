@@ -36,7 +36,7 @@ def exercise(app,StudioWindow,out,check,wait):
         w.select_target(0,0);w.timeline.focus_selection();w.seek_selection_preview();h=w.line.units[0].highlights[0];w.change_boundary(0,0,h.start+10,h.end)
         check('timing_basis_actual_mora_manual_adjustment_is_explicit','人工调整' in w.timing_origin_info.text() and summary(w.line.units[0].highlights[0],mora=True)['display_kind']=='manual')
         target=out/'时间来源与人工校对.sgproj';save_project(w.project,target);again=load_project(target)
-        check('timing_basis_schema_8_roundtrips_original_and_edits',again.to_dict()==w.project.to_dict() and again.to_dict()['version']==SCHEMA==8)
+        check('timing_basis_current_schema_roundtrips_original_and_edits',again.to_dict()==w.project.to_dict() and again.to_dict()['version']==SCHEMA==9)
         w.show_editor_widget(w.timing_origin_info);app.processEvents();w.grab().save(str(out/'timing-source-manual-axis.png'))
         audit={'schema':SCHEMA,'real_mora':37,'original_voice':values[0].timing_origin,'manual_result':w.line.units[0].highlights[0].timing_origin,
                'current_line':rows(w.line),'interpretation':'Origins refer to actual earlier TIFA inference on one public sample; manual movement and corrections are not new acoustic inference or a general accuracy claim.'}

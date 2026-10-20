@@ -14,13 +14,15 @@ target=ROOT/'dist'/f'ShengaoKaraoke-{args.version}-evidence.zip';assert not targ
 files=[audit,base/'README.txt',base/('SHA256SUMS-'+args.version+'.txt')]
 for label in ['development','standalone-normal','standalone-dpi150']:
     folder=base/label
-    for name in ['report.json','acoustic-human-reference.json','staged-acoustic-reference.json','timing-provenance-audit.json']:
+    for name in ['report.json','acoustic-human-reference.json','staged-acoustic-reference.json','timing-provenance-audit.json','sound-gap-audit.json']:
         path=folder/name
         if path.is_file():files.append(path)
 for label in ['timeline-full-pixels','timeline-full-pixels-dpi150']:
     folder=base/label;files.append(folder/'report.json');files.extend(folder.glob('*.png'))
 formal=base/'formal-song/report.json'
 if formal.is_file():files.append(formal)
+gaps=base/'formal-song/sound-gap-report.json'
+if gaps.is_file():files.append(gaps)
 with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
     for path in files:archive.write(path,path.relative_to(base).as_posix())
     archive.writestr('PUBLIC-NOTES.txt','Public verification subset. No private project, task cache, user MV frame or original media. Full local acceptance remains in build/'+args.tag+'-evidence. Public PJS reference attribution and licenses are in the source distribution.\n')

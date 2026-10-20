@@ -21,10 +21,10 @@ def test_ui_requests_enable_continuity_for_timing_only_and_remember_preference(q
     qapp.setStyleSheet(STYLE)
     w=window(qapp,tmp_path);requests=[];monkeypatch.setattr(w.api,'start',lambda r:requests.append(r))
     w.resize(960,680);w.set_stage(1);qapp.processEvents();assert w.pages.widget(1).horizontalScrollBar().maximum()==0
-    w.start_api('segment',mode='mora');assert requests[-1]['gap_ms']==500 and requests[-1]['join_lines']
-    w.continuous_timing.setChecked(False);w.start_api('segment',mode='mora');assert requests[-1]['gap_ms']==0
+    w.start_api('segment',mode='mora');assert requests[-1]['gap_ms']==0 and not requests[-1]['join_lines']
+    w.continuous_timing.setChecked(True);w.start_api('segment',mode='mora');assert requests[-1]['gap_ms']==500 and requests[-1]['join_lines']
     w.continuous_timing.setChecked(True);w.start_api('refine',use_llm=False);assert requests[-1]['gap_ms']==0
-    assert w.preferences.data['continuous_timing'];w.close()
+    assert w.preferences.data['legacy_gap_timing'];w.close()
 
 
 def test_cleanup_preview_scope_and_threshold_are_reversible_before_apply(qapp,tmp_path):

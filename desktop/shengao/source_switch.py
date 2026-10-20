@@ -18,6 +18,7 @@ class SourceSwitch:
             action=QAction(title,menu);action.setCheckable(True);group.addAction(action);action.triggered.connect(lambda checked=False,r=role:self.select_media_source(r));menu.addAction(action);self.source_role_actions[role]=action
         menu.addSeparator()
         for role,title in ROLES.items():menu.addAction(f'更换{title}文件…').triggered.connect(lambda checked=False,r=role:self.choose_media_source(r))
+        menu.addSeparator();menu.addAction('重新载入当前源（保留字幕）').triggered.connect(self.reload_media_source)
         self.source_switch.setMenu(menu);self.refresh_media_source();return self.source_switch
 
     def refresh_media_source(self):
@@ -31,6 +32,13 @@ class SourceSwitch:
 
     def toggle_media_source(self):
         self.select_media_source('instrumental' if self.project.media and self.project.media_role=='original' else 'original')
+
+    def reload_media_source(self):
+        if self.source_job or self.api.busy or self.local_job or self.analysis_job:self.message('请先完成或取消当前素材任务。');return False
+        if not self.flush_edits():return False
+        if not file_stamp(self.project.media):self.message('当前素材不存在，请重新定位文件。');return False
+        self.load_media(self.project.media,edit=False,position=self.playback.canvas.position,zoom=self.playback.zoom,preview=True)
+        self.message('正在重新载入当前源并核对内容；原文、注音和时间轴保持，试听回到原声。');return True
 
     def select_media_source(self,role):
         if role==self.project.media_role and self.project.media and file_stamp(self.project.media)==self.project.media_stamp:return

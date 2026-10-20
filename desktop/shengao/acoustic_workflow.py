@@ -1,18 +1,21 @@
 """Local singing proposals use the same review, persistence and undo contract."""
 import copy
 import uuid
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QPushButton,QHBoxLayout
 from studio_backend.acoustic import plan
 from studio_backend.settings import atomic_json
 from . import acoustic_audio,jobs,vocal_audio
 from .project import file_stamp
 
 class AcousticWorkflow:
-    def build_acoustic_tools(self,layout):
+    def build_acoustic_tools(self,layout,secondary=None):
         self.acoustic_button=QPushButton('按本句歌声重算音节')
         self.acoustic_button.setObjectName('acousticAlignment')
         self.acoustic_button.setToolTip('本地 TIFA · 无需密钥。先圈住本句、填写正确假名；整句头尾不动，人工音节和锁定词组作为固定边界，只重算其间音节。采用前可比较与试听。模型限个人非商业用途（CC BY-NC-SA 4.0）。')
-        self.acoustic_button.clicked.connect(self.align_acoustic);layout.addWidget(self.acoustic_button)
+        self.acoustic_button.clicked.connect(self.align_acoustic)
+        if secondary is None:layout.addWidget(self.acoustic_button)
+        else:
+            row=QHBoxLayout();row.addWidget(self.acoustic_button,2);row.addWidget(secondary,1);layout.addLayout(row)
         self.acoustic_review=QPushButton('比较并审核歌声音节建议');self.acoustic_review.setToolTip('比较每个音节的新旧时间，带前后音试听，再勾选采用；未采用的结果可从任务记录恢复。');self.acoustic_review.clicked.connect(self.review_pending);layout.addWidget(self.acoustic_review)
 
     def refresh_acoustic_tools(self):

@@ -45,7 +45,7 @@ def alignment_suggestions(lines,raw,start=0):
 
 
 def timing_result(result,request):
-    return continuous_result(result,request.get('gap_ms',DEFAULT_GAP_MS),request.get('join_lines',False))
+    return continuous_result(result,request.get('gap_ms',0),request.get('join_lines',False))
 
 
 async def operation(request, root, report):
@@ -90,7 +90,7 @@ async def operation(request, root, report):
         report('analyzing','结合转录、原歌词和词典分析读音及短空隙；原文保持不变')
         values=[];protected_ids=[]
         for line in lines:
-            value,skipped=await asyncio.to_thread(analyze_line,line,transcript,request.get('gap_ms',120),request.get('preserve_legacy',False),request.get('preserve_manual',True));values.append(value)
+            value,skipped=await asyncio.to_thread(analyze_line,line,transcript,request.get('gap_ms',0),request.get('preserve_legacy',False),request.get('preserve_manual',True));values.append(value)
             if not skipped and transcript:
                 value.reading_review['source_verified']=bool(request.get('transcript_verified'))
                 if not request.get('transcript_verified') and not request.get('manual_source'):

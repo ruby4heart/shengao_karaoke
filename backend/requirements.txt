@@ -2,3 +2,4 @@ aiohttp>=3.11,<4
 Pillow>=11,<13
 RapidFuzz>=3.14,<4
 Janome==0.5.0
+numpy>=2,<3

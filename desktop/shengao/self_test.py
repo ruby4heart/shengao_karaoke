@@ -193,6 +193,8 @@ def main():
         staged_singing(app,StudioWindow,out,check,wait)
         from .provenance_acceptance import exercise as timing_basis
         timing_basis(app,StudioWindow,out,check,wait)
+        from .sound_gap_acceptance import exercise as sound_gaps
+        sound_gaps(app,StudioWindow,out,check,wait)
         original_mora=window.project.to_dict();word_times=[(u.start,u.end,u.kana,u.romaji) for u in window.line.units]
         window.fill_mora_button.click();check('missing_mora_is_previewed',window.inline_segment.pending and window.project.to_dict()==original_mora)
         window.inline_segment.apply.click();check('missing_mora_keeps_words_and_readings',all(u.highlights for u in window.line.units) and [(u.start,u.end,u.kana,u.romaji) for u in window.line.units]==word_times)

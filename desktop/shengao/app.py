@@ -45,6 +45,7 @@ from .draft_workflow import DraftWorkflow
 from .recognition_workflow import RecognitionWorkflow
 from .vocal_workflow import VocalWorkflow
 from .acoustic_workflow import AcousticWorkflow
+from .sound_gap_workflow import SoundGapWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -52,7 +53,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -80,7 +81,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.volume.valueChanged.connect(lambda value:self.preferences.set('volume',value))
         self.speed.currentIndexChanged.connect(lambda _:self.preferences.set('speed',self.speed.currentData()))
         self.subtitle_toggle.toggled.connect(lambda value:self.preferences.set('subtitles',value))
-        self.continuous_timing.toggled.connect(lambda value:self.preferences.set('continuous_timing',value))
+        self.continuous_timing.toggled.connect(lambda value:self.preferences.set('legacy_gap_timing',value))
 
     @property
     def project(self):return self.history.project
@@ -191,11 +192,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         l.addWidget(label('先做一份可以修改的初稿','heading'))
         l.addWidget(label('原歌词保持原样，结果先由你审核。选一种方式开始。','muted'))
         self.build_recognition_entry(l)
-        self.continuous_timing=QCheckBox('连续划音 · 自动收拢短空白');self.continuous_timing.setChecked(self.preferences.data.get('continuous_timing',True) is not False)
-        self.continuous_timing.setToolTip('处理词组、演唱音节及相邻句间的自动短空白；不提前下一音节起音，保护手工时间与已确认歌词，保留长休止。');l.addWidget(self.continuous_timing)
-        self.continuity_info=label('默认收拢 ≤500 ms 的自动短空白；起音、人工时间与长休止保留。','muted');l.addWidget(self.continuity_info)
+        self.continuous_timing=QCheckBox('按时长收拢（旧方式）');self.continuous_timing.setChecked(self.preferences.data.get('legacy_gap_timing',False) is True)
+        self.continuous_timing.setToolTip('高级选项：固定 500 ms 规则可能覆盖真正的短休止。默认关闭；推荐初稿后用“按声音检查空白”。')
+        self.continuity_info=label('初稿默认保留间隔。生成后在校轴页按声音检查空白，避免用固定时长填平真正的休止。','muted');l.addWidget(self.continuity_info)
         self.build_draft_workflow(l)
         generation_layout=l;self.single_steps=Collapsible('单独运行某一步（进阶）');l=self.single_steps.body
+        l.addWidget(self.continuous_timing)
         l.addWidget(label('不联网，也能开始','sectionTitle'))
         self.segment_button=button('离线生成分词与注音',lambda:self.start_api('segment',mode='mora'));self.segment_button.setObjectName('primary');l.addWidget(self.segment_button)
         l.addWidget(label('使用内置日语词典。时间按句子范围估算，稍后边听边调整。','muted'))
@@ -230,7 +232,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.translation=QLineEdit();self.translation.setPlaceholderText('中文译文；可手改或采用 DeepSeek 建议');self.optional_reading.body.addWidget(self.translation)
         self.show_editor_romaji.toggled.connect(lambda value:(self.units.setColumnHidden(2,not value),self.preferences.set('editor_romaji',value)));self.units.setColumnHidden(2,not self.show_editor_romaji.isChecked())
         self.range_button=button('整句范围',self.select_entire_line);self.range_button.setToolTip('未匹配时先确定唱词范围；已有词组时只改整句头尾，不重新分词。');self.fill_mora_button=button('补全音节',self.fill_missing_mora);row=QHBoxLayout();row.addWidget(label('演唱音节','sectionTitle'),1);row.addWidget(self.fill_mora_button);row.addWidget(self.range_button);l.addLayout(row);self.mora_strip=MoraStrip();l.addWidget(self.mora_strip)
-        self.build_acoustic_tools(l)
+        self.cleanup_gaps_button=button('检查空白…',self.start_sound_gaps);self.cleanup_gaps_button.setToolTip('按当前试听音轨检查声音连续性与已有音素依据；先试听再处理，不按固定时长填平休止。')
+        self.build_acoustic_tools(l,secondary=self.cleanup_gaps_button)
+        self.sound_gap_review=button('试听并审核空隙建议',self.review_pending);l.addWidget(self.sound_gap_review)
         self.target=label('当前调整：整句','sectionTitle');l.addWidget(self.target)
         source_row=QHBoxLayout();self.timing_origin_info=label('','muted');source_row.addWidget(self.timing_origin_info,1)
         self.timing_sources_button=button('来源／提示',self.show_timing_sources);self.timing_sources_button.setToolTip('查看本句的字符／词时间、估算音节、歌声候选和人工修改；可试听并直接去校准。');source_row.addWidget(self.timing_sources_button);l.addLayout(source_row)
@@ -256,10 +260,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.time_scope.currentIndexChanged.connect(self.update_timing_scope)
         l.addWidget(self.bulk_timing)
         self.extra_timing=Collapsible('微调、空白与字幕留屏')
-        self.cleanup_gaps_button=button('收拢已有自动轴的空白…',self.cleanup_auto_gaps);self.extra_timing.body.addWidget(self.cleanup_gaps_button)
         self.more_timing=Collapsible('微调与空白时间')
         row=QHBoxLayout();row.addWidget(button('提前 10ms',lambda:self.nudge(-10)));row.addWidget(button('延后 10ms',lambda:self.nudge(10)));self.more_timing.body.addLayout(row)
-        self.more_timing.body.addWidget(button('试听并处理空白时间',self.edit_pauses));self.extra_timing.body.addWidget(self.more_timing)
+        self.more_timing.body.addWidget(button('试听并处理空白时间',self.edit_pauses));self.more_timing.body.addWidget(button('只按时长处理空白（高级）',self.cleanup_auto_gaps));self.extra_timing.body.addWidget(self.more_timing)
         self.display_timing=Collapsible('本句字幕出现／消失时间');self.display_timing.body.addWidget(label('只改画面留屏，不改演唱与音节时间。唱完前保持可见。','muted'))
         row=QHBoxLayout();self.display_begin=TimeEdit();self.display_end=TimeEdit();row.addWidget(self.display_begin);row.addWidget(self.display_end);self.display_timing.body.addLayout(row)
         self.display_apply=button('应用本句显示时间',self.apply_display_timing);self.display_apply.setToolTip('修改本句出现和消失时间，演唱轴保持；支持撤销。');self.display_timing.body.addWidget(self.display_apply)
@@ -846,6 +849,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         ready=idle and has_lines and not pending
         self.refresh_recognition()
         self.refresh_acoustic_tools()
+        self.refresh_sound_gap_tools()
         self.go_calibrate_button.setVisible(has_lines);self.go_calibrate_button.setEnabled(has_lines)
         for widget in [self.draft_button,self.draft_status,self.draft_resume_button,self.single_steps,self.continuous_timing,self.continuity_info]:widget.setVisible(has_lines)
         self.draft_button.setEnabled(ready and not self.source_job)
@@ -857,6 +861,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         for b in [self.reuse_button,self.local_match_button]:b.setEnabled(ready and bool(p.transcript))
         self.review_button.setVisible(pending);self.discard_button.setVisible(pending)
         if pending:self.review_button.setText(f'审核 {len(self.pending["result"]["suggestions"])} 行建议')
+        if pending and self.pending.get('action')=='sound_gaps':self.review_button.setText(f'审核 {len(self.pending["result"]["gap_report"]["gaps"])} 处声音空隙')
         self.pending_line_button.setEnabled(has_lines)
         self.edit_tools.setVisible(has_lines and self.stage in (1,2,3));self.quick_reading.setEnabled(has_lines);self.quick_timing.setEnabled(has_lines);self.quick_tail.setEnabled(has_lines)
         editable=bool(self.line and not self.line.locked and not any(u.locked for u in self.line.units))
@@ -1628,6 +1633,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def api_failed(self,message):self.message(message)
     def review_pending(self):
         if not self.pending:self.message('目前没有待审核结果，可从任务记录恢复以前的结果。');return
+        if self.pending.get('action')=='sound_gaps':self.review_sound_gaps();return
         if not self.flush_edits():return
         context=self.pending.get('context',{})
         if context and (context['project']!=self.project.uid or context['media']!=file_stamp(self.project.media)):
@@ -1697,7 +1703,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def cancel_task(self):
         if self.api.busy:self.api.cancel()
         if self.local_job:self.local_job.cancel.set();self.message('正在取消压制任务。')
-        if self.source_job:self.source_job.cancel.set();self.message('正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
+        if self.source_job:self.source_job.cancel.set();self.message('正在取消声音空隙检查，原时间保留。' if self.source_job_kind=='sound_gaps' else '正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
 
     def check_project(self):
         self.export_issues.clear()

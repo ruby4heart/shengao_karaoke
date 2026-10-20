@@ -61,15 +61,30 @@ def keyframes(path,cancel=None):
 
 def analyze(path,cache,cancel=None,progress=lambda x:None):
     path=Path(path);stat=path.stat()
-    signature=hashlib.sha256(f'{path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}:aeg-pcm-keyframes-v6'.encode()).hexdigest()
+    def stable():
+        current=path.stat()
+        return (current.st_size,current.st_mtime_ns)==(stat.st_size,stat.st_mtime_ns)
+    def fingerprint(value):
+        if cancel is not None and cancel.is_set():raise ValueError('已取消音频分析')
+        result=hashlib.sha256()
+        with Path(value).open('rb') as stream:
+            while data:=stream.read(2*1024*1024):
+                if cancel is not None and cancel.is_set():raise ValueError('已取消音频分析')
+                result.update(data)
+        return result.hexdigest()
+    progress('正在核对素材内容与音频缓存…');source_hash=fingerprint(path)
+    signature=hashlib.sha256(f'{path.resolve()}:{source_hash}:aeg-pcm-keyframes-v7'.encode()).hexdigest()
     target=Path(cache)/(signature+'.npz');target.parent.mkdir(parents=True,exist_ok=True);pcm=target.with_suffix('.s16')
     if target.exists() and pcm.exists() and pcm.stat().st_size:
         try:
             with np.load(target,allow_pickle=False) as saved:
                 data={k:saved[k] for k in saved.files}
-            if all(k in data for k in ('sample_rate','duration','peaks','keyframes','width','height','fps','has_video')):
+            if (all(k in data for k in ('sample_rate','duration','peaks','keyframes','width','height','fps','has_video','frames','pcm_sha256','source_sha256')) and
+                    str(data['source_sha256'])==source_hash and int(data['frames'])*2==pcm.stat().st_size and fingerprint(pcm)==str(data['pcm_sha256'])):
+                if not stable() or fingerprint(path)!=source_hash:raise ValueError('素材在读取缓存期间已变化，请重新载入')
                 return {**data,'pcm':str(pcm)}
-        except (ValueError,OSError,EOFError):pass
+        except (ValueError,OSError,EOFError,TypeError):pass
+    if cancel is not None and cancel.is_set():raise ValueError('已取消音频分析')
     command=[ffmpeg(),'-hide_banner','-nostdin','-nostats','-i',str(path),'-vn','-ac','1','-f','s16le','pipe:1']
     fd,name=tempfile.mkstemp(prefix=signature+'.',suffix='.s16.tmp',dir=pcm.parent);os.close(fd);staging=Path(name)
     fd,name=tempfile.mkstemp(prefix=signature+'.',suffix='.npz',dir=pcm.parent);os.close(fd);metadata=Path(name)
@@ -104,9 +119,11 @@ def analyze(path,cache,cancel=None,progress=lambda x:None):
                 'duration':np.array(round(count*1000/rate)),'sample_rate':np.array(rate),
                 'width':np.array(int(size[1]) if size else 1920),'height':np.array(int(size[2]) if size else 1080),
                 'fps':np.array(float(fps[1]) if fps else 25),'has_video':np.array(bool(video))}
+        result.update(source_sha256=np.array(source_hash),pcm_sha256=np.array(fingerprint(staging)),frames=np.array(count))
         progress('正在索引视频关键帧' if size else '音频分析完成')
         result['keyframes']=np.asarray(keyframes(path,cancel) if size else [],np.int64)
         if cancelled():raise ValueError('已取消音频分析')
+        if not stable() or fingerprint(path)!=source_hash:raise ValueError('素材在分析期间已变化，请重新载入；原文件保持')
         np.savez_compressed(metadata,**result)
         os.replace(staging,pcm);os.replace(metadata,target)
         return {**result,'pcm':str(pcm)}

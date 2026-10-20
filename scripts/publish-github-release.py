@@ -55,6 +55,8 @@ def main():
     audit=json.loads(audit_path.read_text(encoding='utf-8'))
     assert audit['passed'] and audit['version']==version
     from desktop_source_state import snapshot
+    from github_release_transport import install,ProgressReader
+    install()
     assert snapshot(ROOT)==json.loads((ROOT/'build/desktop-build-sources.json').read_text())
     assert snapshot(ROOT)==json.loads((ROOT/'build/desktop-test-sources.json').read_text())['sources']
     assert not git('status','--porcelain'),'Commit source and documentation before publishing'
@@ -101,7 +103,7 @@ def main():
             assert urllib.parse.urlsplit(url).hostname=='uploads.github.com'
             print('Uploading '+path.name,flush=True)
             with path.open('rb') as stream:
-                request=urllib.request.Request(url,data=stream,headers={**headers,'Content-Type':'application/octet-stream','Content-Length':str(path.stat().st_size)},method='POST')
+                request=urllib.request.Request(url,data=ProgressReader(stream,path),headers={**headers,'Content-Type':'application/octet-stream','Content-Length':str(path.stat().st_size)},method='POST')
                 with urllib.request.urlopen(request,timeout=600) as response:existing=json.load(response)
         assert existing['state']=='uploaded' and existing['size']==path.stat().st_size,path.name
         assert existing.get('digest')=='sha256:'+digest,'Remote SHA256 mismatch or unavailable: '+path.name
@@ -109,7 +111,14 @@ def main():
         print('Verified '+path.name,flush=True)
     if release['draft']:release=api('PATCH','/releases/'+str(release['id']),{'draft':False})
     assert not release['draft']
-    report={'passed':True,'version':version,'repository':REPO,'commit':head,'tag':tag,'url':release['html_url'],'assets':uploaded}
+    release=api('GET','/releases/'+str(release['id']))
+    assert release and not release['draft'] and release['tag_name']==tag
+    remote={item['name']:item for item in release['assets']}
+    for item in uploaded:
+        current=remote[item['name']]
+        assert current['size']==item['size'] and current.get('digest')=='sha256:'+item['sha256']
+        item['url']=current['browser_download_url']
+    report={'passed':True,'version':version,'repository':REPO,'commit':head,'tag':tag,'url':release['html_url'],'remote_readback_verified':True,'assets':uploaded}
     (ROOT/'build'/('github-release-'+version+'.json')).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False),flush=True)
 

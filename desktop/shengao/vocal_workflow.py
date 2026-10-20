@@ -54,7 +54,7 @@ class VocalWorkflow:
         if self.audition_role=='vocals' and self.original_audio is not None:
             self.apply_audition('original',self.project.media,self.original_audio);self.message('人声预览播放失败，已恢复当前视频原声；人声缓存和字幕保留。'+message)
 
-    def generate_vocals(self):
+    def generate_vocals(self,after_ready=None):
         if not self.project.media or self.original_audio is None:self.message('请先添加素材，等波形就绪后再生成人声。');return False
         if self.source_job or self.analysis_job or self.local_job:self.message('请等待或取消当前素材任务。');return False
         if not self.flush_edits():return False
@@ -81,6 +81,7 @@ class VocalWorkflow:
             if self.project.vocal_track!=result['track'] and not self.edit('添加人声辅助音轨',lambda p:setattr(p,'vocal_track',result['track'])):return
             self.apply_audition('vocals',result['path'],result['audio']);self.save_recovery()
             self.message('已切到人声辅助试听与频谱。分离可能残留伴奏或损伤弱音，请对照原声；转录与成片仍使用当前视频源。')
+            if callable(after_ready):after_ready()
         def progress(value):
             if valid():self.message(str(value) if isinstance(value,str) else '正在准备人声频谱…')
         self.source_job=jobs.run(work,done,failed,progress);self.busy_changed();self.message('正在本机准备人声辅助；可以继续校对，取消后保留原素材。');return True
