@@ -1,0 +1,42 @@
+{
+  "source": "Aegisub 3.5.0 private source copy",
+  "adaptation": "FFT exception type; HSL extracted unmodified; audio_core.cpp ports original spectrum/waveform arithmetic",
+  "files": [
+    {
+      "file": "fft.cpp",
+      "sha256": "60152cf18732a14c63039a6e643cc7afa52e43c8567bd5bba5bb7552d675cb45"
+    },
+    {
+      "file": "fft.h",
+      "sha256": "e4db4969b6d39ea1b849fece6754063e035658d63ceea486c443ed0a26bf8613"
+    },
+    {
+      "file": "colorspace.cpp",
+      "sha256": "914233c07889037144a25a1edaaa264c44cfcd811069c60177f9dd145c4be078"
+    },
+    {
+      "file": "audio_renderer_spectrum.cpp",
+      "sha256": "6e2cb8df92621b39add00c34922fd157ea9f740122dc036f57dd25f9ef7db8a9"
+    },
+    {
+      "file": "audio_renderer_waveform.cpp",
+      "sha256": "9580a55af343d571945ded20eff3292ea0e4975a8a89eb04f8a51e3f2647f17d"
+    },
+    {
+      "file": "audio_display.cpp",
+      "sha256": "2cdff8e7a4afb50144809ec3362efed85db50d673fbee347e976e4a08698db10"
+    },
+    {
+      "file": "audio_timing_karaoke.cpp",
+      "sha256": "a767189713a15c28697216d3b5aef60f13eb6fb86cb3f43538362ff0c26177d3"
+    },
+    {
+      "file": "audio_colorscheme.cpp",
+      "sha256": "d059206129d303f182cd2698e9d9e49260ea9c543f4a07890adeebdca17086c2"
+    },
+    {
+      "file": "libresrc/default_config.json",
+      "sha256": "8fbff5ff771bcf0268f1096e8a2149c14bd0975ee4513f9eb5766fb0a37b3463"
+    }
+  ]
+}

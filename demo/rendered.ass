@@ -1,0 +1,26 @@
+﻿; ShengaoProject: eyJ2ZXJzaW9uIjoxLCJsaW5lcyI6W3siaWQiOiJkZW1vIiwidGV4dCI6IuS7iuaXpeOCguatjOOBhiIsInN0YXJ0IjoxMDAwLCJlbmQiOjYwMDAsInVuaXRzIjpbeyJ0ZXh0Ijoi5LuK5pelIiwic3RhcnQiOjEwMDAsImVuZCI6MzAwMCwia2FuYSI6IuOBjeOCh+OBhiIsInJvbWFqaSI6Imt5b3UiLCJzb3VyY2UiOiJtYW51YWwiLCJsb2NrZWQiOmZhbHNlfSx7InRleHQiOiLjgoIiLCJzdGFydCI6MzIwMCwiZW5kIjo0MDAwLCJrYW5hIjoi44KCIiwicm9tYWppIjoibW8iLCJzb3VyY2UiOiJtYW51YWwiLCJsb2NrZWQiOmZhbHNlfSx7InRleHQiOiLmrYzjgYYiLCJzdGFydCI6NDIwMCwiZW5kIjo2MDAwLCJrYW5hIjoi44GG44Gf44GGIiwicm9tYWppIjoidXRhdSIsInNvdXJjZSI6Im1hbnVhbCIsImxvY2tlZCI6ZmFsc2V9XSwia2FuYSI6IuOBjeOCh+OBhuOCguOBhuOBn+OBhiIsInJvbWFqaSI6Imt5b3UgbW8gdXRhdSIsInRyYW5zbGF0aW9uIjoi5LuK5aSp5Lmf6KaB5q2M5ZSxIiwibG9ja2VkIjpmYWxzZSwicmV2aWV3ZWQiOmZhbHNlfV19
+[Script Info]
+Title: Shengao Karaoke Studio
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Lyrics,Meiryo,64,&H0075E8B3,&H00FFFFFF,&H00181818,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,80,1
+Style: Ruby,Meiryo,30,&H0075E8B3,&H00FFFFFF,&H00181818,&H80000000,0,0,0,0,100,100,0,0,1,1,0,5,80,80,80,1
+Style: Romaji,Meiryo,34,&H00FFFFFF,&H00FFFFFF,&H00181818,&H80000000,0,0,0,0,100,100,0,0,1,1.5,0,5,80,80,80,1
+Style: Translation,Microsoft YaHei,36,&H00FFFFFF,&H00FFFFFF,&H00181818,&H80000000,0,0,0,0,100,100,0,0,1,1.5,0,2,80,80,45,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Comment: 0,0:00:01.00,0:00:06.00,Lyrics,,0,0,0,karaoke,{\kf200}今日|!きょう{\k20}{\kf80}も{\k20}{\kf180}歌う|!うたう
+Dialogue: 1,0:00:01.00,0:00:06.00,Lyrics,,0,0,0,,{\an5\pos(858.00,850)\fs64}{\kf200}今日
+Dialogue: 2,0:00:01.00,0:00:06.00,Ruby,,0,0,0,,{\an5\pos(858.00,795.00)\fs30}{\kf200}きょう
+Dialogue: 1,0:00:01.00,0:00:06.00,Lyrics,,0,0,0,,{\an5\pos(960.00,850)\fs64}{\k220}{\kf80}も
+Dialogue: 1,0:00:01.00,0:00:06.00,Lyrics,,0,0,0,,{\an5\pos(1062.00,850)\fs64}{\k320}{\kf180}歌う
+Dialogue: 2,0:00:01.00,0:00:06.00,Ruby,,0,0,0,,{\an5\pos(1062.00,795.00)\fs30}{\k320}{\kf180}うたう
+Dialogue: 3,0:00:01.00,0:00:06.00,Romaji,,0,0,0,,{\an5\pos(960,930)}kyou mo utau
+Dialogue: 3,0:00:01.00,0:00:06.00,Translation,,0,0,0,,今天也要歌唱

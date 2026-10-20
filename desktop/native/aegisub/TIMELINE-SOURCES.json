@@ -1,0 +1,12 @@
+{
+  "source": "Aegisub 3.5.0 src/audio_display.cpp",
+  "sha256": "2cdff8e7a4afb50144809ec3362efed85db50d673fbee347e976e4a08698db10",
+  "classes_sha256": "8a74352a5429774afe0f0816d9539c042f5a7af5905daf5acb69cb82914a3d47",
+  "methods": {
+    "PaintMarkers": "5d47a6e40e63cd269cad8b210b3129f2dbc1d6d543cb7db4309fc0e4cf62f25f",
+    "PaintFoot": "3e0357f86aa1ffd4ef9185abdc1b716c013cf0477d2031b430af3b5205be532a",
+    "PaintLabels": "98d3af32b9469e2accf52d1dccc6ba17220ac9e183cbb1e6cbc34626cefa20e5",
+    "PaintTrackCursor": "26e840722784d82fac4031b67952dfbf9241760efb49323df80e956a823b88f2"
+  },
+  "adaptation": "Verbatim drawing classes/methods. Own scene, plain marker arrays and default colours replace the Aegisub controller/options. wxMemoryDC/wxGCDC run offscreen only; Qt owns the application and input."
+}

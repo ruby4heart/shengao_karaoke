@@ -1,0 +1,7 @@
+{
+  "source": "Own released 0.18.0 offscreen acceptance, tmp/desktop-v018-final/home/draft-workflows/292420ec38364a2bb25abd1811505116/state.json",
+  "sha256": "359c4803c6677609ee8cb6fd7311cd7a7aa5274b5ffc289bff5fdbaf325d6625",
+  "unchanged_fixture": true,
+  "paid_calls": false,
+  "purpose": "Prove old task signatures and snapshots survive adding optional acoustic evidence; no user credentials or media."
+}

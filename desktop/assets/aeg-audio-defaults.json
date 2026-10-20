@@ -1,0 +1,182 @@
+{
+  "Audio": {
+    "Auto": {
+      "Commit": false,
+      "Focus": false,
+      "Scroll": true
+    },
+    "Cache": {
+      "HD": {
+        "Location": "default"
+      },
+      "Type": 1
+    },
+    "Colour Schemes": [
+      {
+        "string": "Green"
+      },
+      {
+        "string": "Icy Blue"
+      }
+    ],
+    "Display Height": 200,
+    "Display": {
+      "Draw": {
+        "Cursor Time": true,
+        "Inactive Comments": false,
+        "Keyframes in Dialogue Mode": true,
+        "Keyframes in Karaoke Mode": true,
+        "Seconds": true,
+        "Video Position": true
+      },
+      "Waveform Style": 0
+    },
+    "Downmixer": "ConvertToMono",
+    "Drag Timing": true,
+    "Inactive Lines Display Mode": 3,
+    "Karaoke": {
+      "Font Face": "Verdana",
+      "Font Size": 9
+    },
+    "Lead": {
+      "IN": 100,
+      "OUT": 350
+    },
+    "Line Boundaries Thickness": 2,
+    "Link": true,
+    "Lock Scroll on Cursor": false,
+    "Medusa Timing Hotkeys": false,
+    "Next Line on Commit": true,
+    "Player": "",
+    "Plays When Stepping Video": false,
+    "Provider": "ffmpegsource",
+    "Renderer": {
+      "Spectrum": {
+        "Cutoff": 0,
+        "Memory Max": 128,
+        "Quality": 1,
+        "FreqCurve": 0
+      }
+    },
+    "Snap": {
+      "Distance": 8,
+      "Enable": true
+    },
+    "Spectrum": true,
+    "Start Drag Sensitivity": 8,
+    "Track Cursor": {
+      "Font Face": ""
+    },
+    "Volume": 50,
+    "Wheel Default to Zoom": false,
+    "Zoom": {
+      "Horizontal": 0,
+      "Vertical": 50
+    }
+  },
+  "Colour": {
+    "Audio Display": {
+      "Keyframe": "rgb(255,0,255)",
+      "Line Boundary Inactive Line": "rgb(190,190,190)",
+      "Line boundary End": "rgb(0, 0, 216)",
+      "Line boundary Start": "rgb(216, 0, 0)",
+      "Play Cursor": "rgb(255,255,255)",
+      "Current Frame Range": "rgba(255,255,255,160)",
+      "Previous Frame Range": "rgba(255,255,255,200)",
+      "Seconds Line": "rgb(0,100,255)",
+      "Spectrum": "Icy Blue",
+      "Syllable Boundaries": "rgb(255,255,0)",
+      "Waveform": "Icy Blue"
+    },
+    "Schemes": {
+      "Green": {
+        "Normal": {
+          "Hue Offset": 85.0,
+          "Hue Scale": 0.0,
+          "Saturation Offset": 255.0,
+          "Saturation Scale": 0.0,
+          "Lightness Offset": 0.0,
+          "Lightness Scale": 200.0
+        },
+        "Inactive": {
+          "Hue Offset": 85.0,
+          "Hue Scale": 0.0,
+          "Saturation Offset": 255.0,
+          "Saturation Scale": 0.0,
+          "Lightness Offset": 0.0,
+          "Lightness Scale": 100.0
+        },
+        "Selection": {
+          "Hue Offset": 80.0,
+          "Hue Scale": 0.0,
+          "Saturation Offset": 255.0,
+          "Saturation Scale": 0.0,
+          "Lightness Offset": 10.0,
+          "Lightness Scale": 175.0
+        },
+        "Primary": {
+          "Hue Offset": 85.0,
+          "Hue Scale": 0.0,
+          "Saturation Offset": 128.0,
+          "Saturation Scale": 0.0,
+          "Lightness Offset": 25.0,
+          "Lightness Scale": 300.0
+        },
+        "UI": {
+          "Light": "rgb(0, 200, 0)",
+          "Dark": "rgb(0, 10, 0)",
+          "Selection": "rgb(0, 80, 0)"
+        },
+        "UI Focused": {
+          "Light": "rgb(50, 255, 50)",
+          "Dark": "rgb(0, 10, 0)",
+          "Selection": "rgb(0, 80, 0)"
+        }
+      },
+      "Icy Blue": {
+        "Normal": {
+          "Hue Offset": 191.0,
+          "Hue Scale": -128.0,
+          "Saturation Offset": 127.0,
+          "Saturation Scale": 128.0,
+          "Lightness Offset": 0.0,
+          "Lightness Scale": 255.0
+        },
+        "Inactive": {
+          "Hue Offset": 191.0,
+          "Hue Scale": -128.0,
+          "Saturation Offset": 63.0,
+          "Saturation Scale": 192.0,
+          "Lightness Offset": 32.0,
+          "Lightness Scale": 192.0
+        },
+        "Selection": {
+          "Hue Offset": 191.0,
+          "Hue Scale": -128.0,
+          "Saturation Offset": 127.0,
+          "Saturation Scale": 128.0,
+          "Lightness Offset": 32.0,
+          "Lightness Scale": 192.0
+        },
+        "Primary": {
+          "Hue Offset": 191.0,
+          "Hue Scale": -128.0,
+          "Saturation Offset": 127.0,
+          "Saturation Scale": 128.0,
+          "Lightness Offset": 64.0,
+          "Lightness Scale": 192.0
+        },
+        "UI": {
+          "Light": "rgb(89, 145, 220)",
+          "Dark": "rgb(8, 4, 13)",
+          "Selection": "rgb(65, 34, 103)"
+        },
+        "UI Focused": {
+          "Light": "rgb(205, 240, 226)",
+          "Dark": "rgb(8, 4, 13)",
+          "Selection": "rgb(82, 107, 213)"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,865 @@
+{
+  "version": 1,
+  "id": "292420ec38364a2bb25abd1811505116",
+  "signature": "9251f67d31f9c67f92d3ab9460a2c1e9cb5bcf6f9b321d35c5e0178089ac5b7d",
+  "request": {
+    "media": "",
+    "language": "ja",
+    "gap_ms": 500,
+    "join_lines": true,
+    "_studio_context": {
+      "project": "369d3a876ba54f1697af1529176db53f",
+      "media": {}
+    },
+    "_studio_checks": {
+      "c39a393367ce4864a0ff209750ab41dd": {},
+      "bad5b48e579f43c59fdac907bcd52809": {}
+    },
+    "reading_confirmed_ids": [],
+    "transcript_stamp": {},
+    "action": "draft",
+    "draft_options": {
+      "source": "offline",
+      "readings": "dictionary",
+      "provider": "elevenlabs",
+      "align": false
+    },
+    "lines": [
+      {
+        "id": "c39a393367ce4864a0ff209750ab41dd",
+        "text": "今日も歌う",
+        "start": 0,
+        "end": 5000,
+        "units": [],
+        "kana": "",
+        "romaji": "",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      },
+      {
+        "id": "bad5b48e579f43c59fdac907bcd52809",
+        "text": "明日も歌う",
+        "start": 5000,
+        "end": 10000,
+        "units": [],
+        "kana": "",
+        "romaji": "",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      }
+    ],
+    "transcript": []
+  },
+  "created": 1792405019.2396123,
+  "status": "completed",
+  "message": "各阶段完成，等待人工审核。",
+  "stages": [
+    {
+      "key": "transcript",
+      "title": "离线初稿（不转录）",
+      "state": "skipped",
+      "paid": false
+    },
+    {
+      "key": "matching",
+      "title": "按原歌词分词",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "c39a393367ce4864a0ff209750ab41dd",
+            "text": "今日も歌う",
+            "start": 0,
+            "end": 5000,
+            "units": [
+              {
+                "text": "今日",
+                "start": 0,
+                "end": 1667,
+                "kana": "きょう",
+                "romaji": "kyou",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "きょ",
+                    "start": 0,
+                    "end": 834,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 834,
+                    "end": 1667,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 1667,
+                "end": 2500,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 1667,
+                    "end": 2500,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 2500,
+                "end": 5000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 2500,
+                    "end": 3333,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 3333,
+                    "end": 4167,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 4167,
+                    "end": 5000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "きょうもうたう",
+            "romaji": "kyou mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "bad5b48e579f43c59fdac907bcd52809",
+            "text": "明日も歌う",
+            "start": 5000,
+            "end": 10000,
+            "units": [
+              {
+                "text": "明日",
+                "start": 5000,
+                "end": 7143,
+                "kana": "あした",
+                "romaji": "ashita",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "あ",
+                    "start": 5000,
+                    "end": 5714,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 5714,
+                    "end": 6429,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 6429,
+                    "end": 7143,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 7143,
+                "end": 7857,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 7143,
+                    "end": 7857,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 7857,
+                "end": 10000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 7857,
+                    "end": 8571,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 8571,
+                    "end": 9286,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 9286,
+                    "end": 10000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "あしたもうたう",
+            "romaji": "ashita mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "protected_ids": [],
+        "review_required": true,
+        "local": true,
+        "segmentation_mode": "mora",
+        "dictionary": "Janome/IPADIC",
+        "closed_gaps": 0,
+        "timing_changes": [],
+        "timing_policy": {
+          "mode": "continuous",
+          "maximum_ms": 500,
+          "join_lines": true,
+          "onsets_preserved": true
+        }
+      },
+      "result_hash": "668960d8f2a0b00ce42535d68ea838492e0ed3f18a77ee4a2efb109b3c2333b8"
+    },
+    {
+      "key": "readings",
+      "title": "本地读音建议",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "c39a393367ce4864a0ff209750ab41dd",
+            "text": "今日も歌う",
+            "start": 0,
+            "end": 5000,
+            "units": [
+              {
+                "text": "今日",
+                "start": 0,
+                "end": 1667,
+                "kana": "きょう",
+                "romaji": "kyou",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "きょ",
+                    "start": 0,
+                    "end": 834,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 834,
+                    "end": 1667,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 1667,
+                "end": 2500,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 1667,
+                    "end": 2500,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 2500,
+                "end": 5000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 2500,
+                    "end": 3333,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 3333,
+                    "end": 4167,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 4167,
+                    "end": 5000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "きょうもうたう",
+            "romaji": "kyou mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {
+              "method": "local",
+              "recognized": "",
+              "context_available": false,
+              "words": [
+                {
+                  "text": "今日",
+                  "before": "きょう",
+                  "dictionary": "きょう",
+                  "recognized": "",
+                  "suggested": "きょう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "kyou",
+                  "suggested_romaji": "kyou"
+                },
+                {
+                  "text": "も",
+                  "before": "も",
+                  "dictionary": "も",
+                  "recognized": "",
+                  "suggested": "も",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "mo",
+                  "suggested_romaji": "mo"
+                },
+                {
+                  "text": "歌う",
+                  "before": "うたう",
+                  "dictionary": "うたう",
+                  "recognized": "",
+                  "suggested": "うたう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "utau",
+                  "suggested_romaji": "utau"
+                }
+              ],
+              "closed_gaps": 0,
+              "requires_review": true,
+              "notice": "转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。"
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "bad5b48e579f43c59fdac907bcd52809",
+            "text": "明日も歌う",
+            "start": 5000,
+            "end": 10000,
+            "units": [
+              {
+                "text": "明日",
+                "start": 5000,
+                "end": 7143,
+                "kana": "あした",
+                "romaji": "ashita",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "あ",
+                    "start": 5000,
+                    "end": 5714,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 5714,
+                    "end": 6429,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 6429,
+                    "end": 7143,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 7143,
+                "end": 7857,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 7143,
+                    "end": 7857,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 7857,
+                "end": 10000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 7857,
+                    "end": 8571,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 8571,
+                    "end": 9286,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 9286,
+                    "end": 10000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "あしたもうたう",
+            "romaji": "ashita mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {
+              "method": "local",
+              "recognized": "",
+              "context_available": false,
+              "words": [
+                {
+                  "text": "明日",
+                  "before": "あした",
+                  "dictionary": "あした",
+                  "recognized": "",
+                  "suggested": "あした",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "ashita",
+                  "suggested_romaji": "ashita"
+                },
+                {
+                  "text": "も",
+                  "before": "も",
+                  "dictionary": "も",
+                  "recognized": "",
+                  "suggested": "も",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "mo",
+                  "suggested_romaji": "mo"
+                },
+                {
+                  "text": "歌う",
+                  "before": "うたう",
+                  "dictionary": "うたう",
+                  "recognized": "",
+                  "suggested": "うたう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "utau",
+                  "suggested_romaji": "utau"
+                }
+              ],
+              "closed_gaps": 0,
+              "requires_review": true,
+              "notice": "转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。"
+            },
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "protected_ids": [],
+        "review_required": true,
+        "local": true,
+        "transcript_used": false,
+        "analysis": "readings+gaps"
+      },
+      "result_hash": "871a25983557a6176c345dc73a1f79eb02cfb2d8d35b7479da122cfb076313da"
+    },
+    {
+      "key": "alignment",
+      "title": "文字对齐（未选择）",
+      "state": "skipped",
+      "paid": false
+    },
+    {
+      "key": "preview",
+      "title": "准备审核",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "c39a393367ce4864a0ff209750ab41dd",
+            "text": "今日も歌う",
+            "start": 0,
+            "end": 5000,
+            "units": [
+              {
+                "text": "今日",
+                "start": 0,
+                "end": 1667,
+                "kana": "きょう",
+                "romaji": "kyou",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "きょ",
+                    "start": 0,
+                    "end": 834,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 834,
+                    "end": 1667,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 1667,
+                "end": 2500,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 1667,
+                    "end": 2500,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 2500,
+                "end": 5000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 2500,
+                    "end": 3333,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 3333,
+                    "end": 4167,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 4167,
+                    "end": 5000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "きょうもうたう",
+            "romaji": "kyou mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {
+              "method": "local",
+              "recognized": "",
+              "context_available": false,
+              "words": [
+                {
+                  "text": "今日",
+                  "before": "きょう",
+                  "dictionary": "きょう",
+                  "recognized": "",
+                  "suggested": "きょう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "kyou",
+                  "suggested_romaji": "kyou"
+                },
+                {
+                  "text": "も",
+                  "before": "も",
+                  "dictionary": "も",
+                  "recognized": "",
+                  "suggested": "も",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "mo",
+                  "suggested_romaji": "mo"
+                },
+                {
+                  "text": "歌う",
+                  "before": "うたう",
+                  "dictionary": "うたう",
+                  "recognized": "",
+                  "suggested": "うたう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "utau",
+                  "suggested_romaji": "utau"
+                }
+              ],
+              "closed_gaps": 0,
+              "requires_review": true,
+              "notice": "转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。"
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "bad5b48e579f43c59fdac907bcd52809",
+            "text": "明日も歌う",
+            "start": 5000,
+            "end": 10000,
+            "units": [
+              {
+                "text": "明日",
+                "start": 5000,
+                "end": 7143,
+                "kana": "あした",
+                "romaji": "ashita",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "あ",
+                    "start": 5000,
+                    "end": 5714,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 5714,
+                    "end": 6429,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 6429,
+                    "end": 7143,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "も",
+                "start": 7143,
+                "end": 7857,
+                "kana": "も",
+                "romaji": "mo",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "も",
+                    "start": 7143,
+                    "end": 7857,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              },
+              {
+                "text": "歌う",
+                "start": 7857,
+                "end": 10000,
+                "kana": "うたう",
+                "romaji": "utau",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "う",
+                    "start": 7857,
+                    "end": 8571,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 8571,
+                    "end": 9286,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "う",
+                    "start": 9286,
+                    "end": 10000,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "dictionary"
+              }
+            ],
+            "kana": "あしたもうたう",
+            "romaji": "ashita mo utau",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {
+              "method": "local",
+              "recognized": "",
+              "context_available": false,
+              "words": [
+                {
+                  "text": "明日",
+                  "before": "あした",
+                  "dictionary": "あした",
+                  "recognized": "",
+                  "suggested": "あした",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "ashita",
+                  "suggested_romaji": "ashita"
+                },
+                {
+                  "text": "も",
+                  "before": "も",
+                  "dictionary": "も",
+                  "recognized": "",
+                  "suggested": "も",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "mo",
+                  "suggested_romaji": "mo"
+                },
+                {
+                  "text": "歌う",
+                  "before": "うたう",
+                  "dictionary": "うたう",
+                  "recognized": "",
+                  "suggested": "うたう",
+                  "basis": "dictionary",
+                  "changed": false,
+                  "legacy": false,
+                  "before_romaji": "utau",
+                  "suggested_romaji": "utau"
+                }
+              ],
+              "closed_gaps": 0,
+              "requires_review": true,
+              "notice": "转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。"
+            },
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "local": true
+      },
+      "result_hash": "a42d78deceeb0afe40c1033caa9da4b82184f82dd026febaa8dd8b7d50cea33a"
+    }
+  ],
+  "updated": 1792405020.7535622
+}

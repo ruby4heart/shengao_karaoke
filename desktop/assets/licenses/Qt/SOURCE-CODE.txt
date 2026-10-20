@@ -1,0 +1,9 @@
+Qt / PySide / Shiboken 6.12.0 are dynamically linked and unmodified.
+Official corresponding source repositories:
+https://code.qt.io/cgit/qt/qtbase.git/?h=v6.12.0
+https://code.qt.io/cgit/qt/qtmultimedia.git/?h=v6.12.0
+https://code.qt.io/cgit/qt/qtimageformats.git/?h=v6.12.0
+https://code.qt.io/cgit/qt/qtsvg.git/?h=v6.12.0
+https://code.qt.io/cgit/pyside/pyside-setup.git/?h=v6.12.0
+https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/
+The application does not prohibit replacement of these dynamic libraries or debugging modifications to them.

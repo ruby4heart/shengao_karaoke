@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "media": "demo.wav",
+  "lines": [
+    {
+      "id": "demo",
+      "text": "今日も歌う",
+      "start": 1000,
+      "end": 6000,
+      "units": [
+        {
+          "text": "今日",
+          "start": 1000,
+          "end": 3000,
+          "kana": "きょう",
+          "romaji": "kyou",
+          "source": "manual",
+          "locked": false
+        },
+        {
+          "text": "も",
+          "start": 3200,
+          "end": 4000,
+          "kana": "も",
+          "romaji": "mo",
+          "source": "manual",
+          "locked": false
+        },
+        {
+          "text": "歌う",
+          "start": 4200,
+          "end": 6000,
+          "kana": "うたう",
+          "romaji": "utau",
+          "source": "manual",
+          "locked": false
+        }
+      ],
+      "kana": "きょうもうたう",
+      "romaji": "kyou mo utau",
+      "translation": "今天也要歌唱",
+      "locked": false,
+      "reviewed": false
+    }
+  ],
+  "note": "这是合成音调和人工示例字幕，用于熟悉编辑器；不是真实演唱或 API 识别结果。"
+}

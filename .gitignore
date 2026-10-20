@@ -1,0 +1,17 @@
+.venv/
+.venv-desktop/
+.venv-align/
+.venv-vocals/
+tmp/
+build/
+dist/
+__pycache__/
+.pytest_cache/
+*.log
+*.spec
+settings/
+.env
+.env.*
+# Full third-party source/runtime/model inventory is provided in Release source ZIPs.
+/vendor/*
+!/vendor/GIT-SOURCE-NOTES.md

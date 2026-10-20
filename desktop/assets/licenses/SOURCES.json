@@ -1,0 +1,590 @@
+{
+  "packages": [
+    {
+      "name": "PySide6",
+      "version": "6.12.0",
+      "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "upstream": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
+      ]
+    },
+    {
+      "name": "PySide6_Essentials",
+      "version": "6.12.0",
+      "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "upstream": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
+      ]
+    },
+    {
+      "name": "PySide6_Addons",
+      "version": "6.12.0",
+      "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "upstream": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
+      ]
+    },
+    {
+      "name": "shiboken6",
+      "version": "6.12.0",
+      "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "upstream": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://qt-project.atlassian.net/browse/PYSIDE"
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4",
+      "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "upstream": [
+        "homepage, https://numpy.org",
+        "documentation, https://numpy.org/doc/",
+        "source, https://github.com/numpy/numpy",
+        "download, https://pypi.org/project/numpy/#files",
+        "tracker, https://github.com/numpy/numpy/issues",
+        "release notes, https://numpy.org/doc/stable/release"
+      ]
+    },
+    {
+      "name": "fonttools",
+      "version": "4.67.0",
+      "license": "MIT",
+      "upstream": []
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0",
+      "license": "MIT-CMU",
+      "upstream": [
+        "Release notes, https://pillow.readthedocs.io/en/stable/releasenotes/index.html",
+        "Changelog, https://github.com/python-pillow/Pillow/releases",
+        "Documentation, https://pillow.readthedocs.io",
+        "Funding, https://tidelift.com/subscription/pkg/pypi-pillow?utm_source=pypi-pillow&utm_medium=pypi",
+        "Homepage, https://python-pillow.github.io",
+        "Mastodon, https://fosstodon.org/@pillow",
+        "Source, https://github.com/python-pillow/Pillow"
+      ]
+    },
+    {
+      "name": "Janome",
+      "version": "0.5.0",
+      "license": "AL2",
+      "upstream": [
+        "Source, https://github.com/mocobeta/janome"
+      ]
+    },
+    {
+      "name": "aiohttp",
+      "version": "3.14.5",
+      "license": "Apache-2.0 AND MIT",
+      "upstream": [
+        "Homepage, https://github.com/aio-libs/aiohttp",
+        "Chat: Matrix, https://matrix.to/#/#aio-libs:matrix.org",
+        "Chat: Matrix Space, https://matrix.to/#/#aio-libs-space:matrix.org",
+        "CI: GitHub Actions, https://github.com/aio-libs/aiohttp/actions?query=workflow%3ACI",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/aiohttp",
+        "Docs: Changelog, https://docs.aiohttp.org/en/stable/changes.html",
+        "Docs: RTD, https://docs.aiohttp.org",
+        "GitHub: issues, https://github.com/aio-libs/aiohttp/issues",
+        "GitHub: repo, https://github.com/aio-libs/aiohttp"
+      ]
+    },
+    {
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1",
+      "license": "PSF-2.0",
+      "upstream": [
+        "Bug Tracker, https://github.com/aio-libs/aiohappyeyeballs/issues",
+        "Changelog, https://github.com/aio-libs/aiohappyeyeballs/blob/main/CHANGELOG.md",
+        "Documentation, https://aiohappyeyeballs.readthedocs.io",
+        "Repository, https://github.com/aio-libs/aiohappyeyeballs"
+      ]
+    },
+    {
+      "name": "aiosignal",
+      "version": "1.4.0",
+      "license": "Apache 2.0",
+      "upstream": [
+        "Chat: Gitter, https://gitter.im/aio-libs/Lobby",
+        "CI: GitHub Actions, https://github.com/aio-libs/aiosignal/actions",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/aiosignal",
+        "Docs: RTD, https://docs.aiosignal.org",
+        "GitHub: issues, https://github.com/aio-libs/aiosignal/issues",
+        "GitHub: repo, https://github.com/aio-libs/aiosignal"
+      ]
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0",
+      "license": "MIT",
+      "upstream": [
+        "Documentation, https://www.attrs.org/",
+        "Changelog, https://www.attrs.org/en/stable/changelog.html",
+        "GitHub, https://github.com/python-attrs/attrs",
+        "Funding, https://github.com/sponsors/hynek",
+        "Tidelift, https://tidelift.com/subscription/pkg/pypi-attrs?utm_source=pypi-attrs&utm_medium=pypi"
+      ]
+    },
+    {
+      "name": "frozenlist",
+      "version": "1.8.0",
+      "license": "Apache-2.0",
+      "upstream": [
+        "Chat: Matrix, https://matrix.to/#/#aio-libs:matrix.org",
+        "Chat: Matrix Space, https://matrix.to/#/#aio-libs-space:matrix.org",
+        "CI: Github Actions, https://github.com/aio-libs/frozenlist/actions",
+        "Code of Conduct, https://github.com/aio-libs/.github/blob/master/CODE_OF_CONDUCT.md",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/frozenlist",
+        "Docs: Changelog, https://github.com/aio-libs/frozenlist/blob/master/CHANGES.rst#changelog",
+        "Docs: RTD, https://frozenlist.aio-libs.org",
+        "GitHub: issues, https://github.com/aio-libs/frozenlist/issues",
+        "GitHub: repo, https://github.com/aio-libs/frozenlist"
+      ]
+    },
+    {
+      "name": "multidict",
+      "version": "7.1.0",
+      "license": "Apache-2.0",
+      "upstream": [
+        "Homepage, https://github.com/aio-libs/multidict",
+        "Chat: Matrix, https://matrix.to/#/#aio-libs:matrix.org",
+        "Chat: Matrix Space, https://matrix.to/#/#aio-libs-space:matrix.org",
+        "CI: GitHub, https://github.com/aio-libs/multidict/actions",
+        "Code of Conduct, https://github.com/aio-libs/.github/blob/master/CODE_OF_CONDUCT.md",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/multidict",
+        "Docs: Changelog, https://multidict.aio-libs.org/en/latest/changes/",
+        "Docs: RTD, https://multidict.aio-libs.org",
+        "GitHub: issues, https://github.com/aio-libs/multidict/issues",
+        "GitHub: repo, https://github.com/aio-libs/multidict"
+      ]
+    },
+    {
+      "name": "propcache",
+      "version": "0.5.4",
+      "license": "Apache-2.0",
+      "upstream": [
+        "Chat: Matrix, https://matrix.to/#/#aio-libs:matrix.org",
+        "Chat: Matrix Space, https://matrix.to/#/#aio-libs-space:matrix.org",
+        "CI: GitHub Workflows, https://github.com/aio-libs/propcache/actions?query=branch:master",
+        "Code of Conduct, https://github.com/aio-libs/.github/blob/master/CODE_OF_CONDUCT.md",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/propcache",
+        "Docs: Changelog, https://propcache.readthedocs.io/en/latest/changes/",
+        "Docs: RTD, https://propcache.readthedocs.io",
+        "GitHub: issues, https://github.com/aio-libs/propcache/issues",
+        "GitHub: repo, https://github.com/aio-libs/propcache"
+      ]
+    },
+    {
+      "name": "yarl",
+      "version": "1.25.1",
+      "license": "Apache-2.0",
+      "upstream": [
+        "Chat: Matrix, https://matrix.to/#/#aio-libs:matrix.org",
+        "Chat: Matrix Space, https://matrix.to/#/#aio-libs-space:matrix.org",
+        "CI: GitHub Workflows, https://github.com/aio-libs/yarl/actions?query=branch:master",
+        "Code of Conduct, https://github.com/aio-libs/.github/blob/master/CODE_OF_CONDUCT.md",
+        "Coverage: codecov, https://codecov.io/github/aio-libs/yarl",
+        "Docs: Changelog, https://yarl.aio-libs.org/en/latest/changes/",
+        "Docs: RTD, https://yarl.aio-libs.org",
+        "GitHub: issues, https://github.com/aio-libs/yarl/issues",
+        "GitHub: repo, https://github.com/aio-libs/yarl"
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "license": "BSD-3-Clause",
+      "upstream": [
+        "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+        "Issue tracker, https://github.com/kjd/idna/issues",
+        "Source, https://github.com/kjd/idna"
+      ]
+    },
+    {
+      "name": "RapidFuzz",
+      "version": "3.14.6",
+      "license": "MIT",
+      "upstream": [
+        "Homepage, https://github.com/rapidfuzz/RapidFuzz",
+        "Documentation, https://rapidfuzz.github.io/RapidFuzz/",
+        "Repository, https://github.com/rapidfuzz/RapidFuzz.git",
+        "Issues, https://github.com/rapidfuzz/RapidFuzz/issues",
+        "Changelog, https://github.com/rapidfuzz/RapidFuzz/blob/main/CHANGELOG.rst"
+      ]
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "upstream": [
+        "Documentation, https://packaging.pypa.io/",
+        "Source, https://github.com/pypa/packaging"
+      ]
+    },
+    {
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "upstream": [
+        "Homepage, https://pyinstaller.org",
+        "Documentation, https://pyinstaller.org",
+        "Source Code, https://github.com/pyinstaller/pyinstaller",
+        "Release Notes, https://pyinstaller.org/en/stable/CHANGES.html"
+      ]
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.8",
+      "license": "",
+      "upstream": []
+    }
+  ],
+  "documents": [
+    {
+      "file": "Qt/LGPL-3.0.txt",
+      "url": "https://www.gnu.org/licenses/lgpl-3.0.txt",
+      "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    },
+    {
+      "file": "Qt/GPL-3.0.txt",
+      "url": "https://www.gnu.org/licenses/gpl-3.0.txt",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "file": "Qt/GPL-2.0.txt",
+      "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+    },
+    {
+      "file": "Qt/third-party-index.html",
+      "url": "https://doc.qt.io/qt-6/licenses-used-in-qt.html",
+      "sha256": "4a3901f264ad2dca648d451efb51e638dd7e8e70a31f9d7001019b04b59fe55c"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-tika-mimetypes.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-tika-mimetypes.html",
+      "sha256": "b0d1e85ab6dcf608a5b57a8a308e8cb9997c9e9daa26f1be1415427fbd2dc164"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-blake2.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-blake2.html",
+      "sha256": "e3092b0d857867fcc6e1ecf7382a0624f96afbf8558bdd44b3ba9872bd460378"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-zlib.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-zlib.html",
+      "sha256": "ddb1332d9baa9b5bf3dc5b8e3da7dcd96bc404cac46393e17e68938e64d1260f"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-easing.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-easing.html",
+      "sha256": "2300b6737d4f2be0f3cbf9071d454b7364f3ba21e9eae48b03be7e10e04198c0"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-doubleconversion.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-doubleconversion.html",
+      "sha256": "f7e844ecc5a777a788cf5a41c3248098960dea047dde341ada5e1709337c6b88"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-md4.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-md4.html",
+      "sha256": "68843e9e30cbf8e67d8cf137cc7f77d0236f35d573c136a590e01b6c6748814d"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-md5.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-md5.html",
+      "sha256": "74f01a980d3a5396941bd785af994f5988e4c16126b6f2635be25c56121b390a"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-pcre2-sljit.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-pcre2-sljit.html",
+      "sha256": "e1aab294a1b07aa43251caed51f4448a75637dfa8a75cfba2634dc65a0061631"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-pcre2.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-pcre2.html",
+      "sha256": "71666d2f36cf9ea24d5e16c8236729e4eb7fcaf498f6ddbad20f8985dc878997"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-qeventdispatcher-cf.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-qeventdispatcher-cf.html",
+      "sha256": "3510c3e05d1f5c618cfdc1f84e91e9d75cf7fcc54af73dca604009d087e686db"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-sha1.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-sha1.html",
+      "sha256": "44c5eb3a79cf07d4d2d2e2dcba6f9df5f8e648735cdf8b52341aa0f500db5fbe"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-sha3-keccak.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-sha3-keccak.html",
+      "sha256": "632754c5c76d78612874af4bbc926b2e7efb64ecc87c3b4bf264f29f7ecd86df"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-sha3-endian.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-sha3-endian.html",
+      "sha256": "fb64e26629a6ef0062bbfe17d665aa99b061c7477db2a41988430dadfdf58750"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-rfc6234.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-rfc6234.html",
+      "sha256": "6389b1b868bfb807530f7b329344560f54e407afd1c71c28018a865aa2a7997a"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-siphash.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-siphash.html",
+      "sha256": "3c637f5319c33d43ece28b2c15e47046072a7d532a5cb7767dbe40e2a745b024"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-tinycbor.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-tinycbor.html",
+      "sha256": "e109ef0416901192817956f6a778f8e064fc193ee956447c176887a82fdfe31f"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-unicode-character-database.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-unicode-character-database.html",
+      "sha256": "aa1a8affa2ae1814efac4a022a4bebe5bb153c7389c404e9c0e974cc7958733d"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-unicode-cldr.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-unicode-cldr.html",
+      "sha256": "2791e5673ac12672990bef5a4d8d1d383ad528dc827a53440b828cabdfc4c762"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-forkfd.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-forkfd.html",
+      "sha256": "fb2e577a3340a047eab8da43da557dd8efb795df49a2ba465a8fbabb0b345516"
+    },
+    {
+      "file": "Qt/attributions/qtcore-attribution-tlexpected.html",
+      "url": "https://doc.qt.io/qt-6/qtcore-attribution-tlexpected.html",
+      "sha256": "997caf280206e36ca156175f5e8bc599aa34aa362b01a253bdcd219776654708"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-aglfn.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-aglfn.html",
+      "sha256": "84b55313230d0a939e71b22a782d4ac7e1515157733a2d11401f7fe7465fe67b"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-grayraster.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-grayraster.html",
+      "sha256": "ab886bdc562706610b4f6dd0981fed5f87bfa9c2504d0d7cbef92f0734df112b"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-cocoa-platform-plugin.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-cocoa-platform-plugin.html",
+      "sha256": "ec0c9f3f2898dd02bc43cc242ed01f478804a9e7c85c93f81e4ab14a599b2bf3"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-d3d12memoryallocator.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-d3d12memoryallocator.html",
+      "sha256": "e804441e4a06064396c64d59cced7365a7cf8a0e86c323db64e842e68ae67ff7"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-dejayvu.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-dejayvu.html",
+      "sha256": "9517cde702cf92cf7bdebc4d2dc87386d31d60756f40a080d823a084f5ac14a8"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-emoji-segmenter.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-emoji-segmenter.html",
+      "sha256": "51cde7ae6bf492338dcdd22ae82f6205b10aae12ead9bcb78554da8ab7cb0b9f"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-freetype-bdf.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-freetype-bdf.html",
+      "sha256": "c3b708445f7ecbe7270952b9fa42c0dd2feee188a0b90799f6a1ce7cc98df417"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-freetype-pcf.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-freetype-pcf.html",
+      "sha256": "6a67abac65b319d5769e457676bea5d125dfda06b6a7ff326c0d7d237da48f36"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-freetype-zlib.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-freetype-zlib.html",
+      "sha256": "f8a81be189d1a45c1a97fc782aed6787432ca89354ea265d9a06cb120c788b2c"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-freetype.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-freetype.html",
+      "sha256": "a0ee18cd875b4a0188a9c343d3686fd3fc4baa369b60242c1dfadbb337894ea4"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-harfbuzz-ng.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-harfbuzz-ng.html",
+      "sha256": "67ed724619b820e6fcfb3a0f2cd7df3f84542e693239014081c843cd75e640e5"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-libjpeg.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-libjpeg.html",
+      "sha256": "35c72526d9e937758576a5f16fedfee306d2f6f274088561b340ed04a18c0e56"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-libpng.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-libpng.html",
+      "sha256": "9ec6d5f9b33c0bcd6c4b81122a533b88cbee49c983981527a082d5589e00d780"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-md4c.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-md4c.html",
+      "sha256": "95501a73a53ffff1fd22d420abd466a0ba83d021764d855c14914801b78b7519"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-rhi-miniengine-d3d12-mipmap.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-rhi-miniengine-d3d12-mipmap.html",
+      "sha256": "2b77989967398ee245dff53ca4272f9ad79039ac787417e97d2831b04d777b5d"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-android-native-style.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-android-native-style.html",
+      "sha256": "aa2e458c7eb5e9d0e6213337c5c8d27df8271ac66f151929f2c35763ad1ddede"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-opengl-es2-headers.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-opengl-es2-headers.html",
+      "sha256": "ef33b009645d7f87c52a0b51def5731147b0b4c59c03f5b351f88a0ab6974d3a"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-opengl-headers.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-opengl-headers.html",
+      "sha256": "e23fcff62c6fc0e16c03e042ee2e47bdde486522ae1703f0210f2e3918650e4c"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-pixman.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-pixman.html",
+      "sha256": "5b3b6a2dd7db6c2ec69ec5e995a79835691673d27ec554486f8986b2f4310a32"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-smooth-scaling-algorithm.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-smooth-scaling-algorithm.html",
+      "sha256": "946c6f288f46ff28e9b43930b813384efd00251390ab6f16d09070d976d549be"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-vulkan-xml-spec.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-vulkan-xml-spec.html",
+      "sha256": "f3f042a81db977e89351d2409348727580667a60eae9249ef7b1ebd17c0be3ee"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-vulkanmemoryallocator.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-vulkanmemoryallocator.html",
+      "sha256": "ca54f612fa8b97abd338308e67940ca44d7b3b9bc55868438c99c05e89ee988c"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-webgradients.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-webgradients.html",
+      "sha256": "915f55ec16ebff896a74692c5eef5ca45f6af8c7dc2f4dc2ac2a92a1fe5f9df2"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-wintab.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-wintab.html",
+      "sha256": "2df10517aaaba05291eb05cf361ec00690e14244f2fff241a120654c78671b97"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-xserverhelper.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-xserverhelper.html",
+      "sha256": "fd6f484c84be899d82d003475a900cdd7ed4ca6c648a1f0d070e35c7eb759aab"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-xcb-xinput.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-xcb-xinput.html",
+      "sha256": "4f9082895e6afc8b56f0a2c25b411180887e58b27db9ee807c79770c584edf61"
+    },
+    {
+      "file": "Qt/attributions/qtgui-attribution-icc-srgb-color-profile.html",
+      "url": "https://doc.qt.io/qt-6/qtgui-attribution-icc-srgb-color-profile.html",
+      "sha256": "2ecb637312d9f522c3e3c207c96b39ac172411e3cb98f0a6835c6da84340c99c"
+    },
+    {
+      "file": "Qt/attributions/qtimageformats-attribution-libtiff.html",
+      "url": "https://doc.qt.io/qt-6/qtimageformats-attribution-libtiff.html",
+      "sha256": "7242ce571e4b177c4eb899f46eedf4d7c3d82d26ac03992774022eae61d7009c"
+    },
+    {
+      "file": "Qt/attributions/qtimageformats-attribution-libwebp.html",
+      "url": "https://doc.qt.io/qt-6/qtimageformats-attribution-libwebp.html",
+      "sha256": "80c7635aa866cc820023fd0e777d3f003b11440980a785f01f8e2d1f7147dbff"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-dr-libs.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-dr-libs.html",
+      "sha256": "ce0736418521d826f91ba4f81aac8439fba0e8a4ecfb00c0350d482628fd3d24"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-ffmpeg.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-ffmpeg.html",
+      "sha256": "566c42a25eaabf712a028f3148cdd89f3dcae035d7552de6ecd9884377a4fa0d"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-signalsmith-stretch.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-signalsmith-stretch.html",
+      "sha256": "635d88c72f01b9468622c73f1c29ebacde1743151547dbba8af72a880b56fa46"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-tlsf.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-tlsf.html",
+      "sha256": "cf27cb3fa91002abedfa8ecec452c7aebb59f0c777edf87936d7bd7433237692"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-ffmpeg-boost.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-ffmpeg-boost.html",
+      "sha256": "65a595a29493e4bd290657597681bf793128629045ec8af414bf6ecf0fff3671"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-ffmpeg-libjpeg.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-ffmpeg-libjpeg.html",
+      "sha256": "6b1352933eb42d24ad3fc54dd02e612449644610ad1bc843932dd844f51f3c32"
+    },
+    {
+      "file": "Qt/attributions/qtmultimedia-attribution-ffmpeg-zlib.html",
+      "url": "https://doc.qt.io/qt-6/qtmultimedia-attribution-ffmpeg-zlib.html",
+      "sha256": "6f97bcc7e6bab11837a835c94ea94de668d7b28eef1c4dad2e19b572d31b8848"
+    },
+    {
+      "file": "Qt/attributions/qtnetwork-attribution-psl-data.html",
+      "url": "https://doc.qt.io/qt-6/qtnetwork-attribution-psl-data.html",
+      "sha256": "beff6a136244f6c849b681704036956894ef7c76159924cd3b9d573d26f3cbf3"
+    },
+    {
+      "file": "Qt/attributions/qtnetwork-attribution-libpsl.html",
+      "url": "https://doc.qt.io/qt-6/qtnetwork-attribution-libpsl.html",
+      "sha256": "0475f8d9a509ab3988806877ef3cef35f249a9294f247af78fa86bdda1f83f16"
+    },
+    {
+      "file": "Qt/attributions/qttestlib-attribution-catch2.html",
+      "url": "https://doc.qt.io/qt-6/qttestlib-attribution-catch2.html",
+      "sha256": "85f86001d347393594d8c57aaade8818374f68d6e242e78c91b3500401af392d"
+    },
+    {
+      "file": "Qt/attributions/qttestlib-attribution-cycle.html",
+      "url": "https://doc.qt.io/qt-6/qttestlib-attribution-cycle.html",
+      "sha256": "82dd841be8090599fb96504ed324dce99e90daa437be22248c128d917cffdf03"
+    },
+    {
+      "file": "Qt/attributions/qttestlib-attribution-linuxperf.html",
+      "url": "https://doc.qt.io/qt-6/qttestlib-attribution-linuxperf.html",
+      "sha256": "2fe6ebbc019ba16a7cd4f842fe88e031458582ac76ee9b4bfd30bcef444ae508"
+    },
+    {
+      "file": "Qt/attributions/qttestlib-attribution-valgrind.html",
+      "url": "https://doc.qt.io/qt-6/qttestlib-attribution-valgrind.html",
+      "sha256": "bfa0d900685c7aa0d4cb397ada260e9c0227e781a5f1df279eba9fce1ef9d104"
+    }
+  ]
+}

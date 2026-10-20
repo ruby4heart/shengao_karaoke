@@ -1,0 +1,7 @@
+PJS056 singing audio: PJS corpus, Shinnosuke Takamichi and collaborators.
+https://sites.google.com/site/shinnosuketakamichi/research-topics/pjs_corpus
+Audio unchanged. CC BY-SA 4.0.
+Human phoneme labels: UtaUtaUtau / pjs-manual-labels, commit cc08bead6bf2b06e88608a8ece12555bcc720ec9.
+https://github.com/UtaUtaUtau/pjs-manual-labels
+CC BY-SA 4.0. Original .lab unchanged. sample.json groups phonemes into morae for Shengao tests.
+This sample is solely a public reference test, not the user MV or an accuracy guarantee.

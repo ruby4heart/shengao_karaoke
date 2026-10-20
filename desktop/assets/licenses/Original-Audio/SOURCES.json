@@ -1,0 +1,17 @@
+[
+  {
+    "source": "vendor/aegisub/src/audio_display.cpp",
+    "sha256": "2cdff8e7a4afb50144809ec3362efed85db50d673fbee347e976e4a08698db10",
+    "notice": "audio_display-NOTICE.txt"
+  },
+  {
+    "source": "vendor/aegisub/libaegisub/audio/provider_convert.cpp",
+    "sha256": "eaba56dca85b4c890fbf668c36cd04148c2fe91862e042c787106d63ba8c0209",
+    "notice": "provider_convert-NOTICE.txt"
+  },
+  {
+    "source": "vendor/aegisub/subprojects/wxWidgets/docs/licence.txt",
+    "sha256": "5d82dd4900cab74859baab3aaae0bc8fc3bee10e1af0c7e8de5b61a892019de8",
+    "notice": "wxWidgets-LICENSE.txt"
+  }
+]

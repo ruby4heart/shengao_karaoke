@@ -1,0 +1,630 @@
+{
+  "sample": "pjs056_song.wav",
+  "duration": 16000,
+  "text": "ところがえりゅしくとんわにゅむぺのせいしもきかずにでめてるのかしをきりたおした",
+  "kana": "ところがえりゅしくとんわにゅむぺのせいしもきかずにでめてるのかしをきりたおした",
+  "mora": [
+    {
+      "start": 4376.4168,
+      "end": 4553.7416,
+      "phones": [
+        {
+          "phone": "t",
+          "start": 4376.4168,
+          "end": 4478.0044
+        },
+        {
+          "phone": "o",
+          "start": 4478.0044,
+          "end": 4553.7416
+        }
+      ],
+      "kana": "と"
+    },
+    {
+      "start": 4553.7416,
+      "end": 4990.0224,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 4553.7416,
+          "end": 4636.7352
+        },
+        {
+          "phone": "o",
+          "start": 4636.7352,
+          "end": 4990.0224
+        }
+      ],
+      "kana": "こ"
+    },
+    {
+      "start": 4990.0224,
+      "end": 5136.9616,
+      "phones": [
+        {
+          "phone": "r",
+          "start": 4990.0224,
+          "end": 5004.9888
+        },
+        {
+          "phone": "o",
+          "start": 5004.9888,
+          "end": 5136.9616
+        }
+      ],
+      "kana": "ろ"
+    },
+    {
+      "start": 5136.9616,
+      "end": 5674.3764,
+      "phones": [
+        {
+          "phone": "g",
+          "start": 5136.9616,
+          "end": 5172.3352
+        },
+        {
+          "phone": "a",
+          "start": 5172.3352,
+          "end": 5674.3764
+        }
+      ],
+      "kana": "が"
+    },
+    {
+      "start": 5929.2516,
+      "end": 6078.0044,
+      "phones": [
+        {
+          "phone": "e",
+          "start": 5929.2516,
+          "end": 6078.0044
+        }
+      ],
+      "kana": "え"
+    },
+    {
+      "start": 6078.0044,
+      "end": 6195.0112,
+      "phones": [
+        {
+          "phone": "ry",
+          "start": 6078.0044,
+          "end": 6090.2496
+        },
+        {
+          "phone": "u",
+          "start": 6090.2496,
+          "end": 6195.0112
+        }
+      ],
+      "kana": "りゅ"
+    },
+    {
+      "start": 6195.0112,
+      "end": 6363.2648,
+      "phones": [
+        {
+          "phone": "sh",
+          "start": 6195.0112,
+          "end": 6282.9928
+        },
+        {
+          "phone": "i",
+          "start": 6282.9928,
+          "end": 6363.2648
+        }
+      ],
+      "kana": "し"
+    },
+    {
+      "start": 6363.2648,
+      "end": 6524.7168,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 6363.2648,
+          "end": 6443.9908
+        },
+        {
+          "phone": "u",
+          "start": 6443.9908,
+          "end": 6524.7168
+        }
+      ],
+      "kana": "く"
+    },
+    {
+      "start": 6524.7168,
+      "end": 6961.9048,
+      "phones": [
+        {
+          "phone": "t",
+          "start": 6524.7168,
+          "end": 6617.6872
+        },
+        {
+          "phone": "o",
+          "start": 6617.6872,
+          "end": 6961.9048
+        }
+      ],
+      "kana": "と"
+    },
+    {
+      "start": 6961.9048,
+      "end": 7048.5264,
+      "phones": [
+        {
+          "phone": "N",
+          "start": 6961.9048,
+          "end": 7048.5264
+        }
+      ],
+      "kana": "ん"
+    },
+    {
+      "start": 7048.5264,
+      "end": 7373.2424,
+      "phones": [
+        {
+          "phone": "w",
+          "start": 7048.5264,
+          "end": 7141.9504
+        },
+        {
+          "phone": "a",
+          "start": 7141.9504,
+          "end": 7373.2424
+        }
+      ],
+      "kana": "わ"
+    },
+    {
+      "start": 7373.2424,
+      "end": 7571.4288,
+      "phones": [
+        {
+          "phone": "ny",
+          "start": 7373.2424,
+          "end": 7461.2248
+        },
+        {
+          "phone": "u",
+          "start": 7461.2248,
+          "end": 7571.4288
+        }
+      ],
+      "kana": "にゅ"
+    },
+    {
+      "start": 7571.4288,
+      "end": 7715.6464,
+      "phones": [
+        {
+          "phone": "m",
+          "start": 7571.4288,
+          "end": 7614.5128
+        },
+        {
+          "phone": "u",
+          "start": 7614.5128,
+          "end": 7715.6464
+        }
+      ],
+      "kana": "む"
+    },
+    {
+      "start": 7715.6464,
+      "end": 8265.76,
+      "phones": [
+        {
+          "phone": "p",
+          "start": 7715.6464,
+          "end": 7819.5008
+        },
+        {
+          "phone": "e",
+          "start": 7819.5008,
+          "end": 8265.76
+        }
+      ],
+      "kana": "ぺ"
+    },
+    {
+      "start": 8265.76,
+      "end": 8380.0448,
+      "phones": [
+        {
+          "phone": "n",
+          "start": 8265.76,
+          "end": 8287.528
+        },
+        {
+          "phone": "o",
+          "start": 8287.528,
+          "end": 8380.0448
+        }
+      ],
+      "kana": "の"
+    },
+    {
+      "start": 8380.0448,
+      "end": 8635.828,
+      "phones": [
+        {
+          "phone": "s",
+          "start": 8380.0448,
+          "end": 8477.0976
+        },
+        {
+          "phone": "e",
+          "start": 8477.0976,
+          "end": 8635.828
+        }
+      ],
+      "kana": "せ"
+    },
+    {
+      "start": 8635.828,
+      "end": 8832.652,
+      "phones": [
+        {
+          "phone": "i",
+          "start": 8635.828,
+          "end": 8832.652
+        }
+      ],
+      "kana": "い"
+    },
+    {
+      "start": 8832.652,
+      "end": 9092.0632,
+      "phones": [
+        {
+          "phone": "sh",
+          "start": 8832.652,
+          "end": 8965.5328
+        },
+        {
+          "phone": "i",
+          "start": 8965.5328,
+          "end": 9092.0632
+        }
+      ],
+      "kana": "し"
+    },
+    {
+      "start": 9092.0632,
+      "end": 9551.0208,
+      "phones": [
+        {
+          "phone": "m",
+          "start": 9092.0632,
+          "end": 9139.2296
+        },
+        {
+          "phone": "o",
+          "start": 9139.2296,
+          "end": 9551.0208
+        }
+      ],
+      "kana": "も"
+    },
+    {
+      "start": 9551.0208,
+      "end": 9693.8784,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 9551.0208,
+          "end": 9633.5608
+        },
+        {
+          "phone": "i",
+          "start": 9633.5608,
+          "end": 9693.8784
+        }
+      ],
+      "kana": "き"
+    },
+    {
+      "start": 9693.8784,
+      "end": 10231.7456,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 9693.8784,
+          "end": 9786.3952
+        },
+        {
+          "phone": "a",
+          "start": 9786.3952,
+          "end": 10231.7456
+        }
+      ],
+      "kana": "か"
+    },
+    {
+      "start": 10231.7456,
+      "end": 10465.3056,
+      "phones": [
+        {
+          "phone": "z",
+          "start": 10231.7456,
+          "end": 10331.9728
+        },
+        {
+          "phone": "u",
+          "start": 10331.9728,
+          "end": 10465.3056
+        }
+      ],
+      "kana": "ず"
+    },
+    {
+      "start": 10465.3056,
+      "end": 10924.7168,
+      "phones": [
+        {
+          "phone": "n",
+          "start": 10465.3056,
+          "end": 10493.424
+        },
+        {
+          "phone": "i",
+          "start": 10493.424,
+          "end": 10924.7168
+        }
+      ],
+      "kana": "に"
+    },
+    {
+      "start": 11208.1632,
+      "end": 11580.0448,
+      "phones": [
+        {
+          "phone": "d",
+          "start": 11208.1632,
+          "end": 11273.016
+        },
+        {
+          "phone": "e",
+          "start": 11273.016,
+          "end": 11580.0448
+        }
+      ],
+      "kana": "で"
+    },
+    {
+      "start": 11580.0448,
+      "end": 11834.9208,
+      "phones": [
+        {
+          "phone": "m",
+          "start": 11580.0448,
+          "end": 11627.2112
+        },
+        {
+          "phone": "e",
+          "start": 11627.2112,
+          "end": 11834.9208
+        }
+      ],
+      "kana": "め"
+    },
+    {
+      "start": 11834.9208,
+      "end": 12274.376,
+      "phones": [
+        {
+          "phone": "t",
+          "start": 11834.9208,
+          "end": 11931.0648
+        },
+        {
+          "phone": "e",
+          "start": 11931.0648,
+          "end": 12274.376
+        }
+      ],
+      "kana": "て"
+    },
+    {
+      "start": 12274.376,
+      "end": 12419.9552,
+      "phones": [
+        {
+          "phone": "r",
+          "start": 12274.376,
+          "end": 12290.2488
+        },
+        {
+          "phone": "u",
+          "start": 12290.2488,
+          "end": 12419.9552
+        }
+      ],
+      "kana": "る"
+    },
+    {
+      "start": 12419.9552,
+      "end": 12693.4232,
+      "phones": [
+        {
+          "phone": "n",
+          "start": 12419.9552,
+          "end": 12447.1664
+        },
+        {
+          "phone": "o",
+          "start": 12447.1664,
+          "end": 12693.4232
+        }
+      ],
+      "kana": "の"
+    },
+    {
+      "start": 12693.4232,
+      "end": 12865.3056,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 12693.4232,
+          "end": 12793.6488
+        },
+        {
+          "phone": "a",
+          "start": 12793.6488,
+          "end": 12865.3056
+        }
+      ],
+      "kana": "か"
+    },
+    {
+      "start": 12865.3056,
+      "end": 13056.2352,
+      "phones": [
+        {
+          "phone": "sh",
+          "start": 12865.3056,
+          "end": 12968.7072
+        },
+        {
+          "phone": "i",
+          "start": 12968.7072,
+          "end": 13056.2352
+        }
+      ],
+      "kana": "し"
+    },
+    {
+      "start": 13056.2352,
+      "end": 13191.384,
+      "phones": [
+        {
+          "phone": "w",
+          "start": 13056.2352,
+          "end": 13110.6568
+        },
+        {
+          "phone": "o",
+          "start": 13110.6568,
+          "end": 13191.384
+        }
+      ],
+      "kana": "を"
+    },
+    {
+      "start": 13191.384,
+      "end": 13573.696,
+      "phones": [
+        {
+          "phone": "k",
+          "start": 13191.384,
+          "end": 13298.8648
+        },
+        {
+          "phone": "i",
+          "start": 13298.8648,
+          "end": 13573.696
+        }
+      ],
+      "kana": "き"
+    },
+    {
+      "start": 13573.696,
+      "end": 13703.4016,
+      "phones": [
+        {
+          "phone": "r",
+          "start": 13573.696,
+          "end": 13602.7216
+        },
+        {
+          "phone": "i",
+          "start": 13602.7216,
+          "end": 13703.4016
+        }
+      ],
+      "kana": "り"
+    },
+    {
+      "start": 13703.4016,
+      "end": 13868.9344,
+      "phones": [
+        {
+          "phone": "t",
+          "start": 13703.4016,
+          "end": 13779.592
+        },
+        {
+          "phone": "a",
+          "start": 13779.592,
+          "end": 13868.9344
+        }
+      ],
+      "kana": "た"
+    },
+    {
+      "start": 13868.9344,
+      "end": 14104.7616,
+      "phones": [
+        {
+          "phone": "w",
+          "start": 13868.9344,
+          "end": 13954.1936
+        },
+        {
+          "phone": "o",
+          "start": 13954.1936,
+          "end": 14104.7616
+        }
+      ],
+      "kana": "お"
+    },
+    {
+      "start": 14104.7616,
+      "end": 14271.2016,
+      "phones": [
+        {
+          "phone": "sh",
+          "start": 14104.7616,
+          "end": 14198.64
+        },
+        {
+          "phone": "I",
+          "start": 14198.64,
+          "end": 14271.2016
+        }
+      ],
+      "kana": "し"
+    },
+    {
+      "start": 14271.2016,
+      "end": 15377.3248,
+      "phones": [
+        {
+          "phone": "t",
+          "start": 14271.2016,
+          "end": 14316.5536
+        },
+        {
+          "phone": "a",
+          "start": 14316.5536,
+          "end": 15377.3248
+        }
+      ],
+      "kana": "た"
+    }
+  ],
+  "reference_source": "https://github.com/UtaUtaUtau/pjs-manual-labels/tree/cc08bead6bf2b06e88608a8ece12555bcc720ec9",
+  "audio_source": "https://sites.google.com/site/shinnosuketakamichi/research-topics/pjs_corpus",
+  "license": "CC BY-SA 4.0",
+  "authors": [
+    "PJS: Shinnosuke Takamichi and collaborators",
+    "Manual timing labels: UtaUtaUtau"
+  ],
+  "interpretation": "One public singing sample; training overlap unknown. Human mora boundaries group the published manually edited phoneme labels; kana transcription is for testing the shipped Japanese adapter. Not MV ground truth or a general accuracy claim."
+}

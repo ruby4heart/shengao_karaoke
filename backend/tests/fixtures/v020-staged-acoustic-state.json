@@ -1,0 +1,3715 @@
+{
+  "version": 2,
+  "id": "047a21e644864ac986ee937c10ab7e4f",
+  "signature": "2141e9bc1c84083706e6a7a05e100f1464c593991f5f6e0eaa86a5a1ca81c787",
+  "request": {
+    "media": "E:\\transcribe\\karaoke-studio\\build\\desktop-dist\\shengao-karaoke\\_internal\\assets\\alignment-demo\\pjs056_song.wav",
+    "language": "ja",
+    "gap_ms": 500,
+    "join_lines": true,
+    "_studio_context": {
+      "project": "cf08d4262abc445185f01ab104f10a07",
+      "media": {
+        "path": "e:\\transcribe\\karaoke-studio\\build\\desktop-dist\\shengao-karaoke\\_internal\\assets\\alignment-demo\\pjs056_song.wav",
+        "size": 2308096,
+        "modified_ns": 1792429113965796600
+      }
+    },
+    "_studio_checks": {
+      "staged-pjs-0": {
+        "reading": true
+      },
+      "staged-pjs-1": {
+        "reading": true
+      },
+      "staged-pjs-2": {
+        "reading": true
+      },
+      "intentional-invalid-reading": {
+        "reading": true
+      }
+    },
+    "reading_confirmed_ids": [
+      "staged-pjs-0",
+      "staged-pjs-1",
+      "staged-pjs-2",
+      "intentional-invalid-reading"
+    ],
+    "transcript_stamp": {},
+    "action": "draft",
+    "draft_options": {
+      "source": "offline",
+      "readings": "dictionary",
+      "provider": "elevenlabs",
+      "align": false,
+      "acoustic": true,
+      "acoustic_audio": "original",
+      "fit_range": true
+    },
+    "lines": [
+      {
+        "id": "staged-pjs-0",
+        "text": "ところが",
+        "start": 4226,
+        "end": 5854,
+        "units": [
+          {
+            "text": "ところが",
+            "start": 4226,
+            "end": 5854,
+            "kana": "ところが",
+            "romaji": "tokoroga",
+            "source": "estimated",
+            "locked": false,
+            "highlights": [],
+            "reading_source": "manual"
+          }
+        ],
+        "kana": "ところが",
+        "romaji": "tokoroga",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      },
+      {
+        "id": "staged-pjs-1",
+        "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+        "start": 5779,
+        "end": 11105,
+        "units": [
+          {
+            "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "start": 5779,
+            "end": 11105,
+            "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+            "source": "estimated",
+            "locked": false,
+            "highlights": [],
+            "reading_source": "manual"
+          }
+        ],
+        "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+        "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      },
+      {
+        "id": "staged-pjs-2",
+        "text": "でめてるのかしをきりたおした",
+        "start": 11058,
+        "end": 15557,
+        "units": [
+          {
+            "text": "でめてるのかしをきりたおした",
+            "start": 11058,
+            "end": 15557,
+            "kana": "でめてるのかしをきりたおした",
+            "romaji": "demeterunokashiokiritaoshita",
+            "source": "estimated",
+            "locked": false,
+            "highlights": [],
+            "reading_source": "manual"
+          }
+        ],
+        "kana": "でめてるのかしをきりたおした",
+        "romaji": "demeterunokashiokiritaoshita",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      },
+      {
+        "id": "intentional-invalid-reading",
+        "text": "待修正示例",
+        "start": 15600,
+        "end": 15900,
+        "units": [
+          {
+            "text": "待修正示例",
+            "start": 15600,
+            "end": 15900,
+            "kana": "ー",
+            "romaji": "",
+            "source": "estimated",
+            "locked": false,
+            "highlights": [],
+            "reading_source": "manual"
+          }
+        ],
+        "kana": "ー",
+        "romaji": "",
+        "translation": "",
+        "locked": false,
+        "reviewed": false,
+        "match": {},
+        "reading_review": {},
+        "display_start": null,
+        "display_end": null
+      }
+    ],
+    "transcript": [],
+    "vocal_track": {}
+  },
+  "created": 1792429395.4906676,
+  "status": "completed",
+  "message": "各阶段完成，等待人工审核。",
+  "stages": [
+    {
+      "key": "transcript",
+      "title": "离线初稿（不转录）",
+      "state": "skipped",
+      "paid": false
+    },
+    {
+      "key": "matching",
+      "title": "按原歌词分词",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "staged-pjs-0",
+            "text": "ところが",
+            "start": 4226,
+            "end": 5854,
+            "units": [
+              {
+                "text": "ところが",
+                "start": 4226,
+                "end": 5854,
+                "kana": "ところが",
+                "romaji": "tokoroga",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "と",
+                    "start": 4226,
+                    "end": 4633,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "こ",
+                    "start": 4633,
+                    "end": 5040,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "ろ",
+                    "start": 5040,
+                    "end": 5447,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "が",
+                    "start": 5447,
+                    "end": 5854,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ところが",
+            "romaji": "tokoroga",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-1",
+            "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "start": 5779,
+            "end": 11105,
+            "units": [
+              {
+                "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "start": 5779,
+                "end": 11105,
+                "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "え",
+                    "start": 5779,
+                    "end": 6059,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "りゅ",
+                    "start": 6059,
+                    "end": 6340,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 6340,
+                    "end": 6620,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "く",
+                    "start": 6620,
+                    "end": 6900,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "と",
+                    "start": 6900,
+                    "end": 7181,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "ん",
+                    "start": 7181,
+                    "end": 7461,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "わ",
+                    "start": 7461,
+                    "end": 7741,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "にゅ",
+                    "start": 7741,
+                    "end": 8022,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "む",
+                    "start": 8022,
+                    "end": 8302,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "ぺ",
+                    "start": 8302,
+                    "end": 8582,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 8582,
+                    "end": 8862,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "せ",
+                    "start": 8862,
+                    "end": 9143,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "い",
+                    "start": 9143,
+                    "end": 9423,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 9423,
+                    "end": 9703,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "も",
+                    "start": 9703,
+                    "end": 9984,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 9984,
+                    "end": 10264,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 10264,
+                    "end": 10544,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "ず",
+                    "start": 10544,
+                    "end": 10825,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "に",
+                    "start": 10825,
+                    "end": 11105,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-2",
+            "text": "でめてるのかしをきりたおした",
+            "start": 11058,
+            "end": 15600,
+            "units": [
+              {
+                "text": "でめてるのかしをきりたおした",
+                "start": 11058,
+                "end": 15600,
+                "kana": "でめてるのかしをきりたおした",
+                "romaji": "demeterunokashiokiritaoshita",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "で",
+                    "start": 11058,
+                    "end": 11379,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "め",
+                    "start": 11379,
+                    "end": 11701,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "て",
+                    "start": 11701,
+                    "end": 12022,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "る",
+                    "start": 12022,
+                    "end": 12343,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 12343,
+                    "end": 12665,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 12665,
+                    "end": 12986,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 12986,
+                    "end": 13308,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "を",
+                    "start": 13308,
+                    "end": 13629,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 13629,
+                    "end": 13950,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "り",
+                    "start": 13950,
+                    "end": 14272,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 14272,
+                    "end": 14593,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "お",
+                    "start": 14593,
+                    "end": 14914,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 14914,
+                    "end": 15236,
+                    "source": "estimated"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 15236,
+                    "end": 15600,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "でめてるのかしをきりたおした",
+            "romaji": "demeterunokashiokiritaoshita",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "intentional-invalid-reading",
+            "text": "待修正示例",
+            "start": 15600,
+            "end": 15900,
+            "units": [
+              {
+                "text": "待修正示例",
+                "start": 15600,
+                "end": 15900,
+                "kana": "ー",
+                "romaji": "",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "ー",
+                    "start": 15600,
+                    "end": 15900,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ー",
+            "romaji": "",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "protected_ids": [],
+        "review_required": true,
+        "local": true,
+        "segmentation_mode": "mora",
+        "dictionary": "Janome/IPADIC",
+        "closed_gaps": 1,
+        "timing_changes": [
+          {
+            "id": "staged-pjs-2",
+            "start": 15557,
+            "end": 15600,
+            "kind": "line",
+            "text": "でめてるのかしをきりたおした → 待修正示例"
+          }
+        ],
+        "message": "已收拢 1 处自动轴短空白；后一音节起音保持不变，请试听后采用。",
+        "timing_policy": {
+          "mode": "continuous",
+          "maximum_ms": 500,
+          "join_lines": true,
+          "onsets_preserved": true
+        }
+      },
+      "result_hash": "8ae7c965078fbea7c24934048b555ad33de720eadd917df2cb4212688513e7c7"
+    },
+    {
+      "key": "readings",
+      "title": "本地读音建议",
+      "state": "skipped",
+      "paid": false
+    },
+    {
+      "key": "alignment",
+      "title": "文字对齐（未选择）",
+      "state": "skipped",
+      "paid": false
+    },
+    {
+      "key": "acoustic",
+      "title": "歌声音节对齐",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "staged-pjs-0",
+            "text": "ところが",
+            "start": 4386,
+            "end": 5676,
+            "units": [
+              {
+                "text": "ところが",
+                "start": 4386,
+                "end": 5676,
+                "kana": "ところが",
+                "romaji": "tokoroga",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "と",
+                    "start": 4386,
+                    "end": 4556,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "こ",
+                    "start": 4556,
+                    "end": 4986,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ろ",
+                    "start": 4986,
+                    "end": 5136,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "が",
+                    "start": 5136,
+                    "end": 5676,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ところが",
+            "romaji": "tokoroga",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    3726,
+                    5854
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "と",
+                      "pronunciation": "to",
+                      "start": 4386,
+                      "end": 4556,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 4386,
+                          "end": 4476
+                        },
+                        {
+                          "phone": "o",
+                          "start": 4476,
+                          "end": 4556
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "こ",
+                      "pronunciation": "ko",
+                      "start": 4556,
+                      "end": 4986,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 4556,
+                          "end": 4636
+                        },
+                        {
+                          "phone": "o",
+                          "start": 4636,
+                          "end": 4986
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "ろ",
+                      "pronunciation": "ro",
+                      "start": 4986,
+                      "end": 5136,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 4986,
+                          "end": 5006
+                        },
+                        {
+                          "phone": "o",
+                          "start": 5006,
+                          "end": 5136
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "が",
+                      "pronunciation": "ga",
+                      "start": 5136,
+                      "end": 5676,
+                      "phones": [
+                        {
+                          "phone": "g",
+                          "start": 5136,
+                          "end": 5176
+                        },
+                        {
+                          "phone": "a",
+                          "start": 5176,
+                          "end": 5676
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9999046921730042,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                4226,
+                5854
+              ],
+              "analysis_range": [
+                3726,
+                5854
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-1",
+            "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "start": 5929,
+            "end": 10919,
+            "units": [
+              {
+                "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "start": 5929,
+                "end": 10919,
+                "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "え",
+                    "start": 5929,
+                    "end": 6069,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "りゅ",
+                    "start": 6069,
+                    "end": 6189,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 6189,
+                    "end": 6369,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "く",
+                    "start": 6369,
+                    "end": 6529,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "と",
+                    "start": 6529,
+                    "end": 6959,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ん",
+                    "start": 6959,
+                    "end": 7069,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "わ",
+                    "start": 7069,
+                    "end": 7379,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "にゅ",
+                    "start": 7379,
+                    "end": 7569,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "む",
+                    "start": 7569,
+                    "end": 7719,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ぺ",
+                    "start": 7719,
+                    "end": 8269,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 8269,
+                    "end": 8369,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "せ",
+                    "start": 8369,
+                    "end": 8639,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "い",
+                    "start": 8639,
+                    "end": 8839,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 8839,
+                    "end": 9089,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "も",
+                    "start": 9089,
+                    "end": 9559,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 9559,
+                    "end": 9699,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 9699,
+                    "end": 10229,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ず",
+                    "start": 10229,
+                    "end": 10459,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "に",
+                    "start": 10459,
+                    "end": 10919,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    5779,
+                    11105
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "え",
+                      "pronunciation": "e",
+                      "start": 5929,
+                      "end": 6069,
+                      "phones": [
+                        {
+                          "phone": "e",
+                          "start": 5929,
+                          "end": 6069
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "りゅ",
+                      "pronunciation": "ryu",
+                      "start": 6069,
+                      "end": 6189,
+                      "phones": [
+                        {
+                          "phone": "ry",
+                          "start": 6069,
+                          "end": 6099
+                        },
+                        {
+                          "phone": "u",
+                          "start": 6099,
+                          "end": 6189
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 6189,
+                      "end": 6369,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 6189,
+                          "end": 6279
+                        },
+                        {
+                          "phone": "i",
+                          "start": 6279,
+                          "end": 6369
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "く",
+                      "pronunciation": "ku",
+                      "start": 6369,
+                      "end": 6529,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 6369,
+                          "end": 6449
+                        },
+                        {
+                          "phone": "u",
+                          "start": 6449,
+                          "end": 6529
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 4,
+                      "kana": "と",
+                      "pronunciation": "to",
+                      "start": 6529,
+                      "end": 6959,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 6529,
+                          "end": 6619
+                        },
+                        {
+                          "phone": "o",
+                          "start": 6619,
+                          "end": 6959
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 5,
+                      "kana": "ん",
+                      "pronunciation": "n",
+                      "start": 6959,
+                      "end": 7069,
+                      "phones": [
+                        {
+                          "phone": "N",
+                          "start": 6959,
+                          "end": 7069
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 6,
+                      "kana": "わ",
+                      "pronunciation": "wa",
+                      "start": 7069,
+                      "end": 7379,
+                      "phones": [
+                        {
+                          "phone": "w",
+                          "start": 7069,
+                          "end": 7119
+                        },
+                        {
+                          "phone": "a",
+                          "start": 7119,
+                          "end": 7379
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 7,
+                      "kana": "にゅ",
+                      "pronunciation": "nyu",
+                      "start": 7379,
+                      "end": 7569,
+                      "phones": [
+                        {
+                          "phone": "ny",
+                          "start": 7379,
+                          "end": 7459
+                        },
+                        {
+                          "phone": "u",
+                          "start": 7459,
+                          "end": 7569
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 8,
+                      "kana": "む",
+                      "pronunciation": "mu",
+                      "start": 7569,
+                      "end": 7719,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 7569,
+                          "end": 7619
+                        },
+                        {
+                          "phone": "u",
+                          "start": 7619,
+                          "end": 7719
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 9,
+                      "kana": "ぺ",
+                      "pronunciation": "pe",
+                      "start": 7719,
+                      "end": 8269,
+                      "phones": [
+                        {
+                          "phone": "p",
+                          "start": 7719,
+                          "end": 7819
+                        },
+                        {
+                          "phone": "e",
+                          "start": 7819,
+                          "end": 8269
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 10,
+                      "kana": "の",
+                      "pronunciation": "no",
+                      "start": 8269,
+                      "end": 8369,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 8269,
+                          "end": 8289
+                        },
+                        {
+                          "phone": "o",
+                          "start": 8289,
+                          "end": 8369
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 11,
+                      "kana": "せ",
+                      "pronunciation": "se",
+                      "start": 8369,
+                      "end": 8639,
+                      "phones": [
+                        {
+                          "phone": "s",
+                          "start": 8369,
+                          "end": 8479
+                        },
+                        {
+                          "phone": "e",
+                          "start": 8479,
+                          "end": 8639
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 12,
+                      "kana": "い",
+                      "pronunciation": "i",
+                      "start": 8639,
+                      "end": 8839,
+                      "phones": [
+                        {
+                          "phone": "i",
+                          "start": 8639,
+                          "end": 8839
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 13,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 8839,
+                      "end": 9089,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 8839,
+                          "end": 8959
+                        },
+                        {
+                          "phone": "i",
+                          "start": 8959,
+                          "end": 9089
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 14,
+                      "kana": "も",
+                      "pronunciation": "mo",
+                      "start": 9089,
+                      "end": 9559,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 9089,
+                          "end": 9139
+                        },
+                        {
+                          "phone": "o",
+                          "start": 9139,
+                          "end": 9559
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 15,
+                      "kana": "き",
+                      "pronunciation": "ki",
+                      "start": 9559,
+                      "end": 9699,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 9559,
+                          "end": 9639
+                        },
+                        {
+                          "phone": "i",
+                          "start": 9639,
+                          "end": 9699
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 16,
+                      "kana": "か",
+                      "pronunciation": "ka",
+                      "start": 9699,
+                      "end": 10229,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 9699,
+                          "end": 9789
+                        },
+                        {
+                          "phone": "a",
+                          "start": 9789,
+                          "end": 10229
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 17,
+                      "kana": "ず",
+                      "pronunciation": "zu",
+                      "start": 10229,
+                      "end": 10459,
+                      "phones": [
+                        {
+                          "phone": "z",
+                          "start": 10229,
+                          "end": 10329
+                        },
+                        {
+                          "phone": "u",
+                          "start": 10329,
+                          "end": 10459
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 18,
+                      "kana": "に",
+                      "pronunciation": "ni",
+                      "start": 10459,
+                      "end": 10919,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 10459,
+                          "end": 10499
+                        },
+                        {
+                          "phone": "i",
+                          "start": 10499,
+                          "end": 10919
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9993699193000793,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                5779,
+                11105
+              ],
+              "analysis_range": [
+                5779,
+                11105
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-2",
+            "text": "でめてるのかしをきりたおした",
+            "start": 11238,
+            "end": 15388,
+            "units": [
+              {
+                "text": "でめてるのかしをきりたおした",
+                "start": 11238,
+                "end": 15388,
+                "kana": "でめてるのかしをきりたおした",
+                "romaji": "demeterunokashiokiritaoshita",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "で",
+                    "start": 11238,
+                    "end": 11578,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "め",
+                    "start": 11578,
+                    "end": 11838,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "て",
+                    "start": 11838,
+                    "end": 12278,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "る",
+                    "start": 12278,
+                    "end": 12418,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 12418,
+                    "end": 12698,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 12698,
+                    "end": 12868,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 12868,
+                    "end": 13088,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "を",
+                    "start": 13088,
+                    "end": 13198,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 13198,
+                    "end": 13588,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "り",
+                    "start": 13588,
+                    "end": 13708,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 13708,
+                    "end": 13918,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "お",
+                    "start": 13918,
+                    "end": 14108,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 14108,
+                    "end": 14288,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 14288,
+                    "end": 15388,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "でめてるのかしをきりたおした",
+            "romaji": "demeterunokashiokiritaoshita",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    11058,
+                    15600
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "で",
+                      "pronunciation": "de",
+                      "start": 11238,
+                      "end": 11578,
+                      "phones": [
+                        {
+                          "phone": "d",
+                          "start": 11238,
+                          "end": 11278
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11278,
+                          "end": 11578
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "め",
+                      "pronunciation": "me",
+                      "start": 11578,
+                      "end": 11838,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 11578,
+                          "end": 11628
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11628,
+                          "end": 11838
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "て",
+                      "pronunciation": "te",
+                      "start": 11838,
+                      "end": 12278,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 11838,
+                          "end": 11928
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11928,
+                          "end": 12278
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "る",
+                      "pronunciation": "ru",
+                      "start": 12278,
+                      "end": 12418,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 12278,
+                          "end": 12298
+                        },
+                        {
+                          "phone": "u",
+                          "start": 12298,
+                          "end": 12418
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 4,
+                      "kana": "の",
+                      "pronunciation": "no",
+                      "start": 12418,
+                      "end": 12698,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 12418,
+                          "end": 12448
+                        },
+                        {
+                          "phone": "o",
+                          "start": 12448,
+                          "end": 12698
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 5,
+                      "kana": "か",
+                      "pronunciation": "ka",
+                      "start": 12698,
+                      "end": 12868,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 12698,
+                          "end": 12798
+                        },
+                        {
+                          "phone": "a",
+                          "start": 12798,
+                          "end": 12868
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 6,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 12868,
+                      "end": 13088,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 12868,
+                          "end": 12968
+                        },
+                        {
+                          "phone": "i",
+                          "start": 12968,
+                          "end": 13088
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 7,
+                      "kana": "を",
+                      "pronunciation": "o",
+                      "start": 13088,
+                      "end": 13198,
+                      "phones": [
+                        {
+                          "phone": "o",
+                          "start": 13088,
+                          "end": 13198
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 8,
+                      "kana": "き",
+                      "pronunciation": "ki",
+                      "start": 13198,
+                      "end": 13588,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 13198,
+                          "end": 13298
+                        },
+                        {
+                          "phone": "i",
+                          "start": 13298,
+                          "end": 13588
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 9,
+                      "kana": "り",
+                      "pronunciation": "ri",
+                      "start": 13588,
+                      "end": 13708,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 13588,
+                          "end": 13608
+                        },
+                        {
+                          "phone": "i",
+                          "start": 13608,
+                          "end": 13708
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 10,
+                      "kana": "た",
+                      "pronunciation": "ta",
+                      "start": 13708,
+                      "end": 13918,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 13708,
+                          "end": 13778
+                        },
+                        {
+                          "phone": "a",
+                          "start": 13778,
+                          "end": 13918
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 11,
+                      "kana": "お",
+                      "pronunciation": "o",
+                      "start": 13918,
+                      "end": 14108,
+                      "phones": [
+                        {
+                          "phone": "o",
+                          "start": 13918,
+                          "end": 14108
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 12,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 14108,
+                      "end": 14288,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 14108,
+                          "end": 14228
+                        },
+                        {
+                          "phone": "i",
+                          "start": 14228,
+                          "end": 14288
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 13,
+                      "kana": "た",
+                      "pronunciation": "ta",
+                      "start": 14288,
+                      "end": 15388,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 14288,
+                          "end": 14318
+                        },
+                        {
+                          "phone": "a",
+                          "start": 14318,
+                          "end": 15388
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9997552633285522,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                11058,
+                15600
+              ],
+              "analysis_range": [
+                11058,
+                15600
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "intentional-invalid-reading",
+            "text": "待修正示例",
+            "start": 15600,
+            "end": 15900,
+            "units": [
+              {
+                "text": "待修正示例",
+                "start": 15600,
+                "end": 15900,
+                "kana": "ー",
+                "romaji": "",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "ー",
+                    "start": 15600,
+                    "end": 15900,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ー",
+            "romaji": "",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "local": true,
+        "partial": false,
+        "acoustic": {
+          "total": 4,
+          "processed": 4,
+          "aligned": 3,
+          "needs_manual": 1,
+          "reused": 0,
+          "model_loads": 1,
+          "audio_role": "original",
+          "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+          "lines": {
+            "intentional-invalid-reading": {
+              "status": "needs_manual",
+              "reason": "长音「ー」前缺少可识别的元音，请先修正假名。"
+            },
+            "staged-pjs-0": {
+              "status": "aligned",
+              "reason": "已生成歌声候选，仍需试听确认。"
+            },
+            "staged-pjs-1": {
+              "status": "aligned",
+              "reason": "已生成歌声候选，仍需试听确认。"
+            },
+            "staged-pjs-2": {
+              "status": "aligned",
+              "reason": "已生成歌声候选，仍需试听确认。"
+            }
+          }
+        },
+        "acoustic_checkpoint": {
+          "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+          "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+          "pcm_sha256": "23c62c3d24ebe897c712a7b8cf5ad7da6f3d579a1f3a69b58c1a2e63b6f7dc13",
+          "processed": {
+            "intentional-invalid-reading": {
+              "key": "d035b94506793d61d3ab79e92a0bbc26077ef17e87a113c661ece581c22cdbea",
+              "raw": null,
+              "reason": "长音「ー」前缺少可识别的元音，请先修正假名。"
+            },
+            "staged-pjs-0": {
+              "key": "f5d28668aa34547e860d01159405b66f0109773a99454e972caf60de5b5e816c",
+              "raw": {
+                "engine": "tifa-1.0-st-mora-cpu-v1",
+                "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+                "jobs": [
+                  {
+                    "index": 0,
+                    "mora": [
+                      {
+                        "unit": 0,
+                        "highlight": 0,
+                        "kana": "と",
+                        "pronunciation": "to",
+                        "start": 4386,
+                        "end": 4556,
+                        "phones": [
+                          {
+                            "phone": "t",
+                            "start": 4386,
+                            "end": 4476
+                          },
+                          {
+                            "phone": "o",
+                            "start": 4476,
+                            "end": 4556
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 1,
+                        "kana": "こ",
+                        "pronunciation": "ko",
+                        "start": 4556,
+                        "end": 4986,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 4556,
+                            "end": 4636
+                          },
+                          {
+                            "phone": "o",
+                            "start": 4636,
+                            "end": 4986
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 2,
+                        "kana": "ろ",
+                        "pronunciation": "ro",
+                        "start": 4986,
+                        "end": 5136,
+                        "phones": [
+                          {
+                            "phone": "r",
+                            "start": 4986,
+                            "end": 5006
+                          },
+                          {
+                            "phone": "o",
+                            "start": 5006,
+                            "end": 5136
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 3,
+                        "kana": "が",
+                        "pronunciation": "ga",
+                        "start": 5136,
+                        "end": 5676,
+                        "phones": [
+                          {
+                            "phone": "g",
+                            "start": 5136,
+                            "end": 5176
+                          },
+                          {
+                            "phone": "a",
+                            "start": 5176,
+                            "end": 5676
+                          }
+                        ]
+                      }
+                    ],
+                    "agreement": 0.9999046921730042
+                  }
+                ],
+                "timestep_ms": 10,
+                "sample_rate": 48000,
+                "protocol": 2
+              },
+              "reason": ""
+            },
+            "staged-pjs-1": {
+              "key": "d19c0964faa0b0507bf757fed730ac8c53c9e44df436ff1d7f4bfcabfb84e912",
+              "raw": {
+                "engine": "tifa-1.0-st-mora-cpu-v1",
+                "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+                "jobs": [
+                  {
+                    "index": 0,
+                    "mora": [
+                      {
+                        "unit": 0,
+                        "highlight": 0,
+                        "kana": "え",
+                        "pronunciation": "e",
+                        "start": 5929,
+                        "end": 6069,
+                        "phones": [
+                          {
+                            "phone": "e",
+                            "start": 5929,
+                            "end": 6069
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 1,
+                        "kana": "りゅ",
+                        "pronunciation": "ryu",
+                        "start": 6069,
+                        "end": 6189,
+                        "phones": [
+                          {
+                            "phone": "ry",
+                            "start": 6069,
+                            "end": 6099
+                          },
+                          {
+                            "phone": "u",
+                            "start": 6099,
+                            "end": 6189
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 2,
+                        "kana": "し",
+                        "pronunciation": "shi",
+                        "start": 6189,
+                        "end": 6369,
+                        "phones": [
+                          {
+                            "phone": "sh",
+                            "start": 6189,
+                            "end": 6279
+                          },
+                          {
+                            "phone": "i",
+                            "start": 6279,
+                            "end": 6369
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 3,
+                        "kana": "く",
+                        "pronunciation": "ku",
+                        "start": 6369,
+                        "end": 6529,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 6369,
+                            "end": 6449
+                          },
+                          {
+                            "phone": "u",
+                            "start": 6449,
+                            "end": 6529
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 4,
+                        "kana": "と",
+                        "pronunciation": "to",
+                        "start": 6529,
+                        "end": 6959,
+                        "phones": [
+                          {
+                            "phone": "t",
+                            "start": 6529,
+                            "end": 6619
+                          },
+                          {
+                            "phone": "o",
+                            "start": 6619,
+                            "end": 6959
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 5,
+                        "kana": "ん",
+                        "pronunciation": "n",
+                        "start": 6959,
+                        "end": 7069,
+                        "phones": [
+                          {
+                            "phone": "N",
+                            "start": 6959,
+                            "end": 7069
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 6,
+                        "kana": "わ",
+                        "pronunciation": "wa",
+                        "start": 7069,
+                        "end": 7379,
+                        "phones": [
+                          {
+                            "phone": "w",
+                            "start": 7069,
+                            "end": 7119
+                          },
+                          {
+                            "phone": "a",
+                            "start": 7119,
+                            "end": 7379
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 7,
+                        "kana": "にゅ",
+                        "pronunciation": "nyu",
+                        "start": 7379,
+                        "end": 7569,
+                        "phones": [
+                          {
+                            "phone": "ny",
+                            "start": 7379,
+                            "end": 7459
+                          },
+                          {
+                            "phone": "u",
+                            "start": 7459,
+                            "end": 7569
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 8,
+                        "kana": "む",
+                        "pronunciation": "mu",
+                        "start": 7569,
+                        "end": 7719,
+                        "phones": [
+                          {
+                            "phone": "m",
+                            "start": 7569,
+                            "end": 7619
+                          },
+                          {
+                            "phone": "u",
+                            "start": 7619,
+                            "end": 7719
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 9,
+                        "kana": "ぺ",
+                        "pronunciation": "pe",
+                        "start": 7719,
+                        "end": 8269,
+                        "phones": [
+                          {
+                            "phone": "p",
+                            "start": 7719,
+                            "end": 7819
+                          },
+                          {
+                            "phone": "e",
+                            "start": 7819,
+                            "end": 8269
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 10,
+                        "kana": "の",
+                        "pronunciation": "no",
+                        "start": 8269,
+                        "end": 8369,
+                        "phones": [
+                          {
+                            "phone": "n",
+                            "start": 8269,
+                            "end": 8289
+                          },
+                          {
+                            "phone": "o",
+                            "start": 8289,
+                            "end": 8369
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 11,
+                        "kana": "せ",
+                        "pronunciation": "se",
+                        "start": 8369,
+                        "end": 8639,
+                        "phones": [
+                          {
+                            "phone": "s",
+                            "start": 8369,
+                            "end": 8479
+                          },
+                          {
+                            "phone": "e",
+                            "start": 8479,
+                            "end": 8639
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 12,
+                        "kana": "い",
+                        "pronunciation": "i",
+                        "start": 8639,
+                        "end": 8839,
+                        "phones": [
+                          {
+                            "phone": "i",
+                            "start": 8639,
+                            "end": 8839
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 13,
+                        "kana": "し",
+                        "pronunciation": "shi",
+                        "start": 8839,
+                        "end": 9089,
+                        "phones": [
+                          {
+                            "phone": "sh",
+                            "start": 8839,
+                            "end": 8959
+                          },
+                          {
+                            "phone": "i",
+                            "start": 8959,
+                            "end": 9089
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 14,
+                        "kana": "も",
+                        "pronunciation": "mo",
+                        "start": 9089,
+                        "end": 9559,
+                        "phones": [
+                          {
+                            "phone": "m",
+                            "start": 9089,
+                            "end": 9139
+                          },
+                          {
+                            "phone": "o",
+                            "start": 9139,
+                            "end": 9559
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 15,
+                        "kana": "き",
+                        "pronunciation": "ki",
+                        "start": 9559,
+                        "end": 9699,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 9559,
+                            "end": 9639
+                          },
+                          {
+                            "phone": "i",
+                            "start": 9639,
+                            "end": 9699
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 16,
+                        "kana": "か",
+                        "pronunciation": "ka",
+                        "start": 9699,
+                        "end": 10229,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 9699,
+                            "end": 9789
+                          },
+                          {
+                            "phone": "a",
+                            "start": 9789,
+                            "end": 10229
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 17,
+                        "kana": "ず",
+                        "pronunciation": "zu",
+                        "start": 10229,
+                        "end": 10459,
+                        "phones": [
+                          {
+                            "phone": "z",
+                            "start": 10229,
+                            "end": 10329
+                          },
+                          {
+                            "phone": "u",
+                            "start": 10329,
+                            "end": 10459
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 18,
+                        "kana": "に",
+                        "pronunciation": "ni",
+                        "start": 10459,
+                        "end": 10919,
+                        "phones": [
+                          {
+                            "phone": "n",
+                            "start": 10459,
+                            "end": 10499
+                          },
+                          {
+                            "phone": "i",
+                            "start": 10499,
+                            "end": 10919
+                          }
+                        ]
+                      }
+                    ],
+                    "agreement": 0.9993699193000793
+                  }
+                ],
+                "timestep_ms": 10,
+                "sample_rate": 48000,
+                "protocol": 2
+              },
+              "reason": ""
+            },
+            "staged-pjs-2": {
+              "key": "5f6f30c188dda7472e1ab6ff0486479d66411f4aa91158d0e7121470422a1cab",
+              "raw": {
+                "engine": "tifa-1.0-st-mora-cpu-v1",
+                "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+                "jobs": [
+                  {
+                    "index": 0,
+                    "mora": [
+                      {
+                        "unit": 0,
+                        "highlight": 0,
+                        "kana": "で",
+                        "pronunciation": "de",
+                        "start": 11238,
+                        "end": 11578,
+                        "phones": [
+                          {
+                            "phone": "d",
+                            "start": 11238,
+                            "end": 11278
+                          },
+                          {
+                            "phone": "e",
+                            "start": 11278,
+                            "end": 11578
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 1,
+                        "kana": "め",
+                        "pronunciation": "me",
+                        "start": 11578,
+                        "end": 11838,
+                        "phones": [
+                          {
+                            "phone": "m",
+                            "start": 11578,
+                            "end": 11628
+                          },
+                          {
+                            "phone": "e",
+                            "start": 11628,
+                            "end": 11838
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 2,
+                        "kana": "て",
+                        "pronunciation": "te",
+                        "start": 11838,
+                        "end": 12278,
+                        "phones": [
+                          {
+                            "phone": "t",
+                            "start": 11838,
+                            "end": 11928
+                          },
+                          {
+                            "phone": "e",
+                            "start": 11928,
+                            "end": 12278
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 3,
+                        "kana": "る",
+                        "pronunciation": "ru",
+                        "start": 12278,
+                        "end": 12418,
+                        "phones": [
+                          {
+                            "phone": "r",
+                            "start": 12278,
+                            "end": 12298
+                          },
+                          {
+                            "phone": "u",
+                            "start": 12298,
+                            "end": 12418
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 4,
+                        "kana": "の",
+                        "pronunciation": "no",
+                        "start": 12418,
+                        "end": 12698,
+                        "phones": [
+                          {
+                            "phone": "n",
+                            "start": 12418,
+                            "end": 12448
+                          },
+                          {
+                            "phone": "o",
+                            "start": 12448,
+                            "end": 12698
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 5,
+                        "kana": "か",
+                        "pronunciation": "ka",
+                        "start": 12698,
+                        "end": 12868,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 12698,
+                            "end": 12798
+                          },
+                          {
+                            "phone": "a",
+                            "start": 12798,
+                            "end": 12868
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 6,
+                        "kana": "し",
+                        "pronunciation": "shi",
+                        "start": 12868,
+                        "end": 13088,
+                        "phones": [
+                          {
+                            "phone": "sh",
+                            "start": 12868,
+                            "end": 12968
+                          },
+                          {
+                            "phone": "i",
+                            "start": 12968,
+                            "end": 13088
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 7,
+                        "kana": "を",
+                        "pronunciation": "o",
+                        "start": 13088,
+                        "end": 13198,
+                        "phones": [
+                          {
+                            "phone": "o",
+                            "start": 13088,
+                            "end": 13198
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 8,
+                        "kana": "き",
+                        "pronunciation": "ki",
+                        "start": 13198,
+                        "end": 13588,
+                        "phones": [
+                          {
+                            "phone": "k",
+                            "start": 13198,
+                            "end": 13298
+                          },
+                          {
+                            "phone": "i",
+                            "start": 13298,
+                            "end": 13588
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 9,
+                        "kana": "り",
+                        "pronunciation": "ri",
+                        "start": 13588,
+                        "end": 13708,
+                        "phones": [
+                          {
+                            "phone": "r",
+                            "start": 13588,
+                            "end": 13608
+                          },
+                          {
+                            "phone": "i",
+                            "start": 13608,
+                            "end": 13708
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 10,
+                        "kana": "た",
+                        "pronunciation": "ta",
+                        "start": 13708,
+                        "end": 13918,
+                        "phones": [
+                          {
+                            "phone": "t",
+                            "start": 13708,
+                            "end": 13778
+                          },
+                          {
+                            "phone": "a",
+                            "start": 13778,
+                            "end": 13918
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 11,
+                        "kana": "お",
+                        "pronunciation": "o",
+                        "start": 13918,
+                        "end": 14108,
+                        "phones": [
+                          {
+                            "phone": "o",
+                            "start": 13918,
+                            "end": 14108
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 12,
+                        "kana": "し",
+                        "pronunciation": "shi",
+                        "start": 14108,
+                        "end": 14288,
+                        "phones": [
+                          {
+                            "phone": "sh",
+                            "start": 14108,
+                            "end": 14228
+                          },
+                          {
+                            "phone": "i",
+                            "start": 14228,
+                            "end": 14288
+                          }
+                        ]
+                      },
+                      {
+                        "unit": 0,
+                        "highlight": 13,
+                        "kana": "た",
+                        "pronunciation": "ta",
+                        "start": 14288,
+                        "end": 15388,
+                        "phones": [
+                          {
+                            "phone": "t",
+                            "start": 14288,
+                            "end": 14318
+                          },
+                          {
+                            "phone": "a",
+                            "start": 14318,
+                            "end": 15388
+                          }
+                        ]
+                      }
+                    ],
+                    "agreement": 0.9997552633285522
+                  }
+                ],
+                "timestep_ms": 10,
+                "sample_rate": 48000,
+                "protocol": 2
+              },
+              "reason": ""
+            }
+          }
+        },
+        "message": "本地歌声处理完成：3 句候选，1 句保留初稿待手工核对。所有时间仍需试听确认。"
+      },
+      "result_hash": "54fce1bd002ac77be6e03f36d2a3b8597cb6350e4060a323061885a8774118b8"
+    },
+    {
+      "key": "preview",
+      "title": "准备审核",
+      "state": "completed",
+      "paid": false,
+      "result": {
+        "suggestions": [
+          {
+            "id": "staged-pjs-0",
+            "text": "ところが",
+            "start": 4386,
+            "end": 5676,
+            "units": [
+              {
+                "text": "ところが",
+                "start": 4386,
+                "end": 5676,
+                "kana": "ところが",
+                "romaji": "tokoroga",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "と",
+                    "start": 4386,
+                    "end": 4556,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "こ",
+                    "start": 4556,
+                    "end": 4986,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ろ",
+                    "start": 4986,
+                    "end": 5136,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "が",
+                    "start": 5136,
+                    "end": 5676,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ところが",
+            "romaji": "tokoroga",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    3726,
+                    5854
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "と",
+                      "pronunciation": "to",
+                      "start": 4386,
+                      "end": 4556,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 4386,
+                          "end": 4476
+                        },
+                        {
+                          "phone": "o",
+                          "start": 4476,
+                          "end": 4556
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "こ",
+                      "pronunciation": "ko",
+                      "start": 4556,
+                      "end": 4986,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 4556,
+                          "end": 4636
+                        },
+                        {
+                          "phone": "o",
+                          "start": 4636,
+                          "end": 4986
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "ろ",
+                      "pronunciation": "ro",
+                      "start": 4986,
+                      "end": 5136,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 4986,
+                          "end": 5006
+                        },
+                        {
+                          "phone": "o",
+                          "start": 5006,
+                          "end": 5136
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "が",
+                      "pronunciation": "ga",
+                      "start": 5136,
+                      "end": 5676,
+                      "phones": [
+                        {
+                          "phone": "g",
+                          "start": 5136,
+                          "end": 5176
+                        },
+                        {
+                          "phone": "a",
+                          "start": 5176,
+                          "end": 5676
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9999046921730042,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                4226,
+                5854
+              ],
+              "analysis_range": [
+                3726,
+                5854
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-1",
+            "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "start": 5929,
+            "end": 10919,
+            "units": [
+              {
+                "text": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "start": 5929,
+                "end": 10919,
+                "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+                "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "え",
+                    "start": 5929,
+                    "end": 6069,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "りゅ",
+                    "start": 6069,
+                    "end": 6189,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 6189,
+                    "end": 6369,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "く",
+                    "start": 6369,
+                    "end": 6529,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "と",
+                    "start": 6529,
+                    "end": 6959,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ん",
+                    "start": 6959,
+                    "end": 7069,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "わ",
+                    "start": 7069,
+                    "end": 7379,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "にゅ",
+                    "start": 7379,
+                    "end": 7569,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "む",
+                    "start": 7569,
+                    "end": 7719,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ぺ",
+                    "start": 7719,
+                    "end": 8269,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 8269,
+                    "end": 8369,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "せ",
+                    "start": 8369,
+                    "end": 8639,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "い",
+                    "start": 8639,
+                    "end": 8839,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 8839,
+                    "end": 9089,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "も",
+                    "start": 9089,
+                    "end": 9559,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 9559,
+                    "end": 9699,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 9699,
+                    "end": 10229,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "ず",
+                    "start": 10229,
+                    "end": 10459,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "に",
+                    "start": 10459,
+                    "end": 10919,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "えりゅしくとんわにゅむぺのせいしもきかずに",
+            "romaji": "eryushikutonwanyumupenoseishimokikazuni",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    5779,
+                    11105
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "え",
+                      "pronunciation": "e",
+                      "start": 5929,
+                      "end": 6069,
+                      "phones": [
+                        {
+                          "phone": "e",
+                          "start": 5929,
+                          "end": 6069
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "りゅ",
+                      "pronunciation": "ryu",
+                      "start": 6069,
+                      "end": 6189,
+                      "phones": [
+                        {
+                          "phone": "ry",
+                          "start": 6069,
+                          "end": 6099
+                        },
+                        {
+                          "phone": "u",
+                          "start": 6099,
+                          "end": 6189
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 6189,
+                      "end": 6369,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 6189,
+                          "end": 6279
+                        },
+                        {
+                          "phone": "i",
+                          "start": 6279,
+                          "end": 6369
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "く",
+                      "pronunciation": "ku",
+                      "start": 6369,
+                      "end": 6529,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 6369,
+                          "end": 6449
+                        },
+                        {
+                          "phone": "u",
+                          "start": 6449,
+                          "end": 6529
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 4,
+                      "kana": "と",
+                      "pronunciation": "to",
+                      "start": 6529,
+                      "end": 6959,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 6529,
+                          "end": 6619
+                        },
+                        {
+                          "phone": "o",
+                          "start": 6619,
+                          "end": 6959
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 5,
+                      "kana": "ん",
+                      "pronunciation": "n",
+                      "start": 6959,
+                      "end": 7069,
+                      "phones": [
+                        {
+                          "phone": "N",
+                          "start": 6959,
+                          "end": 7069
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 6,
+                      "kana": "わ",
+                      "pronunciation": "wa",
+                      "start": 7069,
+                      "end": 7379,
+                      "phones": [
+                        {
+                          "phone": "w",
+                          "start": 7069,
+                          "end": 7119
+                        },
+                        {
+                          "phone": "a",
+                          "start": 7119,
+                          "end": 7379
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 7,
+                      "kana": "にゅ",
+                      "pronunciation": "nyu",
+                      "start": 7379,
+                      "end": 7569,
+                      "phones": [
+                        {
+                          "phone": "ny",
+                          "start": 7379,
+                          "end": 7459
+                        },
+                        {
+                          "phone": "u",
+                          "start": 7459,
+                          "end": 7569
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 8,
+                      "kana": "む",
+                      "pronunciation": "mu",
+                      "start": 7569,
+                      "end": 7719,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 7569,
+                          "end": 7619
+                        },
+                        {
+                          "phone": "u",
+                          "start": 7619,
+                          "end": 7719
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 9,
+                      "kana": "ぺ",
+                      "pronunciation": "pe",
+                      "start": 7719,
+                      "end": 8269,
+                      "phones": [
+                        {
+                          "phone": "p",
+                          "start": 7719,
+                          "end": 7819
+                        },
+                        {
+                          "phone": "e",
+                          "start": 7819,
+                          "end": 8269
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 10,
+                      "kana": "の",
+                      "pronunciation": "no",
+                      "start": 8269,
+                      "end": 8369,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 8269,
+                          "end": 8289
+                        },
+                        {
+                          "phone": "o",
+                          "start": 8289,
+                          "end": 8369
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 11,
+                      "kana": "せ",
+                      "pronunciation": "se",
+                      "start": 8369,
+                      "end": 8639,
+                      "phones": [
+                        {
+                          "phone": "s",
+                          "start": 8369,
+                          "end": 8479
+                        },
+                        {
+                          "phone": "e",
+                          "start": 8479,
+                          "end": 8639
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 12,
+                      "kana": "い",
+                      "pronunciation": "i",
+                      "start": 8639,
+                      "end": 8839,
+                      "phones": [
+                        {
+                          "phone": "i",
+                          "start": 8639,
+                          "end": 8839
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 13,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 8839,
+                      "end": 9089,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 8839,
+                          "end": 8959
+                        },
+                        {
+                          "phone": "i",
+                          "start": 8959,
+                          "end": 9089
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 14,
+                      "kana": "も",
+                      "pronunciation": "mo",
+                      "start": 9089,
+                      "end": 9559,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 9089,
+                          "end": 9139
+                        },
+                        {
+                          "phone": "o",
+                          "start": 9139,
+                          "end": 9559
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 15,
+                      "kana": "き",
+                      "pronunciation": "ki",
+                      "start": 9559,
+                      "end": 9699,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 9559,
+                          "end": 9639
+                        },
+                        {
+                          "phone": "i",
+                          "start": 9639,
+                          "end": 9699
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 16,
+                      "kana": "か",
+                      "pronunciation": "ka",
+                      "start": 9699,
+                      "end": 10229,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 9699,
+                          "end": 9789
+                        },
+                        {
+                          "phone": "a",
+                          "start": 9789,
+                          "end": 10229
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 17,
+                      "kana": "ず",
+                      "pronunciation": "zu",
+                      "start": 10229,
+                      "end": 10459,
+                      "phones": [
+                        {
+                          "phone": "z",
+                          "start": 10229,
+                          "end": 10329
+                        },
+                        {
+                          "phone": "u",
+                          "start": 10329,
+                          "end": 10459
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 18,
+                      "kana": "に",
+                      "pronunciation": "ni",
+                      "start": 10459,
+                      "end": 10919,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 10459,
+                          "end": 10499
+                        },
+                        {
+                          "phone": "i",
+                          "start": 10499,
+                          "end": 10919
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9993699193000793,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                5779,
+                11105
+              ],
+              "analysis_range": [
+                5779,
+                11105
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "staged-pjs-2",
+            "text": "でめてるのかしをきりたおした",
+            "start": 11238,
+            "end": 15388,
+            "units": [
+              {
+                "text": "でめてるのかしをきりたおした",
+                "start": 11238,
+                "end": 15388,
+                "kana": "でめてるのかしをきりたおした",
+                "romaji": "demeterunokashiokiritaoshita",
+                "source": "acoustic",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "で",
+                    "start": 11238,
+                    "end": 11578,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "め",
+                    "start": 11578,
+                    "end": 11838,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "て",
+                    "start": 11838,
+                    "end": 12278,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "る",
+                    "start": 12278,
+                    "end": 12418,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "の",
+                    "start": 12418,
+                    "end": 12698,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "か",
+                    "start": 12698,
+                    "end": 12868,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 12868,
+                    "end": 13088,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "を",
+                    "start": 13088,
+                    "end": 13198,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "き",
+                    "start": 13198,
+                    "end": 13588,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "り",
+                    "start": 13588,
+                    "end": 13708,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 13708,
+                    "end": 13918,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "お",
+                    "start": 13918,
+                    "end": 14108,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "し",
+                    "start": 14108,
+                    "end": 14288,
+                    "source": "acoustic"
+                  },
+                  {
+                    "kana": "た",
+                    "start": 14288,
+                    "end": 15388,
+                    "source": "acoustic"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "でめてるのかしをきりたおした",
+            "romaji": "demeterunokashiokiritaoshita",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "timing_evidence": {
+              "engine": "tifa-1.0-st-mora-cpu-v1",
+              "model_sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+              "source_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+              "audio_role": "original",
+              "timestep_ms": 10,
+              "runs": [
+                {
+                  "window": [
+                    11058,
+                    15600
+                  ],
+                  "mora": [
+                    {
+                      "unit": 0,
+                      "highlight": 0,
+                      "kana": "で",
+                      "pronunciation": "de",
+                      "start": 11238,
+                      "end": 11578,
+                      "phones": [
+                        {
+                          "phone": "d",
+                          "start": 11238,
+                          "end": 11278
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11278,
+                          "end": 11578
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 1,
+                      "kana": "め",
+                      "pronunciation": "me",
+                      "start": 11578,
+                      "end": 11838,
+                      "phones": [
+                        {
+                          "phone": "m",
+                          "start": 11578,
+                          "end": 11628
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11628,
+                          "end": 11838
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 2,
+                      "kana": "て",
+                      "pronunciation": "te",
+                      "start": 11838,
+                      "end": 12278,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 11838,
+                          "end": 11928
+                        },
+                        {
+                          "phone": "e",
+                          "start": 11928,
+                          "end": 12278
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 3,
+                      "kana": "る",
+                      "pronunciation": "ru",
+                      "start": 12278,
+                      "end": 12418,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 12278,
+                          "end": 12298
+                        },
+                        {
+                          "phone": "u",
+                          "start": 12298,
+                          "end": 12418
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 4,
+                      "kana": "の",
+                      "pronunciation": "no",
+                      "start": 12418,
+                      "end": 12698,
+                      "phones": [
+                        {
+                          "phone": "n",
+                          "start": 12418,
+                          "end": 12448
+                        },
+                        {
+                          "phone": "o",
+                          "start": 12448,
+                          "end": 12698
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 5,
+                      "kana": "か",
+                      "pronunciation": "ka",
+                      "start": 12698,
+                      "end": 12868,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 12698,
+                          "end": 12798
+                        },
+                        {
+                          "phone": "a",
+                          "start": 12798,
+                          "end": 12868
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 6,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 12868,
+                      "end": 13088,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 12868,
+                          "end": 12968
+                        },
+                        {
+                          "phone": "i",
+                          "start": 12968,
+                          "end": 13088
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 7,
+                      "kana": "を",
+                      "pronunciation": "o",
+                      "start": 13088,
+                      "end": 13198,
+                      "phones": [
+                        {
+                          "phone": "o",
+                          "start": 13088,
+                          "end": 13198
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 8,
+                      "kana": "き",
+                      "pronunciation": "ki",
+                      "start": 13198,
+                      "end": 13588,
+                      "phones": [
+                        {
+                          "phone": "k",
+                          "start": 13198,
+                          "end": 13298
+                        },
+                        {
+                          "phone": "i",
+                          "start": 13298,
+                          "end": 13588
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 9,
+                      "kana": "り",
+                      "pronunciation": "ri",
+                      "start": 13588,
+                      "end": 13708,
+                      "phones": [
+                        {
+                          "phone": "r",
+                          "start": 13588,
+                          "end": 13608
+                        },
+                        {
+                          "phone": "i",
+                          "start": 13608,
+                          "end": 13708
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 10,
+                      "kana": "た",
+                      "pronunciation": "ta",
+                      "start": 13708,
+                      "end": 13918,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 13708,
+                          "end": 13778
+                        },
+                        {
+                          "phone": "a",
+                          "start": 13778,
+                          "end": 13918
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 11,
+                      "kana": "お",
+                      "pronunciation": "o",
+                      "start": 13918,
+                      "end": 14108,
+                      "phones": [
+                        {
+                          "phone": "o",
+                          "start": 13918,
+                          "end": 14108
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 12,
+                      "kana": "し",
+                      "pronunciation": "shi",
+                      "start": 14108,
+                      "end": 14288,
+                      "phones": [
+                        {
+                          "phone": "sh",
+                          "start": 14108,
+                          "end": 14228
+                        },
+                        {
+                          "phone": "i",
+                          "start": 14228,
+                          "end": 14288
+                        }
+                      ]
+                    },
+                    {
+                      "unit": 0,
+                      "highlight": 13,
+                      "kana": "た",
+                      "pronunciation": "ta",
+                      "start": 14288,
+                      "end": 15388,
+                      "phones": [
+                        {
+                          "phone": "t",
+                          "start": 14288,
+                          "end": 14318
+                        },
+                        {
+                          "phone": "a",
+                          "start": 14318,
+                          "end": 15388
+                        }
+                      ]
+                    }
+                  ],
+                  "agreement": 0.9997552633285522,
+                  "notes": []
+                }
+              ],
+              "protected": [],
+              "notes": [],
+              "notice": "以本次建议假名强制对齐实际歌声，并微调粗略句首句尾；原文、分词和输入读音保留。假名与演唱时间仍需试听确认，模型分数不是准确率。",
+              "input_range": [
+                11058,
+                15600
+              ],
+              "analysis_range": [
+                11058,
+                15600
+              ],
+              "fit_range": true
+            },
+            "display_start": null,
+            "display_end": null
+          },
+          {
+            "id": "intentional-invalid-reading",
+            "text": "待修正示例",
+            "start": 15600,
+            "end": 15900,
+            "units": [
+              {
+                "text": "待修正示例",
+                "start": 15600,
+                "end": 15900,
+                "kana": "ー",
+                "romaji": "",
+                "source": "estimated",
+                "locked": false,
+                "highlights": [
+                  {
+                    "kana": "ー",
+                    "start": 15600,
+                    "end": 15900,
+                    "source": "estimated"
+                  }
+                ],
+                "reading_source": "manual"
+              }
+            ],
+            "kana": "ー",
+            "romaji": "",
+            "translation": "",
+            "locked": false,
+            "reviewed": false,
+            "match": {},
+            "reading_review": {},
+            "display_start": null,
+            "display_end": null
+          }
+        ],
+        "local": true
+      },
+      "result_hash": "ff0bbcc5a2882a649f2b384057615de9964afd9bcb79bf70702b1e810a2c5d72"
+    }
+  ],
+  "updated": 1792429413.4499989
+}

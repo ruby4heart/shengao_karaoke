@@ -1,0 +1,173 @@
+from PySide6.QtCore import Qt,Signal,Slot,QTimer,QElapsedTimer,QUrl,QEvent,QSize,QRectF
+from PySide6.QtGui import QPainter,QColor,QImage,QLinearGradient
+from PySide6.QtWidgets import QWidget,QScrollArea,QFrame
+from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFrame
+from .render import AssRenderer
+
+class VideoCanvas(QWidget):
+    zoomRequested=Signal(int)
+    frameSizeChanged=Signal(int,int)
+    def __init__(self,parent=None):
+        super().__init__(parent);self.setMinimumSize(1,1)
+        self.frame=QImage();self.renderer=AssRenderer();self.position=0;self.aspect=16/9;self.show_subtitles=True;self.audio_only=False
+        self.setObjectName('videoPreview');self._wheel=0
+        self.setToolTip('滚轮按 12.5% 缩放视频；放大后可用滚动条移动画面。双击恢复适合窗口。')
+
+    def video_frame(self,frame):
+        image=frame.toImage()
+        if not image.isNull():
+            changed=self.frame.size()!=image.size();self.frame=image;self.aspect=image.width()/image.height()
+            if changed:self.frameSizeChanged.emit(image.width(),image.height())
+            self.update()
+
+    def wheelEvent(self,event):
+        self._wheel+=event.angleDelta().y();steps=int(self._wheel/120);self._wheel-=steps*120
+        if steps:self.zoomRequested.emit(steps)
+        event.accept()
+
+    def mouseDoubleClickEvent(self,event):self.zoomRequested.emit(0);event.accept()
+
+    def paintEvent(self,event):
+        p=QPainter(self);p.fillRect(self.rect(),QColor('#0c1423'))
+        w=self.width();h=round(w/self.aspect)
+        if h>self.height():h=self.height();w=round(h*self.aspect)
+        x=(self.width()-w)//2;y=(self.height()-h)//2
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        if not self.frame.isNull():p.drawImage(QRectF(x,y,w,h),self.frame)
+        elif not self.audio_only:
+            p.setPen(QColor('#93a4ba'));p.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'视频与字幕预览\n拖入视频开始制作；音频素材也可以使用')
+        if self.show_subtitles and self.renderer.text and w>0 and h>0:
+            # Bound the backing image at large zooms; Qt clips/scales the
+            # composited image together with the video, rather than allocating
+            # an 800 MB libass frame at 1000% zoom.
+            factor=min(1.,4096/max(w,h));rw=max(1,round(w*factor));rh=max(1,round(h*factor))
+            p.drawImage(QRectF(x,y,w,h),self.renderer.image(rw,rh,self.position))
+        p.end()
+
+class Playback(QWidget):
+    positionChanged=Signal(int)
+    durationChanged=Signal(int)
+    error=Signal(str)
+    zoomChanged=Signal(float)
+    def __init__(self,parent=None):
+        super().__init__(parent);self.canvas=VideoCanvas(self)
+        from PySide6.QtWidgets import QVBoxLayout
+        layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0)
+        self.viewport=QScrollArea();self.viewport.setFrameShape(QFrame.Shape.NoFrame);self.viewport.setAlignment(Qt.AlignmentFlag.AlignCenter);self.viewport.setMinimumSize(260,146);self.viewport.setWidget(self.canvas);layout.addWidget(self.viewport)
+        self.source_size=QSize(1920,1080);self.zoom=None
+        self.viewport.viewport().installEventFilter(self);self.canvas.zoomRequested.connect(self.zoom_steps);self.canvas.frameSizeChanged.connect(self.set_source_size)
+        self.player=QMediaPlayer(self);self.audio=QAudioOutput(self);self.sink=QVideoSink(self)
+        self.player.setAudioOutput(self.audio);self.player.setVideoSink(self.sink);self.audio.setVolume(.7)
+        if hasattr(self.player,'setPitchCompensation'):self.player.setPitchCompensation(True)
+        # Decode callbacks must not map a frame or pause the decoder inline.
+        # Explicit receiver context also keeps QWidget work on the GUI thread.
+        self.sink.videoFrameChanged.connect(self.receive_frame,Qt.ConnectionType.QueuedConnection)
+        self.player.positionChanged.connect(self.on_position);self.player.durationChanged.connect(lambda value:self.durationChanged.emit(int(value)))
+        self.player.errorOccurred.connect(self.play_error)
+        self.preview_pending=False;self.preview_started=False;self.preview_muted=False
+        self.resume_on_load=False;self.restore_range=None
+        self.pending_seek=None;self.player.mediaStatusChanged.connect(self.loaded)
+        self.range=None;self.loop=False;self.anchor=0;self.clock=QElapsedTimer();self.clock.start()
+        self.timer=QTimer(self);self.timer.setInterval(25);self.timer.timeout.connect(self.tick);self.timer.start()
+        self.player.playbackStateChanged.connect(lambda _:self.on_position(self.player.position()))
+        self.player.playbackRateChanged.connect(lambda _:self.on_position(self.player.position()))
+
+    def cancel_preview(self):
+        if self.preview_started:self.audio.setMuted(self.preview_muted)
+        self.preview_started=False;self.preview_pending=False
+
+    def play_error(self,code,message):
+        self.cancel_preview();self.resume_on_load=False;self.error.emit('播放失败：'+message)
+
+    @Slot(QVideoFrame)
+    def receive_frame(self,frame):
+        if self.player.source().isEmpty():return
+        self.canvas.video_frame(frame)
+        if self.preview_started and frame.isValid():
+            self.player.pause();self.cancel_preview()
+            if self.resume_on_load:self.resume_on_load=False;self.player.play()
+
+    def loaded(self,status):
+        if self.pending_seek is not None and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferingMedia,QMediaPlayer.MediaStatus.BufferedMedia):
+            value=self.pending_seek;self.pending_seek=None;self.seek(value)
+
+        if status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
+            if self.restore_range is not None:self.range,self.loop=self.restore_range;self.restore_range=None
+            if self.resume_on_load and not self.preview_pending:self.resume_on_load=False;self.player.play()
+            elif self.preview_pending and not self.player.hasVideo():
+                self.preview_pending=False
+                if self.resume_on_load:self.resume_on_load=False;self.player.play()
+
+        if self.preview_pending and not self.preview_started and self.player.hasVideo() and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
+            self.preview_started=True;self.preview_muted=self.audio.isMuted();self.audio.setMuted(True);self.player.play()
+
+    def open(self,path,position=0,preview=False):
+        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;self.player.stop();self.preview_pending=bool(preview);self.range=None;self.canvas.frame=QImage();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.set_source_size(1920,1080);self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
+
+    def clear(self):
+        self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
+        # Release displayed image resources before stopping the decoder.
+        self.canvas.frame=QImage();self.player.stop();self.player.setSource(QUrl())
+
+    def replace_audition_source(self,path):
+        position=self.canvas.position;zoom=self.zoom;playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState and not self.preview_started
+        saved_range=self.range;loop=self.loop;size=self.source_size
+        self.open(path,position,preview=True);self.resume_on_load=playing;self.restore_range=(saved_range,loop);self.set_source_size(size.width(),size.height());self.set_zoom(zoom)
+        self.seek(position)
+
+    def set_source_size(self,width,height):
+        self.source_size=QSize(max(16,width),max(16,height));self.canvas.aspect=width/max(1,height);self.resize_canvas()
+
+    def resize_canvas(self):
+        if self.zoom is None:
+            available=self.viewport.viewport().size();self.canvas.resize(self.source_size.scaled(available,Qt.AspectRatioMode.KeepAspectRatio))
+        else:self.canvas.resize(round(self.source_size.width()*self.zoom),round(self.source_size.height()*self.zoom))
+        self.zoomChanged.emit(0. if self.zoom is None else self.zoom)
+
+    def set_zoom(self,value=None):
+        self.zoom=None if value is None else max(.125,min(10.,float(value)));self.resize_canvas()
+
+    def zoom_steps(self,steps):
+        if not steps:self.set_zoom(None);return
+        current=self.zoom if self.zoom is not None else self.canvas.width()/self.source_size.width()
+        # Aegisub's SetWindowZoom: linear 1/8 steps, bounded at 12.5–1000%.
+        self.set_zoom(round((current+steps*.125)*10000)/10000)
+
+    def eventFilter(self,obj,event):
+        if obj is self.viewport.viewport():
+            if event.type()==QEvent.Type.Resize and self.zoom is None:QTimer.singleShot(0,self.resize_canvas)
+            elif event.type()==QEvent.Type.Wheel:
+                self.canvas.wheelEvent(event);return True
+        return super().eventFilter(obj,event)
+
+    def on_position(self,value):
+        self.anchor=value;self.clock.restart();self.canvas.position=value;self.canvas.update();self.positionChanged.emit(value)
+
+    def tick(self):
+        playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState
+        position=self.anchor+round(self.clock.elapsed()*self.player.playbackRate()) if playing else (self.player.position() if self.player.duration()>0 else self.anchor)
+        if self.range and playing and position>=self.range[1]:
+            if self.loop:self.seek(self.range[0])
+            else:self.player.pause();self.seek(self.range[1]);self.range=None
+            return
+        self.canvas.position=max(0,min(position,self.player.duration() or position));self.canvas.update()
+        if playing:self.positionChanged.emit(self.canvas.position)
+
+    def seek(self,value):
+        value=max(0,int(value));duration=self.player.duration()
+        if self.player.mediaStatus() in (QMediaPlayer.MediaStatus.NoMedia,QMediaPlayer.MediaStatus.LoadingMedia):self.pending_seek=value
+        if duration>0:value=min(value,duration)
+        self.player.setPosition(value);self.on_position(value)
+
+    def toggle(self):
+        warming=self.preview_started;self.cancel_preview()
+        if not warming and self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState:self.player.pause()
+        else:self.range=None;self.player.play()
+
+    def audition(self,start,end,loop=False):
+        self.cancel_preview()
+        duration=self.player.duration();start=max(0,int(start));end=min(int(end),duration) if duration>0 else int(end)
+        if start>=end:self.range=None;self.error.emit('所选时间超出了素材，请调整起止时间后试听。');return False
+        self.range=(start,end);self.loop=loop;self.seek(self.range[0]);self.player.play();return True
+
+    def stop(self):self.cancel_preview();self.resume_on_load=False;self.restore_range=None;self.range=None;self.player.pause()
