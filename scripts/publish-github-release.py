@@ -28,6 +28,21 @@ def sha(path):
     with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
 
+def find_release(api,tag):
+    """The tag endpoint omits drafts; inspect the authorized paginated list."""
+    release=api('GET','/releases/tags/'+tag)
+    if release:return release
+    matches=[];page=1
+    while True:
+        values=api('GET',f'/releases?per_page=100&page={page}')
+        assert isinstance(values,list),'Could not list releases; do not create a duplicate'
+        matches.extend(value for value in values if value.get('tag_name')==tag)
+        if len(values)<100:break
+        page+=1
+    assert len(matches)<=1,'Ambiguous releases for this tag; keep all drafts intact'
+    return matches[0] if matches else None
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--version',required=True);p.add_argument('--notes-file',type=Path,required=True)
@@ -72,7 +87,7 @@ def main():
         except urllib.error.HTTPError as error:
             if error.code==404 and method=='GET':return None
             raise RuntimeError(f'GitHub {method} {path}: HTTP {error.code}') from None
-    release=api('GET','/releases/tags/'+tag)
+    release=find_release(api,tag)
     if not release:
         release=api('POST','/releases',{'tag_name':tag,'target_commitish':head,'name':'声稿 '+version,
             'body':args.notes_file.read_text(encoding='utf-8'),'draft':True,'prerelease':version.startswith('0.'),'make_latest':'false'})

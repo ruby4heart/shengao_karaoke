@@ -15,3 +15,5 @@
 登录使用已配置的 Git 凭据管理器或显式设置的 `GITHUB_TOKEN`，凭据不进入命令参数、工程、日志或归档。公开验收 ZIP 自身的 SHA256 由 GitHub 资产摘要与发布回执记录，运行包／完整源码 ZIP 的 SHA256 同时保存在附带清单。
 
 `build/github-release-X.Y.Z.json` 是发布回执，记录远端 URL、提交、标签及资产指纹。每次发布后重新读远端核对，不把本地 ZIP 已生成等同 GitHub 已完成。
+
+按标签查询只返回已公开的版本；未找到时，发布脚本会分页读取有权限访问的 Release 列表，查找该标签唯一的既有草稿后续传。列表失败或草稿存在歧义时保留现状，不再新建。接口依据见 [GitHub Releases API](https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name)。该改进在首次 0.21.0 发布期间通过实际草稿只读查询与受控 API 回归验证，纳入后续版本；0.21.0 冻结归档保持原样。
