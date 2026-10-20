@@ -124,3 +124,23 @@ def test_reversed_sections_do_not_mark_unaffected_outer_context_as_uncertain():
     result=match_lyrics([row(t,i) for i,t in enumerate(texts)],[heard(texts[i],1000+j*5000) for j,i in enumerate([0,2,1,3])])
     assert result['suggestions'][0]['match']['status']=='matched' and result['suggestions'][-1]['match']['status']=='matched'
     assert next(v for v in result['sequence_review']['issues'] if v['kind']=='order_conflict')['line_ids']==['1','2']
+
+
+def test_sub_millisecond_character_estimates_are_not_false_extra_words():
+    text='あ'*120;line=row(text)
+    source=[LyricLine('asr',text,1000,1010,[Unit(text,1000,1010,source='word')])]
+    result=match_lyrics([line],source)
+    assert result['suggestions'][0]['match']['status']=='matched'
+    assert result['sequence_review']['unassigned_transcript']==[]
+
+
+@pytest.mark.parametrize('operation',['manual_boundary','shift','stretch'])
+def test_manually_placed_unsegmented_line_is_preserved_without_unit_flags(operation):
+    from studio_backend.provenance import create
+    line=row('君と歌う',start=1000,end=3000)
+    line.timing_origin=create('estimated',1000,3000);line.timing_origin['operations']=[operation]
+    source=[heard(line.text,15000)]
+    kept=match_lyrics([line],source)['suggestions'][0]
+    assert kept['match']['status']=='protected' and (kept['start'],kept['end'])==(1000,3000) and kept['units']==[]
+    replaced=match_lyrics([line],source,[14000,17000],replace_manual=True)['suggestions'][0]
+    assert replaced['match']['status']=='matched' and replaced['start']==15000

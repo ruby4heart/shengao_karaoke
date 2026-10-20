@@ -183,7 +183,7 @@ class ReviewDialog(QDialog):
         for word in review.get('words',[]):
             text=word.get('text','');before=word.get('before','');after=word.get('suggested','')
             parts.append(f'{text}：{before} → {after}；'+word.get('reason','')+' '+str(word.get('basis','')))
-        if match:parts.extend(['归一化识别文字：'+match.get('recognized',''),'匹配依据：'+match.get('reason','')])
+        if match:parts.extend(['用于匹配的识别文字（忽略空格／标点）：'+match.get('recognized',''),'匹配依据：'+match.get('reason','')])
         if not review and not match:parts.append('词典／LLM 生成的建议仍需结合实际演唱试听。')
         from studio_backend.model import LyricLine
         from studio_backend.provenance import line_summary,summary

@@ -2,7 +2,7 @@
 import copy
 import json
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QDialogButtonBox
+from PySide6.QtWidgets import QDialogButtonBox,QScrollArea
 from studio_backend.model import LyricLine,Unit
 from .project import Project,History,save_project,load_project,file_stamp
 from .dialogs import ReviewDialog
@@ -17,10 +17,10 @@ def exercise(app,StudioWindow,out,check,wait,media):
     try:
         p=Project(title='受控文字顺序验收 · 合成音频，非演唱精度')
         p.lines=[LyricLine('missing','君と歌う',0,1500),LyricLine('anchor','間奏明け',3000,3800,reviewed=True),LyricLine('later','君と歌う',1600,2400)]
-        p.transcript=[heard('間奏明け',3000),heard('追加',4200),heard('君と歌う',5000)]
+        transcript=[heard('間奏明け',3000),heard('追加',4200),heard('君と歌う',5000)]
         w.history=History(p);w.current=0;w.refresh();w.load_media(media)
         check('sequence_control_media_ready',wait(lambda:w.analysis_job is None and w.original_audio is not None,20000))
-        p=w.project;p.transcript_stamp=file_stamp(p.media);w.history.mark_saved();before=p.to_dict()
+        p=w.project;p.transcript=transcript;p.transcript_stamp=file_stamp(p.media);w.history.mark_saved();before=p.to_dict()
         w.start_api('match',transcript=p.transcript)
         check('sequence_real_request_includes_human_context',len(w.api.request['lines'])==3 and w.api.request['lines'][1]['reviewed'])
         check('sequence_real_worker_returns_review',wait(lambda:not w.api.busy and w.pending is not None,15000))
@@ -33,7 +33,9 @@ def exercise(app,StudioWindow,out,check,wait,media):
         footer=d.findChild(QDialogButtonBox)
         check('sequence_small_review_footer_reachable',footer.geometry().bottom()<d.height() and footer.isVisible())
         extra=next(i for i in range(d.sequence.selector.count()) if d.sequence.selector.itemData(i)['kind']=='unassigned_transcript')
-        d.sequence.selector.setCurrentIndex(extra);d.sequence.listen.click()
+        d.sequence.selector.setCurrentIndex(extra);d.findChild(QScrollArea).ensureWidgetVisible(d.sequence.listen);app.processEvents()
+        check('sequence_small_review_actions_reachable_by_scroll',d.sequence.listen.visibleRegion().boundingRect().height()==d.sequence.listen.height() and d.sequence.rematch.visibleRegion().boundingRect().height()==d.sequence.rematch.height())
+        d.sequence.listen.click()
         check('sequence_extra_audition_has_context',w.playback.range==(3850,4950));w.playback.stop()
         d.grab().save(str(out/'sequence-review-controls.png'));d.reject()
         def manual():

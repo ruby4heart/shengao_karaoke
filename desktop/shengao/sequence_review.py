@@ -19,7 +19,7 @@ class SequenceReview(QWidget):
         self.rows={v['id']:v for v in values};self.indices={v.id:i+1 for i,v in enumerate(project.lines)}
         self.items=[*report.get('issues',[]),*report.get('unassigned_transcript',[])]
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0)
-        summary=QLabel(f'匹配阶段的整首顺序记录 · {len(report.get("issues",[]))} 项歌词疑点 · {len(report.get("unassigned_transcript",[]))} 段未分配转录。均为文字候选，需试听。')
+        summary=QLabel(f'整首顺序检查（匹配时） · {len(report.get("issues",[]))} 项歌词疑点 · {len(report.get("unassigned_transcript",[]))} 段未分配转录。均需试听。')
         summary.setWordWrap(True);layout.addWidget(summary)
         self.selector=QComboBox();self.selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon);self.selector.setMinimumContentsLength(12)
         for issue in self.items:

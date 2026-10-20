@@ -1,11 +1,15 @@
 """Ordered text context and reviewable omissions, never singing confirmation."""
-from bisect import bisect_left
+from bisect import bisect_left,bisect_right
 from collections import Counter
 
 
 def protected(line,replace_manual=False):
-    return line.locked or line.reviewed or any(u.locked or (not replace_manual and
-        (u.source=='manual' or any(h.source=='manual' for h in u.highlights))) for u in line.units)
+    def manual(item):
+        origin=item.timing_origin
+        return getattr(item,'source','')=='manual' or origin.get('kind')=='manual' or bool(
+            set(origin.get('operations',[]))&{'manual_boundary','shift','stretch'})
+    return line.locked or line.reviewed or (not replace_manual and manual(line)) or any(
+        u.locked or (not replace_manual and (manual(u) or any(manual(h) for h in u.highlights))) for u in line.units)
 
 
 def plan(target,source,line_data,lines,allow_text=True,time_range=None,replace_manual=False):
@@ -76,7 +80,7 @@ def spans(indices,source):
         if groups and index==groups[-1][-1]+1:groups[-1].append(index)
         else:groups.append([index])
     return [{'start':source[g[0]].start,'end':source[g[-1]].end,
-             'text':''.join(source[i].char for i in g)} for g in groups]
+             'text':''.join(source[i].char for i in g),'source_chars':[g[0],g[-1]+1]} for g in groups]
 
 
 def review(lines,source,values,conflicts):
@@ -99,23 +103,34 @@ def review(lines,source,values,conflicts):
     # A line envelope would swallow an extra phrase inserted *inside* a line.
     # Keep explicit mapped spans instead. Reading-assisted spans are only rough
     # references; a partial overlap is conservatively treated as assigned.
-    covered=sorted((s['start'],s['end']) for v in values if v['match']['status']!='unmatched'
+    covered=sorted((s['start'],s['end']) for v in values if v['match']['status']!='unmatched' and v['match']['method']=='reading'
                    for s in v['match'].get('source_spans',[]))
+    characters=sorted(s['source_chars'] for v in values if v['match']['status']!='unmatched' and v['match']['method']=='text'
+                      for s in v['match'].get('source_spans',[]))
+    char_starts=[v[0] for v in characters]
     union=[]
     for start,end in covered:
         if union and start<=union[-1][1]:union[-1][1]=max(union[-1][1],end)
         else:union.append([start,end])
-    groups=[];current=[]
-    cursor=0
-    for token in source:
-        while cursor<len(union) and union[cursor][1]<=token.start:cursor+=1
-        used=cursor<len(union) and union[cursor][0]<token.end and token.start<union[cursor][1]
+    groups=[];current=[];time_starts=[v[0] for v in union]
+    for index,token in enumerate(source):
+        char_index=bisect_right(char_starts,index)-1
+        used=char_index>=0 and index<characters[char_index][1]
+        # Raw word envelopes can contain several estimated characters in one
+        # millisecond. Index evidence, rather than a zero-width time overlap,
+        # keeps those assigned characters from becoming false "extra words".
+        if token.start==token.end:
+            time_index=bisect_right(time_starts,token.start)-1
+            used=used or time_index>=0 and token.start<=union[time_index][1]
+        else:
+            time_index=bisect_left(time_starts,token.end)-1
+            used=used or time_index>=0 and token.start<union[time_index][1]
         if used or current and token.start-current[-1].end>2500:
             if current:groups.append(current);current=[]
         if not used:current.append(token)
     if current:groups.append(current)
     extras=[{'text':''.join(v.char for v in group),'start':group[0].start,'end':max(group[0].start+10,group[-1].end),
-             'kind':'unassigned_transcript','reason':'转录中未分配的归一化文字，可能为多唱、漏句或识别错误；不是实际唱词确认。'} for group in groups]
+             'kind':'unassigned_transcript','reason':'转录中尚未对应到原歌词的文字（忽略空格和标点），可能为多唱、漏句或识别错误；需试听确认。'} for group in groups]
     by_start=sorted((v['start'],v['id']) for v in values);by_end=sorted((v['end'],v['id']) for v in values)
     for extra in extras:
         nearby=[]
