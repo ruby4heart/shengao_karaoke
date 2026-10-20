@@ -73,18 +73,18 @@ def test_repeated_chorus_alternatives_get_continuous_word_edges_too():
     assert candidate['closed_gaps']==2 and candidate['units'][0]['end']==candidate['units'][1]['start']
 
 
-def test_segment_worker_joins_existing_automatic_gaps_by_default_and_can_opt_out(tmp_path):
+def test_segment_worker_preserves_gaps_by_default_and_replays_explicit_legacy_policy(tmp_path):
     request={'action':'segment','mode':'mora','lines':[x.to_dict() for x in lines()],'join_lines':True}
-    result=asyncio.run(worker.operation(request,tmp_path,lambda *_:None));assert result['closed_gaps']==3
-    keep=asyncio.run(worker.operation({**request,'gap_ms':0},tmp_path,lambda *_:None))
+    result=asyncio.run(worker.operation({**request,'gap_ms':500},tmp_path,lambda *_:None));assert result['closed_gaps']==3
+    keep=asyncio.run(worker.operation(request,tmp_path,lambda *_:None))
     assert keep['closed_gaps']==0
     assert [x['units'] for x in keep['suggestions']]==[x.to_dict()['units'] for x in lines()]
     assert [(x['start'],x['end']) for x in keep['suggestions']]==[(x.start,x.end) for x in lines()]
 
 
-def test_match_worker_joins_word_and_sentence_gaps_without_editing_raw_transcript(tmp_path):
+def test_explicit_legacy_match_joins_gaps_without_editing_raw_transcript(tmp_path):
     transcript=[x.to_dict() for x in lines()];original=copy.deepcopy(transcript)
-    result=asyncio.run(worker.operation({'action':'match','lines':[LyricLine('a','今日も',0,1300).to_dict(),LyricLine('b','歌う',1500,2400).to_dict()],'transcript':transcript,'join_lines':True},tmp_path,lambda *_:None))
+    result=asyncio.run(worker.operation({'action':'match','lines':[LyricLine('a','今日も',0,1300).to_dict(),LyricLine('b','歌う',1500,2400).to_dict()],'transcript':transcript,'join_lines':True,'gap_ms':500},tmp_path,lambda *_:None))
     assert result['closed_gaps']>=2 and transcript==original and result['transcript']==original
     assert result['suggestions'][0]['end']==result['suggestions'][1]['start']
 
@@ -92,7 +92,7 @@ def test_match_worker_joins_word_and_sentence_gaps_without_editing_raw_transcrip
 def test_regenerating_offline_clears_stale_failed_matching_status(tmp_path):
     source=lines();source[0].match={'status':'unmatched','reason':'old failed match'}
     result=asyncio.run(worker.operation({'action':'segment','mode':'mora','lines':[x.to_dict() for x in source]},tmp_path,lambda *_:None))
-    assert result['closed_gaps']==2 and not result['suggestions'][0]['match']
+    assert result['closed_gaps']==0 and not result['suggestions'][0]['match']
     assert source[0].match['status']=='unmatched'
 
 

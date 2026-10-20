@@ -15,6 +15,7 @@ def main():
     from PySide6.QtTest import QTest
     from PySide6.QtMultimedia import QMediaPlayer
     from .app import StudioWindow
+    from .native_slots import invoke_native_slot
     from .theme import STYLE
     from .paths import ROOT
     from .timing import set_time
@@ -32,6 +33,8 @@ def main():
         return False
     try:
         app.processEvents();check('independent_qt_window',window.metaObject().className()=='StudioWindow')
+        from .native_slot_acceptance import exercise as native_control
+        native_control(app,out,check)
         check('initial_guidance','添加' in window.next_hint.text());window.grab().save(str(out/'first-use.png'))
         check('workflow_collapsed_by_default',not window.navigation_panel.isVisible() and not window.workflow_toggle.isChecked())
         # Own offline project exercises the entire resumable route in both the
@@ -79,7 +82,7 @@ def main():
         window.open_demo();check('demo_original',window.line.text=='今日も歌う')
         check('demo_audio_and_wave',wait(lambda:window.analysis_job is None and window.timeline.peaks is not None))
         check('real_media_loaded',wait(lambda:window.playback.player.duration()>0))
-        window.playback.seek(1200);window.playback.player.play()
+        window.playback.seek(1200);invoke_native_slot(window.playback.player,'play')
         check('playback_advances',wait(lambda:window.playback.player.position()>1500,5000));window.playback.stop()
         check('real_video_frame_received',not window.playback.canvas.frame.isNull())
         window.playback.player.setPlaybackRate(.75)
@@ -176,7 +179,8 @@ def main():
         check('vocal_audition_keeps_final_source_and_all_lyrics',{k:v for k,v in window.project.to_dict().items() if k!='vocal_track'}=={k:v for k,v in original.items() if k!='vocal_track'})
         check('vocal_pcm_and_player_both_switch',str(window.timeline.audio.samples.filename)!=original_pcm and Path(window.playback.player.source().toLocalFile())!=Path(window.project.media))
         check('vocal_preview_has_video_frame',wait(lambda:not window.playback.canvas.frame.isNull() and not window.playback.preview_pending))
-        check('vocal_ab_keeps_position_speed_zoom_mute',abs(window.playback.canvas.position-position)<150 and window.playback.player.playbackRate()==.75 and window.playback.zoom==.5 and window.playback.audio.isMuted())
+        (out/'vocal-ab-state.json').write_text(json.dumps({'expected_position':position,'canvas_position':window.playback.canvas.position,'player_position':window.playback.player.position(),'pending_seek':window.playback.pending_seek,'speed':window.playback.player.playbackRate(),'zoom':window.playback.zoom,'muted':window.playback.audio.isMuted()},indent=2),encoding='utf-8')
+        check('vocal_ab_keeps_position_speed_zoom_mute',abs(window.playback.canvas.position-position)<80 and window.playback.player.playbackRate()==.75 and window.playback.zoom==.5 and window.playback.audio.isMuted())
         check('vocal_switch_keeps_actual_subtitle_pixels',window.playback.canvas.show_subtitles and any(window.playback.canvas.renderer.rgba(640,360,window.playback.canvas.position)[3::4]))
         QTest.qWait(160);window.grab().save(str(out/'vocal-audition.png'))
         vocal_project=out/'人声辅助工程.sgproj';save_project(window.project,vocal_project);loaded=load_project(vocal_project)

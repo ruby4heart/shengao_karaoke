@@ -1,10 +1,11 @@
 """Reviewable, local tail timing and pronunciation edits with real audition."""
 import copy
-from PySide6.QtCore import Qt,QSignalBlocker,QTimer,QBuffer,QByteArray,QIODevice,QUrl
+from PySide6.QtCore import Qt,Slot,QSignalBlocker,QTimer,QBuffer,QByteArray,QIODevice,QUrl
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QComboBox,
     QPushButton,QCheckBox,QLineEdit,QDialogButtonBox,QDoubleSpinBox,QWidget,QScrollArea,QSizePolicy)
 from .timeline import Timeline
+from .native_slots import invoke_native_slot
 from .audio_render import milliseconds_per_pixel
 from .tail_model import tail_items,replace_mora,energy_info,consonant_clip
 from .timing import set_time
@@ -63,9 +64,10 @@ class TailDialog(QDialog):
         self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText('取消修改')
         self.combo.currentIndexChanged.connect(self.change_selection);self.timeline.select.connect(self.select_from_plot);self.timeline.boundary.connect(self.boundary);self.timeline.action.connect(self.audio_action)
         playback.positionChanged.connect(self.timeline.follow_position);self.finished.connect(self.cleanup)
-        self.filtered_player.positionChanged.connect(lambda value:self.timeline.follow_position(self.filtered_start+int(value)))
-        self.filtered_player.mediaStatusChanged.connect(self.filtered_status)
-        self.filtered_player.errorOccurred.connect(lambda code,message:self.status.setText('增强试听失败：'+message) if not self.closed else None)
+        queued=Qt.ConnectionType.QueuedConnection
+        self.filtered_player.positionChanged.connect(self.filtered_position,queued)
+        self.filtered_player.mediaStatusChanged.connect(self.filtered_status,queued)
+        self.filtered_player.errorOccurred.connect(self.filtered_error,queued)
         playback.stop();playback.player.setPlaybackRate(.75);self.choose(self.selected);QTimer.singleShot(0,self.focus_part)
 
     def part(self):
@@ -136,27 +138,36 @@ class TailDialog(QDialog):
         _,_,part=self.part();previous=self.items[max(0,self.selected-1)];previous_part=self.preview.units[previous[0]].highlights[previous[1]];start=max(0,min(previous_part.start,part.start)-100) if context else part.start;end=part.end+(100 if context else 0)
         if self.enhance.isChecked():
             if not self.timeline.audio:self.status.setText('音轨尚未就绪，请等主时间轴分析完成后再用增强试听。');return
-            self.playback.stop();self.filtered_player.stop()
+            self.playback.stop();invoke_native_slot(self.filtered_player,'stop')
             maximum=262144*1000/self.timeline.audio.rate
             if end-part.start<=maximum:start=max(start,end-maximum)
             try:data,info=consonant_clip(self.timeline.audio.samples,self.timeline.audio.rate,start,end)
             except ValueError as error:self.status.setText(str(error));return
             buffer=QBuffer(self);buffer.setData(QByteArray(data));buffer.open(QIODevice.OpenModeFlag.ReadOnly);self.filtered_buffers.append(buffer);self.filtered_start=info['start']
-            self.filtered_audio.setVolume(self.playback.audio.volume());self.filtered_player.setSourceDevice(buffer,QUrl('tail.wav'));self.filtered_player.setPlaybackRate(self.speed.currentData());self.filtered_player.play()
+            self.filtered_audio.setVolume(self.playback.audio.volume());self.filtered_player.setSourceDevice(buffer,QUrl('tail.wav'));self.filtered_player.setPlaybackRate(self.speed.currentData());invoke_native_slot(self.filtered_player,'play')
             self.status.setText(f'辅音增强试听 · 信号增益 {info["gain"]:.1f}×。关闭增强可对照原声；增强不判断唱了哪个音。')
         else:
             self.original_audition(start,end)
 
     def original_audition(self,start,end):
-        self.filtered_player.stop();self.playback.player.setPlaybackRate(self.speed.currentData());self.playback.audition(start,end,self.loop.isChecked())
+        invoke_native_slot(self.filtered_player,'stop');self.playback.player.setPlaybackRate(self.speed.currentData());self.playback.audition(start,end,self.loop.isChecked())
 
     def set_speed(self,*args):
         self.playback.player.setPlaybackRate(self.speed.currentData());self.filtered_player.setPlaybackRate(self.speed.currentData())
 
-    def stop(self,*args):self.playback.stop();self.filtered_player.stop()
+    def stop(self,*args):self.playback.stop();invoke_native_slot(self.filtered_player,'stop')
 
+    @Slot('qint64')
+    def filtered_position(self,value):
+        if not self.closed:self.timeline.follow_position(self.filtered_start+int(value))
+
+    @Slot(QMediaPlayer.Error,str)
+    def filtered_error(self,code,message):
+        if not self.closed:self.status.setText('增强试听失败：'+message)
+
+    @Slot(QMediaPlayer.MediaStatus)
     def filtered_status(self,status):
-        if not self.closed and status==QMediaPlayer.MediaStatus.EndOfMedia and self.loop.isChecked():self.filtered_player.setPosition(0);self.filtered_player.play()
+        if not self.closed and status==QMediaPlayer.MediaStatus.EndOfMedia and self.loop.isChecked():self.filtered_player.setPosition(0);invoke_native_slot(self.filtered_player,'play')
 
     def audio_action(self,name):
         _,_,part=self.part();a,b=part.start,part.end

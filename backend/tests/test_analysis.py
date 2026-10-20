@@ -174,10 +174,13 @@ def test_alignment_returns_original_words_with_precise_outer_character_edges():
     assert [h.kana for h in value.units[0].highlights]==['きょ','う']
 
 
-def test_matching_closes_short_asr_gaps_only_on_suggestions(tmp_path):
+def test_matching_preserves_asr_gaps_by_default_and_legacy_closure_is_explicit(tmp_path):
     original=LyricLine('1','今日も',0,3000)
     asr=LyricLine('asr','今日も',1000,3000,[Unit('今日',1000,2000),Unit('も',2050,3000)])
-    result=asyncio.run(worker.operation({'action':'match','lines':[original.to_dict()],'transcript':[asr.to_dict()]},tmp_path,lambda *_:None))
+    request={'action':'match','lines':[original.to_dict()],'transcript':[asr.to_dict()]}
+    kept=asyncio.run(worker.operation(request,tmp_path,lambda *_:None))
+    assert kept['closed_gaps']==0 and kept['suggestions'][0]['units'][0]['end']==2000
+    result=asyncio.run(worker.operation({**request,'gap_ms':500},tmp_path,lambda *_:None))
     assert result['closed_gaps']==1
     assert result['suggestions'][0]['units'][0]['end']==result['suggestions'][0]['units'][1]['start']
     assert result['transcript'][0]['units'][0]['end']==2000

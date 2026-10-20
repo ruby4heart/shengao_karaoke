@@ -3,6 +3,7 @@ from PySide6.QtGui import QPainter,QColor,QImage,QLinearGradient
 from PySide6.QtWidgets import QWidget,QScrollArea,QFrame
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFrame
 from .render import AssRenderer
+from .native_slots import invoke_native_slot
 
 class VideoCanvas(QWidget):
     zoomRequested=Signal(int)
@@ -62,52 +63,89 @@ class Playback(QWidget):
         # Decode callbacks must not map a frame or pause the decoder inline.
         # Explicit receiver context also keeps QWidget work on the GUI thread.
         self.sink.videoFrameChanged.connect(self.receive_frame,Qt.ConnectionType.QueuedConnection)
-        self.player.positionChanged.connect(self.on_position);self.player.durationChanged.connect(lambda value:self.durationChanged.emit(int(value)))
-        self.player.errorOccurred.connect(self.play_error)
-        self.preview_pending=False;self.preview_started=False;self.preview_muted=False
+        # All backend notifications unwind before Python queries or controls
+        # the player again, including stop()/setSource() during disposal.
+        queued=Qt.ConnectionType.QueuedConnection
+        self.player.positionChanged.connect(self.receive_position,queued);self.player.durationChanged.connect(self.receive_duration,queued)
+        self.player.errorOccurred.connect(self.play_error,queued)
+        self.preview_pending=False;self.preview_started=False;self.preview_muted=False;self.preview_target=None
         self.resume_on_load=False;self.restore_range=None
-        self.pending_seek=None;self.player.mediaStatusChanged.connect(self.loaded)
+        self.pending_seek=None;self.player.mediaStatusChanged.connect(self.loaded,queued)
         self.range=None;self.loop=False;self.anchor=0;self.clock=QElapsedTimer();self.clock.start()
         self.timer=QTimer(self);self.timer.setInterval(25);self.timer.timeout.connect(self.tick);self.timer.start()
-        self.player.playbackStateChanged.connect(lambda _:self.on_position(self.player.position()))
-        self.player.playbackRateChanged.connect(lambda _:self.on_position(self.player.position()))
+        self.player.playbackStateChanged.connect(self.receive_state,queued)
+        self.player.playbackRateChanged.connect(self.receive_rate,queued)
 
     def cancel_preview(self):
         if self.preview_started:self.audio.setMuted(self.preview_muted)
-        self.preview_started=False;self.preview_pending=False
+        self.preview_started=False;self.preview_pending=False;self.preview_target=None
 
+    @Slot(QMediaPlayer.Error,str)
     def play_error(self,code,message):
+        if self.player.source().isEmpty():return
         self.cancel_preview();self.resume_on_load=False;self.error.emit('播放失败：'+message)
+
+    @Slot('qint64')
+    def receive_position(self,value):
+        # A queued notification may describe the previous seek/source. Read
+        # current state, and do not overwrite an explicit pending seek.
+        if not self.player.source().isEmpty() and self.pending_seek is None and not self.preview_pending:self.on_position(self.player.position())
+
+    @Slot('qint64')
+    def receive_duration(self,value):
+        if not self.player.source().isEmpty():self.durationChanged.emit(int(value))
+
+    @Slot(QMediaPlayer.PlaybackState)
+    def receive_state(self,state):
+        if not self.player.source().isEmpty() and self.pending_seek is None and not self.preview_pending:self.on_position(self.player.position())
+
+    @Slot(float)
+    def receive_rate(self,rate):
+        if not self.player.source().isEmpty() and self.pending_seek is None and not self.preview_pending:self.on_position(self.player.position())
 
     @Slot(QVideoFrame)
     def receive_frame(self,frame):
         if self.player.source().isEmpty():return
         self.canvas.video_frame(frame)
         if self.preview_started and frame.isValid():
-            self.player.pause();self.cancel_preview()
-            if self.resume_on_load:self.resume_on_load=False;self.player.play()
+            target=self.preview_target
+            # A decoder can first deliver preroll before the requested seek.
+            # Warm silently through it, then keep the exact audition position.
+            if target is not None and frame.startTime()>=0:
+                end=frame.endTime() if frame.endTime()>frame.startTime() else frame.startTime()+40000
+                if end<target*1000:return
+            invoke_native_slot(self.player,'pause');self.cancel_preview()
+            if target is not None:self.seek(target)
+            if self.resume_on_load:self.resume_on_load=False;invoke_native_slot(self.player,'play')
 
+    @Slot(QMediaPlayer.MediaStatus)
     def loaded(self,status):
+        if self.player.source().isEmpty() or status!=self.player.mediaStatus():return
+        if status==QMediaPlayer.MediaStatus.EndOfMedia:
+            self.cancel_preview();self.resume_on_load=False;return
         if self.pending_seek is not None and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferingMedia,QMediaPlayer.MediaStatus.BufferedMedia):
             value=self.pending_seek;self.pending_seek=None;self.seek(value)
 
         if status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
             if self.restore_range is not None:self.range,self.loop=self.restore_range;self.restore_range=None
-            if self.resume_on_load and not self.preview_pending:self.resume_on_load=False;self.player.play()
+            if self.resume_on_load and not self.preview_pending:self.resume_on_load=False;invoke_native_slot(self.player,'play')
             elif self.preview_pending and not self.player.hasVideo():
                 self.preview_pending=False
-                if self.resume_on_load:self.resume_on_load=False;self.player.play()
+                if self.resume_on_load:self.resume_on_load=False;invoke_native_slot(self.player,'play')
 
         if self.preview_pending and not self.preview_started and self.player.hasVideo() and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
-            self.preview_started=True;self.preview_muted=self.audio.isMuted();self.audio.setMuted(True);self.player.play()
+            self.preview_started=True;self.preview_muted=self.audio.isMuted();self.audio.setMuted(True);invoke_native_slot(self.player,'play')
 
     def open(self,path,position=0,preview=False):
-        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;self.player.stop();self.preview_pending=bool(preview);self.range=None;self.canvas.frame=QImage();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.set_source_size(1920,1080);self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
+        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.frame=QImage();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.set_source_size(1920,1080);self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
 
     def clear(self):
         self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
         # Release displayed image resources before stopping the decoder.
-        self.canvas.frame=QImage();self.player.stop();self.player.setSource(QUrl())
+        self.canvas.frame=QImage()
+        invoke_native_slot(self.player,'stop')
+        self.player.setSource(QUrl())
+        self.on_position(0);self.durationChanged.emit(0)
 
     def replace_audition_source(self,path):
         position=self.canvas.position;zoom=self.zoom;playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState and not self.preview_started
@@ -144,30 +182,36 @@ class Playback(QWidget):
         self.anchor=value;self.clock.restart();self.canvas.position=value;self.canvas.update();self.positionChanged.emit(value)
 
     def tick(self):
+        target=self.pending_seek if self.pending_seek is not None else self.preview_target if self.preview_pending else None
+        if target is not None:
+            self.canvas.position=target;self.canvas.update();return
         playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState
         position=self.anchor+round(self.clock.elapsed()*self.player.playbackRate()) if playing else (self.player.position() if self.player.duration()>0 else self.anchor)
         if self.range and playing and position>=self.range[1]:
             if self.loop:self.seek(self.range[0])
-            else:self.player.pause();self.seek(self.range[1]);self.range=None
+            else:invoke_native_slot(self.player,'pause');self.seek(self.range[1]);self.range=None
             return
         self.canvas.position=max(0,min(position,self.player.duration() or position));self.canvas.update()
         if playing:self.positionChanged.emit(self.canvas.position)
 
     def seek(self,value):
         value=max(0,int(value));duration=self.player.duration()
-        if self.player.mediaStatus() in (QMediaPlayer.MediaStatus.NoMedia,QMediaPlayer.MediaStatus.LoadingMedia):self.pending_seek=value
         if duration>0:value=min(value,duration)
+        if self.pending_seek is not None or self.player.mediaStatus() in (QMediaPlayer.MediaStatus.NoMedia,QMediaPlayer.MediaStatus.LoadingMedia):self.pending_seek=value
+        if self.preview_pending:self.preview_target=value
         self.player.setPosition(value);self.on_position(value)
 
     def toggle(self):
         warming=self.preview_started;self.cancel_preview()
-        if not warming and self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState:self.player.pause()
-        else:self.range=None;self.player.play()
+        if not warming and self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState:invoke_native_slot(self.player,'pause')
+        else:self.range=None;invoke_native_slot(self.player,'play')
 
     def audition(self,start,end,loop=False):
         self.cancel_preview()
         duration=self.player.duration();start=max(0,int(start));end=min(int(end),duration) if duration>0 else int(end)
         if start>=end:self.range=None;self.error.emit('所选时间超出了素材，请调整起止时间后试听。');return False
-        self.range=(start,end);self.loop=loop;self.seek(self.range[0]);self.player.play();return True
+        self.range=(start,end);self.loop=loop;self.seek(self.range[0]);invoke_native_slot(self.player,'play');return True
 
-    def stop(self):self.cancel_preview();self.resume_on_load=False;self.restore_range=None;self.range=None;self.player.pause()
+    def stop(self):
+        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;self.range=None;invoke_native_slot(self.player,'pause')
+        self.on_position(self.player.position())
