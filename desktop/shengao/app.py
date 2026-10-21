@@ -46,6 +46,7 @@ from .recognition_workflow import RecognitionWorkflow
 from .vocal_workflow import VocalWorkflow
 from .acoustic_workflow import AcousticWorkflow
 from .sound_gap_workflow import SoundGapWorkflow
+from .chorus_workflow import ChorusWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -53,7 +54,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -208,7 +209,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.more_matching=Collapsible('已有转录／只修正一句')
         self.reuse_button=button('使用已有转录，重新匹配',lambda:self.start_api('match',transcript=self.project.transcript));self.more_matching.body.addWidget(self.reuse_button)
         self.align_button=button('当前句：ElevenLabs 精确对齐',lambda:self.start_api('align',only_current=True,range_mode='selection'));self.more_matching.body.addWidget(self.align_button)
-        self.local_match_button=button('当前句：限定时间重新匹配',self.local_match);self.more_matching.body.addWidget(self.local_match_button);l.addWidget(self.more_matching)
+        self.local_match_button=button('当前句：限定时间重新匹配',self.local_match);self.more_matching.body.addWidget(self.local_match_button);self.build_chorus_tools(self.more_matching.body);l.addWidget(self.more_matching)
         self.more_reading=Collapsible('用 DeepSeek 复核注音与译文')
         self.more_reading.body.addWidget(label('发送歌词和文字依据，不发送音频。特殊唱法仍需试听确认。','muted'))
         self.llm_button=button('复核整首待确认读音',lambda:self.refine_reading(True,False));self.more_reading.body.addWidget(self.llm_button);l.addWidget(self.more_reading)
@@ -859,6 +860,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         for b in [self.segment_button,self.llm_button]:b.setEnabled(ready)
         for b in [self.cloud_button,self.align_button]:b.setEnabled(ready and media_ready)
         for b in [self.reuse_button,self.local_match_button]:b.setEnabled(ready and bool(p.transcript))
+        self.refresh_chorus_tools()
         self.review_button.setVisible(pending);self.discard_button.setVisible(pending)
         if pending:self.review_button.setText(f'审核 {len(self.pending["result"]["suggestions"])} 行建议')
         if pending and self.pending.get('action')=='sound_gaps':self.review_button.setText(f'审核 {len(self.pending["result"]["gap_report"]["gaps"])} 处声音空隙')
@@ -1598,7 +1600,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         # reading/time input until the user explicitly opens review or adopts.
         self.remember_transcript(result,context,quiet=True)
         if result.get('workflow') and not result.get('suggestions'):self.pending=None
-        self.save_recovery();self.update_workflow();self.message(result.get('message') if result.get('workflow') else (f'已收拢 {result["closed_gaps"]} 处自动轴短空白。' if result.get('closed_gaps') else '')+'初稿已返回，请点击“审核上次任务结果”。')
+        self.save_recovery();self.update_workflow();self.message(result.get('message') if result.get('workflow') or result.get('chorus_workflow') else (f'已收拢 {result["closed_gaps"]} 处自动轴短空白。' if result.get('closed_gaps') else '')+'初稿已返回，请点击“审核上次任务结果”。')
     def keep_background_reading(self):
         # Persist the user's valid active reading, without closing its editor
         # or refreshing unrelated unfinished time/segmentation controls.
@@ -1666,6 +1668,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         return True
     def apply_suggestions(self,selected):
         if not self.flush_edits():return
+        if self.pending and self.pending['result'].get('reading_reuse') and not self.chorus_reference_valid(self.pending['result']):
+            self.message('来源副歌或确认状态已变化，建议保留但未采用；请按当前来源重新生成。');return
         context=self.pending.get('context',{}) if self.pending else {}
         if context and (context['project']!=self.project.uid or context['media']!=file_stamp(self.project.media)):
             self.message('当前素材与任务版本不同，建议仍保留，未改动工程。');return
@@ -1682,10 +1686,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 uid=data['id'];index=by_id.get(uid)
                 if index is None:skipped.append(uid);continue
                 old=p.lines[index]
+                chorus=bool(self.pending and self.pending['result'].get('reading_reuse'))
+                if chorus:
+                    from studio_backend.matching_context import protected
+                    if protected(old) or p.checks.get(uid,{}).get('reading') or uid not in self.pending['result']['reading_reuse']['eligible_ids']:skipped.append(uid);continue
                 acoustic=bool(self.pending and self.pending.get('action')=='acoustic')
                 if old.locked or (old.reviewed and acoustic) or (any(u.locked for u in old.units) and not acoustic) or old.to_dict()!=snapshots.get(uid):skipped.append(uid);continue
                 check_snapshot=self.pending.get('checks') if self.pending else None
-                if self.pending and self.pending.get('action') in {'draft','acoustic'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
+                if self.pending and self.pending.get('action') in {'draft','acoustic','chorus_reuse'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
                 if data['text']!=old.text:raise ValueError('建议更改了原歌词，已拒绝应用；原始建议仍保留')
                 same_reading=(old.kana,old.romaji,[(u.text,u.kana,u.romaji) for u in old.units])==(data.get('kana',''),data.get('romaji',''),[(u['text'],u.get('kana',''),u.get('romaji','')) for u in data.get('units',[])])
                 candidate=LyricLine.from_dict(data)
@@ -1693,6 +1701,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                     from studio_backend.acoustic import protected_equal
                     protected_equal(old,candidate)
                 p.lines[index]=candidate
+                if chorus:p.source_ass_active=False
                 if acoustic or (self.pending and self.pending['result'].get('acoustic',{}).get('lines',{}).get(uid,{}).get('status')=='aligned'):p.source_ass_active=False
                 if not (self.pending and self.pending.get('action') in {'draft','acoustic'} and same_reading):p.checks.setdefault(uid,{})['reading']=False
                 accepted.append(uid)
@@ -1791,7 +1800,13 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if not request.exists():continue
             try:
                 req=json.loads(request.read_text(encoding='utf-8'));value=json.loads(result.read_text(encoding='utf-8')) if result.exists() else {'message':'没有最终结果，请确认服务端状态后再重试'}
-                if req.get('action')=='draft':
+                if req.get('action')=='chorus_reuse':
+                    if not value.get('suggestions'):
+                        from studio_backend.chorus_workflow import saved_result
+                        cached=saved_result(req,self.home)
+                        if cached:value={'ok':True,**cached}
+                    items.addItem('复用已校对副歌 · '+('结果已保存，可审核或继续' if value.get('ok') else value.get('message','未完成')))
+                elif req.get('action')=='draft':
                     state=value.get('workflow',{}).get('status')
                     text='完成，待审核' if state=='completed' else '未全部完成，可查看阶段与继续'
                     items.addItem('分阶段初稿 · '+text)
@@ -1817,10 +1832,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         def resume_workflow():
             index=items.currentRow()
             if index<0:return
-            request=entries[index][1]
-            if request.get('action')!='draft':self.message('所选任务不是分阶段初稿流程');return
-            dialog.accept();self.resume_draft(request.get('workflow_id'))
-        l.addWidget(button('恢复所选建议并审核',restore));l.addWidget(button('继续所选初稿流程…',resume_workflow));l.addWidget(button('播放所选压制成品',open_output));l.addWidget(button('关闭',dialog.accept));dialog.exec()
+            request=entries[index][1];value=entries[index][2]
+            if request.get('action')=='chorus_reuse' or value.get('chorus_workflow'):
+                dialog.accept();self.resume_chorus_workflow(request.get('workflow_id') or value.get('chorus_workflow',{}).get('id'));return
+            if request.get('action')!='draft' and not value.get('workflow'):self.message('此记录没有可继续的初稿或副歌检查点，可直接恢复建议审核。');return
+            dialog.accept();self.resume_draft(request.get('workflow_id') or value.get('workflow',{}).get('id'))
+        l.addWidget(button('恢复所选建议并审核',restore));l.addWidget(button('继续所选处理流程…',resume_workflow));l.addWidget(button('播放所选压制成品',open_output));l.addWidget(button('关闭',dialog.accept));dialog.exec()
 
     def recovery_path(self):return self.home/'desktop-recovery.json'
     def save_recovery(self):

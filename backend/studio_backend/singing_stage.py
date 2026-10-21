@@ -18,8 +18,9 @@ async def run(rows,request,root,report,checkpoint,completed):
     task_dir=getattr(report,'task_dir',None)
     from .settings import Settings
     work=Path(task_dir)/'acoustic-work' if task_dir else Settings(root).root/'draft-workflows'/request['workflow_id']/'acoustic-work'
+    context={'neighbors':request['neighbor_lines']} if request.get('neighbor_lines') else {}
     task=asyncio.create_task(asyncio.to_thread(module.generate,rows,request['media'],request.get('vocal_track',{}),root,cancel,
-        lambda message:report('acoustic',message),checkpoint,opt['fit_range'],opt['acoustic_audio'],completed,work))
+        lambda message:report('acoustic',message),checkpoint,opt['fit_range'],opt['acoustic_audio'],completed,work,**context))
     try:return await asyncio.shield(task)
     except asyncio.CancelledError:
         cancel.set()

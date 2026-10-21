@@ -78,11 +78,12 @@ class ApiJob(QObject):
         try:
             if self.start_error:self.failed.emit(self.start_error);return
             recovery={}
-            if self.request.get('action')=='draft':
-                from studio_backend.draft import mark_stopped,saved_result
-                try:mark_stopped(self.home,self.request['workflow_id'])
+            if self.request.get('action') in {'draft','chorus_reuse'}:
+                if self.request['action']=='draft':from studio_backend import draft as workflow
+                else:from studio_backend import chorus_workflow as workflow
+                try:workflow.mark_stopped(self.home,self.request['workflow_id'])
                 except (OSError,ValueError,KeyError,TypeError):pass
-                recovery=saved_result(self.request,self.home);self.poll()
+                recovery=workflow.saved_result(self.request,self.home);self.poll()
             if self.result and self.result.exists():
                 try:data=json.loads(self.result.read_text(encoding='utf-8'))
                 except (OSError,ValueError):self.failed.emit('后台结果文件不完整，请查看任务记录');return
@@ -99,7 +100,8 @@ class ApiJob(QObject):
 
     def cancel(self):
         if self.busy:
-            Path(str(self.result)+'.cancel').touch();self.stopping=True;self.progress.emit('正在取消；已经提交的云端任务可能仍由服务端处理')
+            Path(str(self.result)+'.cancel').touch();self.stopping=True
+            self.progress.emit('正在取消本地歌声重算，复用读音及完成的结果保留。' if self.request.get('action')=='chorus_reuse' else '正在取消；已经提交的云端任务可能仍由服务端处理')
 
     def abandon(self):
         self.cancel()

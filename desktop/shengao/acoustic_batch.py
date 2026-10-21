@@ -23,7 +23,7 @@ def preflight(source,track,audio_choice,source_hash=None):
         if not bound(track,source) or (source_hash is not None and track.get('source_sha256')!=source_hash):raise ValueError('人声不对应当前素材，请重新生成或在流程中选择原声。')
         if digest(track['path'])!=track['sha256']:raise ValueError('人声资源已变化，请重新生成或在流程中选择原声。')
 
-def generate(rows,source,track,home,cancel,progress=lambda x:None,checkpoint=lambda *x:None,fit_range=True,audio_choice='auto',completed=None,work_root=None):
+def generate(rows,source,track,home,cancel,progress=lambda x:None,checkpoint=lambda *x:None,fit_range=True,audio_choice='auto',completed=None,work_root=None,neighbors=None):
     source=str(Path(source).resolve());stamp=file_stamp(source)
     if not stamp:raise ValueError('请先添加有效音视频，再按歌声对齐。')
     if audio_choice not in {'auto','original','vocals'}:raise ValueError('对齐音轨选项无效')
@@ -36,6 +36,14 @@ def generate(rows,source,track,home,cancel,progress=lambda x:None,checkpoint=lam
     model=audio.available();dictionary={line.split('\t',1)[0] for line in (model/'dictionaries/japanese_dict_full.txt').read_text(encoding='utf-8').splitlines() if line.strip()}
     originals=[LyricLine.from_dict(v) for v in rows];output={v.id:v.to_dict() for v in originals};statuses={};saved={};reused=0;model_loads=0
     if len({v.id for v in originals})!=len(originals):raise ValueError('整首歌词编号重复')
+    context=[LyricLine.from_dict(v) for v in neighbors] if neighbors is not None else originals
+    if len(context)>3000 or len({v.id for v in context})!=len(context):raise ValueError('相邻歌词范围无效')
+    by_id={v.id:v for v in context}
+    for value in originals:
+        old=by_id.get(value.id)
+        if old and (old.text,old.start,old.end)!=(value.text,value.start,value.end):raise ValueError('相邻歌词对应的原文或时间已变化')
+        by_id[value.id]=value
+    context=list(by_id.values())
     work_root=Path(work_root) if work_root else Path(home)/'alignment-work';work_root.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='batch-',dir=work_root) as temp:
         work=Path(temp);pcm=work/'audio.f32'
@@ -67,7 +75,7 @@ def generate(rows,source,track,home,cancel,progress=lambda x:None,checkpoint=lam
             for original in originals:
                 cancelled(cancel);uid=original.id
                 try:
-                    prepared=planning.prepare(original,duration,fit_range,originals);plans[uid]=prepared
+                    prepared=planning.prepare(original,duration,fit_range,context);plans[uid]=prepared
                     if any(m['pronunciation'] not in dictionary for j in prepared['plan']['jobs'] for m in j['mora']):raise ValueError('存在尚不支持的假名组合，请先在本句修改实际读音。')
                 except ValueError as error:
                     keys[uid]=hashlib.sha256(json.dumps(original.to_dict(),ensure_ascii=True,sort_keys=True).encode()).hexdigest();finish(uid,reason=str(error));continue

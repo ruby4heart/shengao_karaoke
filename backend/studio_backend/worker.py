@@ -66,6 +66,9 @@ async def operation(request, root, report):
     if action=='draft':
         from .draft import run
         return await run(request,root,report,operation)
+    if action=='chorus_reuse':
+        from .chorus_workflow import run
+        return await run(request,root,report)
     if action=='confirm_recognition':
         from .recognition import confirmed_lines,validate
         draft=request['recognition_draft'];transcript=request['transcript'];validate(draft,transcript,require_text=True)
@@ -276,8 +279,12 @@ async def execute(request, root, result_path):
         if request.get('action')=='draft':
             from .draft import saved_result
             partial=saved_result(request,root)
+        elif request.get('action')=='chorus_reuse':
+            from .chorus_workflow import saved_result
+            partial=saved_result(request,root)
+        message='本地已取消，复用读音及已完成声音结果保留，可继续未完成部分。' if request.get('action')=='chorus_reuse' else '已取消本地任务；已完成阶段保留，已提交的云端请求可能仍会计费'
         atomic_json(result_path,{'ok':bool(partial.get('suggestions')),'cancelled':True,**partial,
-                                'message':'已取消本地任务；已完成阶段保留，已提交的云端请求可能仍会计费'})
+                                'message':message})
         report('cancelled','任务已取消')
     except (ValueError,KeyError,TypeError,OSError) as error:
         # ApiError messages are deliberately sanitized; never dump HTTP headers.

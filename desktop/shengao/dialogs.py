@@ -72,7 +72,7 @@ class ReviewDialog(QDialog):
         super().__init__(parent);self.setWindowTitle('审核建议，再加入工程');screen=QApplication.primaryScreen().availableGeometry();self.resize(min(1020,max(720,screen.width()-40)),min(760,max(420,screen.height()-80)));self.result=result;self.project=project;self.playback=playback;self.manual_uid=None;self.rematch_uid=None
         root=QVBoxLayout(self);body=QWidget();layout=QVBoxLayout(body);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(body);root.addWidget(scroll,1)
         message=result.get('message') or '原歌词保持不变；自动生成的时间和读音仍需试听确认。勾选需要采用的行。'
-        if project.source_ass_active and (result.get('action')=='acoustic' or result.get('acoustic')):message+=' 采用歌声候选后使用声稿样式，原 ASS 保留，可撤销。'
+        if project.source_ass_active and (result.get('action')=='acoustic' or result.get('acoustic') or result.get('reading_reuse')):message+=(' 采用复用分词读音后使用声稿样式，原 ASS 保留，可撤销。' if result.get('reading_reuse') else ' 采用歌声候选后使用声稿样式，原 ASS 保留，可撤销。')
         notice=QLabel(message);notice.setWordWrap(True);layout.addWidget(notice)
         self.values=copy.deepcopy(result.get('suggestions',[]));self.recommended=copy.deepcopy(self.values);self.table=QTableWidget(len(self.values),4);self.table.setHorizontalHeaderLabels(['采用','原歌词','建议时间','建议读音／译文']);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeMode.Stretch);self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.ResizeMode.Stretch)
         old={x.id:x for x in project.lines}
@@ -109,7 +109,7 @@ class ReviewDialog(QDialog):
             self.sequence.manual_requested.connect(lambda uid:self.handoff_sequence(uid,False))
             self.sequence.rematch_requested.connect(lambda uid:self.handoff_sequence(uid,True))
         self.candidates=QComboBox();self.candidates.setToolTip('重复副歌可能匹配到多个位置；选择后先试听再决定采用。分数是文字相似度，不是声音识别置信度。');layout.addWidget(self.candidates)
-        compact=bool(result.get('acoustic') or self.sequence)
+        compact=bool(result.get('acoustic') or self.sequence or result.get('reading_reuse'))
         self.details_toggle=QPushButton('展开音节对照与读音依据');self.details_toggle.setCheckable(True);self.details_toggle.setChecked(not compact);self.details_toggle.setVisible(compact);layout.addWidget(self.details_toggle)
         self.details=QPlainTextEdit();self.details.setReadOnly(True);self.details.setMaximumHeight(150);self.details.setVisible(self.details_toggle.isChecked());layout.addWidget(self.details)
         self.details_toggle.toggled.connect(lambda visible:(self.details.setVisible(visible),self.details_toggle.setText('收起音节对照与读音依据' if visible else '展开音节对照与读音依据')))
@@ -150,8 +150,8 @@ class ReviewDialog(QDialog):
         data=self.values[row];old=next((x for x in self.project.lines if x.id==data['id']),None)
         review=data.get('reading_review',{});match=data.get('match',{});parts=[];timing=data.get('timing_evidence',{})
         status=self.result.get('acoustic',{}).get('lines',{}).get(data['id'],{})
-        self.manual_button.setEnabled(bool(self.result.get('acoustic')) and status.get('status')!='aligned')
-        self.manual_button.setVisible(bool(self.result.get('acoustic')) and status.get('status')!='aligned')
+        manual=bool(self.result.get('reading_reuse')) or bool(self.result.get('acoustic')) and status.get('status')!='aligned'
+        self.manual_button.setEnabled(manual);self.manual_button.setVisible(manual)
         acoustic=bool(timing and (self.result.get('action')=='acoustic' or status.get('status')=='aligned'))
         self.acoustic_mora.setVisible(acoustic);self.acoustic_listen.setVisible(acoustic);self.acoustic_mora.clear()
         self.candidates.setVisible(not acoustic)
