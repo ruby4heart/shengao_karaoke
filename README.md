@@ -34,3 +34,7 @@ API 密钥由当前 Windows 用户的 DPAPI 加密保存在本机，不进入工
 
 当前变更见 [0.23.0 说明](docs/releases/0.23.0.md) 与 [验收范围](docs/V023-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
 
+## 许可
+
+本项目代码以 [MIT 许可证](LICENSE) 发布。随附的第三方代码、字体、模型与媒体仍使用各自的许可证，不因本文件改为 MIT。
+

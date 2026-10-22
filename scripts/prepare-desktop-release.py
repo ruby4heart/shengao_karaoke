@@ -46,7 +46,7 @@ with zipfile.ZipFile(portable,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archi
 with zipfile.ZipFile(sources,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
     for folder in ['desktop','backend','scripts','docs','demo','vendor','native']:
         for path in files(ROOT/folder):archive.write(path,'karaoke-studio/'+path.relative_to(ROOT).as_posix())
-    for name in ['README.md','meson.build','.gitignore']:
+    for name in ['README.md','LICENSE','meson.build','.gitignore']:
         archive.write(ROOT/name,'karaoke-studio/'+name)
     archive.writestr('karaoke-studio/SOURCE-NOTES.txt','Independent Qt studio; see docs/DESKTOP-BUILD.md.\nAegisub application framework is not built. Original audio/drawing and dependency sources and notices are retained.\nNo user projects, API credentials, task caches, development environments or original user media are included.\n')
 records=[]
