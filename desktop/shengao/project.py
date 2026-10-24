@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=9
+SCHEMA=10
 
 @dataclass
 class Style:
@@ -80,6 +80,7 @@ class Project:
     fps:float=25
     lines:list=field(default_factory=list)
     style:Style=field(default_factory=Style)
+    color_styles:dict=field(default_factory=dict)
     font_assets:dict=field(default_factory=dict)
     checks:dict=field(default_factory=dict)
     transcript:list=field(default_factory=list)
@@ -128,6 +129,14 @@ class Project:
             current=self.media_versions.get(self.media_role)
             if not current or os.path.normcase(os.path.abspath(current.path))!=os.path.normcase(os.path.abspath(self.media)):raise ValueError('当前源与视频版本不一致')
         self.style.validate()
+        from .color_states import validate_settings
+        validate_settings(self.color_styles,ids)
+
+    def prune_color_overrides(self):
+        if isinstance(self.color_styles,dict) and isinstance(self.color_styles.get('lines'),dict):
+            ids={v.id for v in self.lines}
+            self.color_styles['lines']={uid:value for uid,value in self.color_styles['lines'].items() if uid in ids}
+            if self.color_styles.get('global') is None and not self.color_styles['lines']:self.color_styles={}
 
     def to_dict(self):
         value=asdict(self)
@@ -139,7 +148,8 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if version not in (1,2,3,4,5,6,7,8,9): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version not in (1,2,3,4,5,6,7,8,9,10): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version<10 and data.get('color_styles'):raise ValueError('详细颜色设置需要第 10 版工程格式')
         fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')
@@ -174,7 +184,7 @@ class Project:
         from studio_backend.provenance import create
         for line in values:line.timing_origin=create('estimated',line.start,line.end,method='uniform_lines')
         if append: self.lines.extend(values)
-        else: self.lines=values;self.checks={}
+        else: self.lines=values;self.checks={};self.prune_color_overrides()
         self.source_ass_active=False
 
     def summary(self):
@@ -275,7 +285,9 @@ class History:
 
     def apply(self,label,edit,merge_key=None):
         before=self.project.to_dict();candidate=Project.from_dict(before)
-        edit(candidate);candidate.validate()
+        edit(candidate)
+        if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_color_overrides()
+        candidate.validate()
         if candidate.to_dict()==before:return False
         now=time.monotonic()
         if merge_key is None or merge_key!=self.merge_key or now-self.merge_time>1:

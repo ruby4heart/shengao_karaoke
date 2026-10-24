@@ -48,3 +48,42 @@ def test_unknown_structure_and_orphan_line_fail_before_use():
     with pytest.raises(ValueError):validate_profile(p)
     with pytest.raises(ValueError):validate_settings({'global':profile(),'lines':{'removed':profile()}},{'current'})
     with pytest.raises(ValueError):update_settings({},profile(),['same','same'])
+
+
+def test_project_save_and_one_undo_preserve_axis_and_locked_readings(tmp_path):
+    from shengao.project import Project,History,save_project,load_project
+    from studio_backend.model import LyricLine,Unit
+    line=LyricLine('lyric','歌う',1000,2000,[Unit('歌う',1000,2000,kana='うたう',source='manual',locked=True)],kana='うたう',locked=True,reviewed=True)
+    p=Project(lines=[line],checks={'lyric':{'reading':True}});before=p.to_dict();history=History(p)
+    palette=profile();palette['box']['enabled']=True
+    history.apply('修改指定歌词颜色',lambda current:setattr(current,'color_styles',update_settings(current.color_styles,palette,['lyric'])))
+    assert history.project.lines[0].to_dict()==before['lines'][0] and history.project.checks==before['checks']
+    path=tmp_path/'颜色 工程.sgproj';save_project(history.project,path);again=load_project(path)
+    assert again.to_dict()==history.project.to_dict() and again.to_dict()['version']==10
+    assert history.undo() and history.project.to_dict()==before
+    assert history.redo() and history.project.to_dict()==again.to_dict()
+    frozen=history.project.to_dict()
+    with pytest.raises(ValueError,match='没有对应歌词'):
+        history.apply('迟到的指定行',lambda current:setattr(current,'color_styles',update_settings(current.color_styles,palette,['removed'])))
+    assert history.project.to_dict()==frozen
+
+
+def test_lyric_removal_prunes_only_removed_override_and_undo_restores():
+    from shengao.project import Project,History
+    from studio_backend.model import LyricLine
+    p=Project(lines=[LyricLine('a','今日',0,1000),LyricLine('b','明日',1000,2000)])
+    p.color_styles=update_settings({},profile(),['a','b']);before=p.to_dict();history=History(p)
+    history.apply('删除一句',lambda current:current.lines.pop(0))
+    assert set(history.project.color_styles['lines'])=={'b'}
+    assert history.undo() and history.project.to_dict()==before
+
+
+def test_legacy_project_has_no_automatic_color_rewrite():
+    from shengao.project import Project
+    raw=Project().to_dict();raw['version']=9;raw.pop('color_styles')
+    p=Project.from_dict(raw)
+    assert p.color_styles=={} and effective_profile(p.color_styles,'any') is None
+    raw['color_styles']=update_settings({},profile())
+    with pytest.raises(ValueError,match='第 10 版'):Project.from_dict(raw)
+    raw['version']=11
+    with pytest.raises(ValueError,match='版本较新'):Project.from_dict(raw)
