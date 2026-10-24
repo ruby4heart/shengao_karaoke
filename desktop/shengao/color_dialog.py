@@ -2,7 +2,7 @@
 import copy
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QCheckBox,QColorDialog,QComboBox,QDialog,QDialogButtonBox,
+from PySide6.QtWidgets import (QButtonGroup,QCheckBox,QColorDialog,QComboBox,QDialog,QDialogButtonBox,
     QFormLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton,QScrollArea,QSpinBox,QVBoxLayout,QWidget)
 from .color_states import (CHANNELS,PRESETS,default_profile,preset_profile,effective_profile,update_settings,validate_ink,validate_settings)
 
@@ -12,8 +12,8 @@ class InkField(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent);self._setting=False
         row=QHBoxLayout(self);row.setContentsMargins(0,0,0,0)
-        self.hex=QLineEdit();self.hex.setMaxLength(7);self.hex.setPlaceholderText('#RRGGBB');self.hex.setMaximumWidth(110)
-        self.pick=QPushButton('选色');self.opacity=QSpinBox();self.opacity.setRange(0,100);self.opacity.setSuffix(' % 不透明')
+        self.hex=QLineEdit();self.hex.setMaxLength(7);self.hex.setPlaceholderText('#RRGGBB');self.hex.setFixedWidth(94)
+        self.pick=QPushButton('选色');self.pick.setFixedWidth(48);self.opacity=QSpinBox();self.opacity.setRange(0,100);self.opacity.setSuffix(' % 不透明');self.opacity.setMinimumWidth(115)
         row.addWidget(self.pick);row.addWidget(self.hex);row.addWidget(self.opacity)
         self.hex.textChanged.connect(self.notify);self.opacity.valueChanged.connect(self.notify);self.pick.clicked.connect(self.choose)
     def value(self):
@@ -38,7 +38,8 @@ class ColorDialog(QDialog):
     previewRequested=Signal(str)
     def __init__(self,project,current=-1,selected_ids=(),parent=None,preview_widget=None):
         super().__init__(parent);project.validate();self.setWindowTitle('颜色与演唱状态')
-        screen=self.screen().availableGeometry();self.resize(min(800,screen.width()-32),min(760,screen.height()-64))
+        screen=self.screen().availableGeometry();self.compact=screen.width()<700
+        self.resize(min(1180 if preview_widget is not None else 800,screen.width()-32),min(760,screen.height()-64))
         self.original=copy.deepcopy(project.color_styles);self.style=copy.deepcopy(project.style);self.result_settings=None
         self._loading=False;self._dirty=False;self._profile=None;self.candidate=copy.deepcopy(self.original)
         valid={v.id for v in project.lines};selected=list(selected_ids)
@@ -46,7 +47,17 @@ class ColorDialog(QDialog):
         current_id=project.lines[current].id if 0<=current<len(project.lines) else None
         self.preview_has_units=bool(project.lines[current].units) if current_id else False
         self.targets={'global':None,'current':[current_id] if current_id else [],'selected':selected}
-        outer=QVBoxLayout(self);scroll=QScrollArea();scroll.setWidgetResizable(True);body=QWidget();layout=QVBoxLayout(body);scroll.setWidget(body);outer.addWidget(scroll)
+        outer=QVBoxLayout(self);content=QHBoxLayout()
+        preview_column=None
+        if preview_widget is not None:
+            left=QWidget();left.setMinimumWidth(200);preview_column=QVBoxLayout(left);preview_column.setContentsMargins(0,0,0,0);preview_column.addWidget(preview_widget,1)
+            if self.compact:
+                outer.addWidget(left)
+                for picture in preview_widget.findChildren(QLabel):
+                    if hasattr(picture,'source_pixmap'):picture.setMinimumHeight(96);picture.setMaximumHeight(140)
+            else:left.setMaximumWidth(420);content.addWidget(left,4)
+        outer.addLayout(content,1)
+        scroll=QScrollArea();scroll.setWidgetResizable(True);body=QWidget();layout=QVBoxLayout(body);scroll.setWidget(body);content.addWidget(scroll,6)
         title=QLabel('分别设置待唱、演唱中和唱完留屏的颜色。只改配色，歌词、读音和时间保持。');title.setWordWrap(True);layout.addWidget(title)
         self.scope=QComboBox();self.scope.addItem('全曲模板（指定行自定义保持）','global');self.scope.addItem('本句 · 1 句' if current_id else '本句 · 没有选中歌词','current');self.scope.addItem(f'选中歌词 · {len(selected)} 句','selected')
         self.scope.model().item(1).setEnabled(bool(current_id));self.scope.model().item(2).setEnabled(bool(selected));layout.addWidget(self.scope)
@@ -75,20 +86,32 @@ class ColorDialog(QDialog):
         for spin in (self.padding,self.radius):spin.setRange(0,100)
         box.addRow('本状态底板颜色',self.box_color);box.addRow('底板边距',self.padding);box.addRow('底板圆角',self.radius);layout.addLayout(box)
         for signal in (self.box_enabled.toggled,self.box_color.changed,self.padding.valueChanged,self.radius.valueChanged):signal.connect(self.changed)
-        if preview_widget is not None:layout.addWidget(preview_widget)
-        row=QHBoxLayout()
+        row=QVBoxLayout() if preview_column is not None and not self.compact else QHBoxLayout();self.phase_buttons={};self.phase_group=QButtonGroup(self);self.phase_group.setExclusive(True)
         for key,title in [('waiting','看待唱'),('middle','看唱到一半'),('sung','看唱完留屏')]:
-            button=QPushButton(title);button.clicked.connect(lambda checked=False,value=key:self.previewRequested.emit(value));row.addWidget(button)
-        layout.addLayout(row);layout.addStretch()
+            button=QPushButton(title);button.setCheckable(True);button.setStyleSheet('QPushButton:checked { background:#4365db; color:#ffffff; }');self.phase_group.addButton(button);self.phase_buttons[key]=button;button.clicked.connect(lambda checked=False,value=key:self.select_preview(value));row.addWidget(button)
+        if preview_column is not None:preview_column.addLayout(row)
+        else:layout.addLayout(row)
+        layout.addStretch()
         self.status=QLabel('尚未采用；修改会先预览。');self.status.setWordWrap(True);outer.addWidget(self.status)
         footer=QHBoxLayout();self.restore=QPushButton();self.reset=QPushButton('重置本次修改');footer.addWidget(self.restore);footer.addWidget(self.reset);footer.addStretch()
         self.buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('采用颜色设置');self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText('取消');footer.addWidget(self.buttons);outer.addLayout(footer)
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('采用颜色设置');self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText('取消')
+        if self.compact:outer.addLayout(footer);outer.addWidget(self.buttons)
+        else:footer.addWidget(self.buttons);outer.addLayout(footer)
         self.scope.currentIndexChanged.connect(self.load_scope);self.role.currentIndexChanged.connect(self.load_layer);self.state.currentIndexChanged.connect(self.load_layer)
+        self.state.currentIndexChanged.connect(self.sync_preview_state)
         self.restore.clicked.connect(self.restore_inheritance);self.reset.clicked.connect(self.load_scope);self.buttons.accepted.connect(self.accept_changes);self.buttons.rejected.connect(self.reject)
         self.apply_preset.clicked.connect(self.use_preset)
         self.load_scope()
+        self.sync_preview_state()
     def ids(self):return self.targets[self.scope.currentData()]
+    def select_preview(self,phase):
+        index=self.state.findData('singing' if phase=='middle' else phase)
+        if self.state.currentIndex()==index:self.sync_preview_state()
+        else:self.state.setCurrentIndex(index)
+    def sync_preview_state(self,*args):
+        phase='middle' if self.state.currentData()=='singing' else self.state.currentData()
+        self.phase_buttons[phase].setChecked(True);self.previewRequested.emit(phase)
     def load_scope(self,*args):
         ids=self.ids();profile=self.original.get('global') if ids is None and self.original else effective_profile(self.original,ids[0]) if ids else None
         self._profile=copy.deepcopy(profile) if profile is not None else default_profile(self.style)

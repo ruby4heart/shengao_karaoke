@@ -46,3 +46,12 @@ def test_small_dialog_footer_stays_visible(qapp):
     for button in [d.restore,d.reset,d.buttons.button(QDialogButtonBox.StandardButton.Ok),d.buttons.button(QDialogButtonBox.StandardButton.Cancel)]:
         assert button.isVisible() and d.rect().contains(button.mapTo(d,button.rect().center()))
     d.reject();d.deleteLater()
+
+
+def test_state_selection_and_preview_buttons_stay_in_sync(qapp):
+    from PySide6.QtWidgets import QPushButton
+    d=ColorDialog(project(),0);requests=[];d.previewRequested.connect(requests.append)
+    d.state.setCurrentIndex(d.state.findData('singing'));assert requests[-1]=='middle' and d.phase_buttons['middle'].isChecked()
+    next(v for v in d.findChildren(QPushButton) if v.text()=='看待唱').click()
+    assert d.state.currentData()=='waiting' and requests[-1]=='waiting' and d.candidate=={}
+    d.reject();d.deleteLater()

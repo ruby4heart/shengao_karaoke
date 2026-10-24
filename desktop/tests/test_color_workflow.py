@@ -45,3 +45,17 @@ def test_cancel_and_late_colour_change_do_not_overwrite_current(qapp,tmp_path):
     QTimer.singleShot(20,late);assert not w.edit_color_states()
     assert w.project.color_styles==update_settings({},palette)
     w.close()
+
+
+def test_raw_ass_conversion_is_explicit_and_one_undo_restores_original(qapp,tmp_path):
+    from shengao.subtitles import compose
+    w=window(tmp_path);original=compose(w.project);w.project.source_ass=original;w.project.source_ass_active=True
+    before=w.project.to_dict();observed={}
+    def adopt():
+        d=next(v for v in w.findChildren(ColorDialog) if v.isVisible())
+        observed['warning']=any('原 ASS 当前按原样显示' in label.text() for label in d.findChildren(QLabel))
+        d.fields['primary'].hex.setText('#112233');d.accept_changes()
+    QTimer.singleShot(20,adopt);assert w.edit_color_states()
+    assert observed['warning'] and not w.project.source_ass_active and w.project.source_ass==original
+    assert w.project.to_dict()['lines']==before['lines'];w.undo()
+    assert w.project.to_dict()==before and compose(w.project)==original;w.close()
