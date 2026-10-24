@@ -87,7 +87,7 @@ def test_partial_text_edits_persist_when_dialog_closes_and_project_reopens(qapp,
     assert not w.api.busy and not w.project.lines and w.project.recognition_draft['rows'][0]['text']=='今日 も 歌おう '
     w.path=tmp_path/'unconfirmed.sgproj';assert w.save();loaded=load_project(w.path)
     assert loaded.recognition_draft==w.project.recognition_draft and loaded.transcript==source and loaded.transcript_fingerprint==w.project.transcript_fingerprint
-    assert loaded.to_dict()['version']==10;w.close()
+    assert loaded.to_dict()['version']==11;w.close()
 
 
 def test_confirmed_text_enters_editable_rough_axis_one_undo_and_keeps_checks_separate(qapp,tmp_path,project):

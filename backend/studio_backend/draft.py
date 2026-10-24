@@ -25,7 +25,7 @@ STATES = {'pending': '等待', 'running': '处理中', 'completed': '已完成',
 
 def protected(line):
     return (line.locked or line.reviewed or any(u.locked or u.source == 'manual'
-            or any(h.source == 'manual' for h in u.highlights) for u in line.units))
+            or any(h.source == 'manual' or h.fixed_edges for h in u.highlights) for u in line.units))
 
 
 def options(request):

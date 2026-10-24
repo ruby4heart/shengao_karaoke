@@ -31,6 +31,7 @@ class Highlight:
     end: int
     source: str = 'estimated'
     timing_origin: dict = field(default_factory=dict)
+    fixed_edges: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -59,6 +60,8 @@ class Unit:
         previous=self.start
         for highlight in self.highlights:
             validate(highlight.timing_origin)
+            if not isinstance(highlight.fixed_edges,list) or any(e not in ('start','end') for e in highlight.fixed_edges) or len(set(highlight.fixed_edges))!=len(highlight.fixed_edges):
+                raise ValueError('人工固定边界无效')
             if not isinstance(highlight.kana,str) or not highlight.kana:
                 raise ValueError('演唱音节读音为空')
             if type(highlight.start) is not int or type(highlight.end) is not int or not previous<=highlight.start<=highlight.end<=self.end:
@@ -145,6 +148,7 @@ class LyricLine:
         if not self.timing_evidence:value.pop('timing_evidence')
         for item in [value,*value['units'],*(h for u in value['units'] for h in u['highlights'])]:
             if not item.get('timing_origin'):item.pop('timing_origin',None)
+            if 'fixed_edges' in item and not item['fixed_edges']:item.pop('fixed_edges')
         return value
 
     def karaoke(self, tag='kf', furigana=False):

@@ -1246,6 +1246,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.word_source.setText((('人工读音' if unit.reading_source=='manual' else '读音建议')+f' · {len(unit.highlights)} 音节') if unit else '先选词组或定范围')
             self.word_source.setToolTip('修改假名只重估所选词组，其他人工音节保留；时间来源可在音节上悬停查看。')
         if hasattr(self,'mora_strip'):self.mora_strip.set_line(self.line,i,j)
+        self.refresh_acoustic_tools()
         if hasattr(self,'inline_segment'):self.inline_segment.selected_word=i;self.inline_segment.render()
 
     def show_timing_sources(self):
@@ -1662,7 +1663,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         folder=self.home/'desktop-tasks'/uuid.uuid4().hex
         request={'action':'review_saved','_studio_origin_action':self.pending.get('action'),
                  '_studio_context':self.pending.get('context',{}),'_studio_snapshots':self.pending.get('snapshots',{}),
-                 '_studio_checks':self.pending.get('checks'),'lines':list(self.pending.get('snapshots',{}).values())}
+                 '_studio_checks':self.pending.get('checks'),'lines':list(self.pending.get('snapshots',{}).values()),'plan':copy.deepcopy(self.pending.get('plan',{}))}
         try:
             atomic_json(folder/'request.json',request);atomic_json(folder/'result.json',{'ok':True,**self.pending['result']})
         except OSError:self.message('建议暂存失败，当前建议保留；请检查保存目录后重试。');return False
@@ -1696,15 +1697,27 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                     from studio_backend.matching_context import protected
                     if protected(old) or p.checks.get(uid,{}).get('reading') or uid not in self.pending['result']['reading_reuse']['eligible_ids']:skipped.append(uid);continue
                 acoustic=bool(self.pending and self.pending.get('action')=='acoustic')
+                if not acoustic and any(h.fixed_edges for u in old.units for h in u.highlights):skipped.append(uid);continue
                 if old.locked or (old.reviewed and acoustic) or (any(u.locked for u in old.units) and not acoustic) or old.to_dict()!=snapshots.get(uid):skipped.append(uid);continue
                 check_snapshot=self.pending.get('checks') if self.pending else None
                 if self.pending and self.pending.get('action') in {'draft','acoustic','chorus_reuse'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
                 if data['text']!=old.text:raise ValueError('建议更改了原歌词，已拒绝应用；原始建议仍保留')
                 same_reading=(old.kana,old.romaji,[(u.text,u.kana,u.romaji) for u in old.units])==(data.get('kana',''),data.get('romaji',''),[(u['text'],u.get('kana',''),u.get('romaji','')) for u in data.get('units',[])])
                 candidate=LyricLine.from_dict(data)
+                if not acoustic and any(h.fixed_edges for u in candidate.units for h in u.highlights):
+                    raise ValueError('自动建议不能新建人工固定点，原内容保留。')
                 if acoustic:
                     from studio_backend.acoustic import protected_equal
                     protected_equal(old,candidate)
+                    guide_plan=self.pending.get('plan',{})
+                    if candidate.timing_evidence.get('guide_points') and not guide_plan.get('guide_points'):
+                        raise ValueError('定位任务缺少原始固定点请求，建议保留但未采用。')
+                    if not guide_plan.get('guide_points'):
+                        fixed=lambda line:[(i,j,h.fixed_edges) for i,u in enumerate(line.units) for j,h in enumerate(u.highlights) if h.fixed_edges]
+                        if fixed(old)!=fixed(candidate):raise ValueError('普通歌声建议不能新建人工固定点，原内容保留。')
+                    if guide_plan.get('guide_points'):
+                        from studio_backend.acoustic_guides import validate_result
+                        validate_result(guide_plan,candidate)
                 p.lines[index]=candidate
                 if chorus:p.source_ass_active=False
                 if acoustic or (self.pending and self.pending['result'].get('acoustic',{}).get('lines',{}).get(uid,{}).get('status')=='aligned'):p.source_ass_active=False
@@ -1828,7 +1841,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if request.get('action') in {'transcribe','confirm_recognition'}:
                 dialog.accept();self.restore_recognition_result(request,result,folder);return
             if not result.get('suggestions'):self.message(result.get('message','此任务没有字幕建议'));return
-            self.pending={'result':result,'snapshots':request.get('_studio_snapshots') or {x['id']:x for x in request.get('lines',[])},'folder':str(folder),'action':request.get('_studio_origin_action') or request.get('action'),'context':request.get('_studio_context',{}),'checks':request.get('_studio_checks')};dialog.accept();self.refresh();self.review_pending()
+            self.pending={'result':result,'snapshots':request.get('_studio_snapshots') or {x['id']:x for x in request.get('lines',[])},'folder':str(folder),'action':request.get('_studio_origin_action') or request.get('action'),'context':request.get('_studio_context',{}),'checks':request.get('_studio_checks'),'plan':request.get('plan',{})};dialog.accept();self.refresh();self.review_pending()
         def open_output():
             index=items.currentRow()
             if index<0:return
@@ -1838,6 +1851,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             index=items.currentRow()
             if index<0:return
             request=entries[index][1];value=entries[index][2]
+            if (request.get('action')=='acoustic' or request.get('_studio_origin_action')=='acoustic') and request.get('plan',{}).get('guide_points'):
+                dialog.accept();self.resume_acoustic_guides(request);return
             if request.get('action')=='chorus_reuse' or value.get('chorus_workflow'):
                 dialog.accept();self.resume_chorus_workflow(request.get('workflow_id') or value.get('chorus_workflow',{}).get('id'));return
             if request.get('action')!='draft' and not value.get('workflow'):self.message('此记录没有可继续的初稿或副歌检查点，可直接恢复建议审核。');return

@@ -43,7 +43,7 @@ def protected(line,unit,item,new_end=None):
     if line.locked or unit.locked:return '已锁定'
     if line.reviewed:return '本句时间已确认'
     kind=effective_kind(inferred(item));word_kind=effective_kind(inferred(unit));line_kind=effective_kind(inferred(line))
-    if unit.source=='manual' or item.source=='manual' or kind=='manual':return '人工时间已保护'
+    if getattr(item,'fixed_edges',[]) or unit.source=='manual' or item.source=='manual' or kind=='manual':return '人工时间已保护'
     if item.source=='acoustic' or kind=='acoustic':return '保留已有歌声音素边界'
     if new_end is not None and new_end>unit.end and (unit.source=='acoustic' or word_kind=='acoustic'):return '保留已有词组声音边界'
     if new_end is not None and new_end>line.end and line_kind in {'manual','acoustic'}:return '保留已有整句边界'

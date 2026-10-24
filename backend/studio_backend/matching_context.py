@@ -6,7 +6,7 @@ from collections import Counter
 def protected(line,replace_manual=False):
     def manual(item):
         origin=item.timing_origin
-        return getattr(item,'source','')=='manual' or origin.get('kind')=='manual' or bool(
+        return bool(getattr(item,'fixed_edges',[])) or getattr(item,'source','')=='manual' or origin.get('kind')=='manual' or bool(
             set(origin.get('operations',[]))&{'manual_boundary','shift','stretch'})
     return line.locked or line.reviewed or (not replace_manual and manual(line)) or any(
         u.locked or (not replace_manual and (manual(u) or any(manual(h) for h in u.highlights))) for u in line.units)

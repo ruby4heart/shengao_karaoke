@@ -48,17 +48,23 @@ def plan(line):
             unit.highlights=[Highlight(p,unit.start+round((unit.end-unit.start)*j/len(parts)),unit.start+round((unit.end-unit.start)*(j+1)/len(parts))) for j,p in enumerate(parts)]
         if unit.source=='manual':flush(unit.start)
         for j,(highlight,key) in enumerate(zip(unit.highlights,keys)):
-            if highlight.source=='manual':
+            if highlight.source=='manual' or set(highlight.fixed_edges)=={'start','end'}:
                 flush(highlight.start);left=highlight.end;protected.append({'unit':i,'highlight':j,'kind':'manual'})
-            else:pending.append({'unit':i,'highlight':j,'kana':highlight.kana,'pronunciation':key})
+            else:
+                if 'start' in highlight.fixed_edges:flush(highlight.start)
+                pending.append({'unit':i,'highlight':j,'kana':highlight.kana,'pronunciation':key})
+                if 'end' in highlight.fixed_edges:flush(highlight.end)
         if unit.source=='manual':flush(unit.end)
     flush(line.end)
     if not jobs:raise ValueError('本句全部音节已人工固定，没有可重算的部分。')
     return {'original':line.to_dict(),'baseline':baseline.to_dict(),'jobs':jobs,'protected':protected}
 
 def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=True):
-    line=LyricLine.from_dict(prepared['baseline']);notes=[];evidence=[];changed=0;changed_units=set()
+    line=LyricLine.from_dict(prepared['baseline']);notes=[];evidence=[];changed=0;changed_units=set();inferred_units=set()
     rows=result.get('jobs',[])
+    guides=prepared.get('guide_points',[])
+    if guides and any(row.get('error') for row in rows):raise ValueError('固定位置之间有区间未成功，整句原轴保留；定位草稿可继续或转手工校对。')
+    changed_units.update(point['unit'] for point in guides)
     if len(rows)!=len(prepared['jobs']) or [r.get('index') for r in rows]!=list(range(len(rows))):raise ValueError('对齐结果缺少区间，未采用。')
     for job,output in zip(prepared['jobs'],rows):
         if output.get('error'):notes.append(output['error']);continue
@@ -77,13 +83,21 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
             if b-a>1500:warnings.append(value['kana']+'：持续超过 1.5 秒，请核对拖音。')
             if a-previous>=150 and (leading_gap or mora_index>0):warnings.append(f'音节前有 {a-previous} ms 间隔，请试听是否休止。')
             previous=b
-        if invalid:notes.append('模型漏掉音素或边界无效；此区间保留原时间。');continue
+        if invalid:
+            if guides:raise ValueError('固定位置之间未得到完整声音边界，原轴保留；定位草稿可继续或转手工校对。')
+            notes.append('模型漏掉音素或边界无效；此区间保留原时间。');continue
         for target,value in zip(job['mora'],values):
             unit=line.units[target['unit']];h=unit.highlights[target['highlight']]
-            h.start=value['start'];h.end=value['end'];h.source='acoustic';changed+=1
+            old_start,old_end=h.start,h.end
+            h.start=old_start if 'start' in h.fixed_edges else value['start']
+            h.end=old_end if 'end' in h.fixed_edges else value['end']
+            if h.start>=h.end:raise ValueError('声音候选与人工固定边界冲突，原时间保留。')
+            h.source='acoustic';changed+=1
             from .provenance import create
-            h.timing_origin=create('acoustic',h.start,h.end,'tifa','phoneme_alignment',h.kana)
-            changed_units.add(target['unit'])
+            h.timing_origin=create('acoustic',value['start'],value['end'],'tifa','phoneme_alignment',h.kana)
+            if (h.start,h.end)!=(value['start'],value['end']):
+                h.timing_origin['current']=[h.start,h.end];h.timing_origin['operations']=['manual_boundary']
+            changed_units.add(target['unit']);inferred_units.add(target['unit'])
             if unit.source!='manual':unit.source='acoustic'
         for a,b in zip(values,values[1:]):
             if a['phones'][-1]['phone']==b['phones'][0]['phone'] and a['end']==b['start']:warnings.append(a['kana']+'／'+b['kana']+'：相同音连续，内部分界需人工听拍。')
@@ -94,9 +108,18 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
         if i not in changed_units:line.units[i]=copy.deepcopy(original.units[i]);continue
         if unit.highlights and not unit.locked and unit.source!='manual':
             unit.start=unit.highlights[0].start;unit.end=unit.highlights[-1].end
-            unit.timing_origin=create('acoustic',unit.start,unit.end,'tifa','phoneme_envelope',unit.kana)
+            if i in inferred_units:unit.timing_origin=create('acoustic',unit.start,unit.end,'tifa','phoneme_envelope',unit.kana)
+            else:
+                from .provenance import record
+                record(original.units[i],unit,'manual_boundary')
     line.reviewed=False
     line.timing_evidence={'engine':result['engine'],'model_sha256':result['model_sha256'],'source_sha256':source_sha256,'audio_sha256':audio_sha256,'audio_role':audio_role,'timestep_ms':result['timestep_ms'],'runs':evidence,'protected':prepared['protected'],'notes':list(dict.fromkeys(notes)),'notice':'按输入假名强制对齐歌声，未核验假名是否唱对；模型分数不是准确率。整句头尾、原文、读音和人工固定部分保留。'}
+    if guides:
+        from .acoustic_guides import validate_result
+        line.timing_evidence['guide_points']=copy.deepcopy(guides)
+        line.timing_evidence['guide_scope']=prepared['guide_scope']
+        line.timing_evidence['notice']+=' 人工固定的起点或终点精确保留；另一端仍为待审核候选。'
+        validate_result(prepared,line)
     line.validate();protected_equal(LyricLine.from_dict(prepared['original']),line)
     return line
 
@@ -108,4 +131,6 @@ def protected_equal(old,new):
         if before.locked and before!=after:raise ValueError('人工锁定的词组已变化，拒绝采用。')
         if before.source=='manual' and (before.start,before.end)!=(after.start,after.end):raise ValueError('人工固定的词组范围已变化，拒绝采用。')
         for j,h in enumerate(before.highlights):
+            if h.fixed_edges and (j>=len(after.highlights) or not set(h.fixed_edges)<=set(after.highlights[j].fixed_edges) or any(getattr(h,edge)!=getattr(after.highlights[j],edge) for edge in h.fixed_edges)):
+                raise ValueError('人工固定起止点已变化，拒绝采用。')
             if h.source=='manual' and (j>=len(after.highlights) or h!=after.highlights[j]):raise ValueError('人工音节已变化，拒绝采用。')

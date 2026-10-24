@@ -192,6 +192,10 @@ def summary(item,confirmed=False,mora=False):
     if item.end==item.start:issues.append('零时长，请检查是否漏音。')
     elif mora and not confirmed and item.end-item.start<30:issues.append('音节短于 30 ms，请细听。')
     elif mora and not confirmed and item.end-item.start>1500:issues.append('音节超过 1.5 秒，请核对拖音。')
+    fixed=getattr(item,'fixed_edges',[])
+    if fixed:
+        title+=' · 固定'+('起止点' if len(fixed)==2 else '起点' if fixed==['start'] else '终点')
+        detail.append('只固定列出的人工边界；未固定的另一端仍需试听，不自动算作人工确认。')
     if confirmed:title='已人工确认 · '+title
     elif 'manual_boundary' in ops:title+=' · 待确认'
     elif ops:title+=' · 已调整'

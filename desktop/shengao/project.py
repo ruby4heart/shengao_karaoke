@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=10
+SCHEMA=11
 
 @dataclass
 class Style:
@@ -148,11 +148,13 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if version not in (1,2,3,4,5,6,7,8,9,10): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version not in (1,2,3,4,5,6,7,8,9,10,11): raise ValueError('工程版本较新，请使用对应版本软件')
         if version<10 and data.get('color_styles'):raise ValueError('详细颜色设置需要第 10 版工程格式')
         fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')
+        if version<11 and any(h.get('fixed_edges') for line in raw_lines for unit in line.get('units',[]) if isinstance(unit,dict) for h in unit.get('highlights',[]) if isinstance(h,dict)):
+            raise ValueError('人工固定起止点需要第 11 版工程格式')
         if version>=2 and any(not x.get('text') for x in raw_lines):raise ValueError('工程包含缺失或空白的歌词记录')
         fields['lines']=[LyricLine.from_dict({**x,'id':str(x['id'])} if version==1 and 'id' in x else x) for x in raw_lines if x.get('text')]
         fields['style']=Style(**{k:v for k,v in data.get('style',{}).items() if k in Style.__dataclass_fields__})

@@ -92,7 +92,7 @@ def exercise(w,app,out,check):
         path=out/'三状态配色.sgproj';save_project(w.project,path);reopened=load_project(path)
         ass=out/'三状态配色.ass';export_subtitle(w.project,ass);imported=load_project(ass)
         portable=all(value.color_styles==w.project.color_styles and [v.to_dict() for v in value.lines]==after_local['lines'] and value.checks==w.project.checks for value in (reopened,imported))
-        check('colors_schema10_save_and_own_ass_reopen',SCHEMA==10 and portable and compose(reopened)==compose(w.project)==compose(imported))
+        check('colors_current_schema_save_and_own_ass_reopen',SCHEMA==11 and portable and compose(reopened)==compose(w.project)==compose(imported))
         w.undo();check('colors_local_override_one_undo',w.project.to_dict()==after_first)
         w.undo();schedule(lambda d:d.reject());cancelled=not w.edit_color_states()
         check('colors_global_adoption_one_undo_and_cancel',cancelled and w.project.to_dict()==before)
@@ -102,6 +102,6 @@ def exercise(w,app,out,check):
         schedule(late_edit);accepted=w.edit_color_states()
         protected=not accepted and w.project.color_styles==update_settings({},late);w.undo()
         check('colors_late_change_keeps_current_and_one_undo',protected and w.project.to_dict()==before)
-        (out/'color-state-audit.json').write_text(json.dumps({'passed':True,'schema':10,'controls':16,'metrics':metrics,'synthetic_lyrics':True,'actual_qt':True,'actual_libass':True,'actual_ffmpeg':True,'new_api_calls':0,'human_timing_accuracy':False},indent=2),encoding='utf-8')
+        (out/'color-state-audit.json').write_text(json.dumps({'passed':True,'schema':SCHEMA,'controls':16,'metrics':metrics,'synthetic_lyrics':True,'actual_qt':True,'actual_libass':True,'actual_ffmpeg':True,'new_api_calls':0,'human_timing_accuracy':False},indent=2),encoding='utf-8')
     finally:
         w.history,w.current,w.path,w.pending,stage,selection,selection_uid=backup;w._selected_lyric_ids=selection;w._selection_uid=selection_uid;w.refresh();w.set_stage(stage)

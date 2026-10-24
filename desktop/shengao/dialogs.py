@@ -150,7 +150,7 @@ class ReviewDialog(QDialog):
         data=self.values[row];old=next((x for x in self.project.lines if x.id==data['id']),None)
         review=data.get('reading_review',{});match=data.get('match',{});parts=[];timing=data.get('timing_evidence',{})
         status=self.result.get('acoustic',{}).get('lines',{}).get(data['id'],{})
-        manual=bool(self.result.get('reading_reuse')) or bool(self.result.get('acoustic')) and status.get('status')!='aligned'
+        manual=self.result.get('action')=='acoustic' or bool(self.result.get('reading_reuse')) or bool(self.result.get('acoustic')) and status.get('status')!='aligned'
         self.manual_button.setEnabled(manual);self.manual_button.setVisible(manual)
         acoustic=bool(timing and (self.result.get('action')=='acoustic' or status.get('status')=='aligned'))
         self.acoustic_mora.setVisible(acoustic);self.acoustic_listen.setVisible(acoustic);self.acoustic_mora.clear()

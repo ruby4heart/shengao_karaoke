@@ -10,7 +10,7 @@ def protected(line):
 
 
 def automatic(unit,edge=None):
-    return not unit.locked and unit.source not in {'manual','acoustic'} and (edge is None or edge.source not in {'manual','acoustic'})
+    return not unit.locked and unit.source not in {'manual','acoustic'} and (edge is None or not edge.fixed_edges and edge.source not in {'manual','acoustic'})
 
 
 def continuous_lines(lines,maximum=DEFAULT_GAP_MS,join_lines=True):
