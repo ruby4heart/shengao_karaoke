@@ -1,6 +1,8 @@
 # 声稿 Karaoke Studio
 
-Windows 日语卡拉 OK 字幕制作软件，使用独立 Qt 工作台。当前为 **0.26.0 开发预发布版**，面向个人非商业制作，尚未达到完整 1.0 验收标准。
+Windows 日语卡拉 OK 字幕制作软件，使用独立 Qt 工作台。当前为 **0.27.0 开发预发布代码**，完整本地验收通过；GitHub Release 交付以远端核验回执为准，面向个人非商业制作，尚未达到完整 1.0 验收标准。
+
+**0.27.0 整体校轴后重新计算内部**：仍用同一个重算按钮，先说明旧估算保护与已确认状态，明确允许后在本机生成新候选。真正人工调整、锁定、固定点、整句和人工词组范围保持；失败、取消、审核、保存与一次撤销沿用原流程。工程格式仍为 11。见 [操作教程](docs/DESKTOP-USER-GUIDE.md) 与 [当前验收](docs/V027-ACCEPTANCE.md)，670 项完整回归，开发版及正常／150% 独立包各 291 项通过，原版时间轴 12 组逐像素一致。
 
 **0.26.0 人工位置引导重算**：在原版频谱／波形上给音节起点或终点，默认只重算两个固定点之间，范围外与人工内容保持。定位草稿可继续，失败保留原轴；先审核，采用、解除固定均可撤销。只固定所选一端，另一端仍待试听。工程格式 11 读取 1–11，0.25.0 及更早程序拒绝新版工程。见 [使用教程](docs/DESKTOP-USER-GUIDE.md)、[设计说明](docs/GUIDED-ALIGNMENT-SPEC.md) 与 [当前验收](docs/V026-ACCEPTANCE.md)。
 
@@ -36,5 +38,5 @@ API 密钥由当前 Windows 用户的 DPAPI 加密保存在本机，不进入工
 
 本仓库包含应用代码、测试、原生适配、文档和演示。请下载 Release 附带的完整源码 ZIP 获取匹配的第三方资源，再按 [构建步骤](docs/DESKTOP-BUILD.md) 操作。依赖说明见 [vendor/GIT-SOURCE-NOTES.md](vendor/GIT-SOURCE-NOTES.md)。
 
-当前变更见 [0.26.0 说明](docs/releases/0.26.0.md) 与 [验收范围](docs/V026-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
+当前变更见 [0.27.0 说明](docs/releases/0.27.0.md) 与 [验收范围](docs/V027-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
 

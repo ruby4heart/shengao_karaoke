@@ -22,19 +22,20 @@ def mora_rows(line):
 
 def prepare(line,points,scope='between'):
     """Interpolate only a draft; no original time is committed on failure."""
-    from .acoustic import plan
+    from .acoustic import plan,manual_highlight,manual_unit_bounds
     if scope not in {'between','line'}:raise ValueError('请选择固定位置之间或本句未固定部分。')
     if not isinstance(points,list) or not 1<=len(points)<=256:raise ValueError('请设置 1 至 256 个人工固定位置。')
     rows=mora_rows(line);index={(i,j):n for n,(i,j,_) in enumerate(rows)}
-    normalized=[];seen=set();hard={-1:line.start,len(rows)*2:line.end}
+    normalized=[];seen=set();virtual={};hard={-1:line.start,len(rows)*2:line.end}
     for n,(i,j,h) in enumerate(rows):
         unit=line.units[i]
         for edge,rank in [('start',2*n),('end',2*n+1)]:
-            if unit.locked or h.source=='manual' or edge in h.fixed_edges:
+            if unit.locked or manual_highlight(h) or edge in h.fixed_edges:
                 hard[rank]=getattr(h,edge)
-        if unit.source=='manual':
-            if j==0:hard[2*n]=unit.start
-            if j==len(unit.highlights)-1:hard[2*n+1]=unit.end
+        if unit.locked or manual_unit_bounds(unit):
+            if j==0:virtual[Fraction(2*n)-Fraction(1,4)]=unit.start
+            if j==len(unit.highlights)-1:virtual[Fraction(2*n+1)+Fraction(1,4)]=unit.end
+    hard.update(virtual)
     for point in points:
         if not isinstance(point,dict) or set(point)!={'unit','highlight','edge','time'}:
             raise ValueError('固定位置资料无效。')
@@ -55,7 +56,7 @@ def prepare(line,points,scope='between'):
     if any(hard[a]>hard[b] for a,b in zip(ordered,ordered[1:])):
         raise ValueError('固定位置顺序冲突，原轴保留；请按歌词顺序检查时间。')
     working=copy.deepcopy(line);leaves=mora_rows(working)
-    old_times={-1:line.start,len(rows)*2:line.end}
+    old_times={-1:line.start,len(rows)*2:line.end,**virtual}
     old_times.update({2*n:getattr(h,'start') for n,(_,_,h) in enumerate(rows)})
     old_times.update({2*n+1:getattr(h,'end') for n,(_,_,h) in enumerate(rows)})
     for n,(_,_,h) in enumerate(leaves):
@@ -69,12 +70,13 @@ def prepare(line,points,scope='between'):
             setattr(h,edge,value)
     for p in normalized:
         h=working.units[p['unit']].highlights[p['highlight']]
+        if working.units[p['unit']].locked or manual_highlight(h):continue
         h.fixed_edges=sorted(set(h.fixed_edges)|{p['edge']})
         before=line.units[p['unit']].highlights[p['highlight']]
         from .provenance import record
         record(before,h,'manual_boundary')
     for unit in working.units:
-        if unit.highlights and not unit.locked and unit.source!='manual':
+        if unit.highlights and not unit.locked and not manual_unit_bounds(unit):
             unit.start=unit.highlights[0].start;unit.end=unit.highlights[-1].end
     try:working.validate()
     except ValueError as error:

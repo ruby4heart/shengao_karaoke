@@ -121,3 +121,13 @@ def test_locked_middle_word_splits_guided_runs_and_remains_identical():
     p=prepare(old,[dict(unit=0,highlight=0,edge='start',time=1000),dict(unit=2,highlight=1,edge='end',time=6000)])
     assert [(job['start'],job['end']) for job in p['jobs']]==[(1000,3000),(4000,6000)]
     assert candidate(p).units[1]==old.units[1]
+
+
+def test_coarse_word_edges_do_not_replace_real_first_or_last_mora_edges():
+    old=line();old.start=900;old.end=6000;old.display_end=6500;u=old.units[0];u.start=900;u.end=6000;u.source='manual'
+    u.highlights[0].fixed_edges=['start'];u.highlights[2].source='manual'
+    p=prepare(old,[dict(unit=0,highlight=0,edge='start',time=1000),dict(unit=0,highlight=2,edge='end',time=4000)])
+    assert len(p['jobs'])==1 and (p['jobs'][0]['start'],p['jobs'][0]['end'])==(1000,3000)
+    new=candidate(p)
+    assert (new.units[0].start,new.units[0].end)==(900,6000)
+    assert new.units[0].highlights[2]==u.highlights[2] and not new.units[0].highlights[2].fixed_edges

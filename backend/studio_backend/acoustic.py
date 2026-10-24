@@ -26,6 +26,15 @@ def pronunciations(unit):
         vowel=next((c for c in reversed(key) if c in 'aeiou'),vowel)
     return parts,keys
 
+def manual_highlight(highlight):
+    origin=highlight.timing_origin
+    return highlight.source=='manual' or origin.get('kind')=='manual' or (not highlight.fixed_edges and 'manual_boundary' in origin.get('operations',[]))
+
+
+def manual_unit_bounds(unit):
+    return unit.source=='manual' or unit.timing_origin.get('kind')=='manual' or 'manual_boundary' in unit.timing_origin.get('operations',[])
+
+
 def plan(line):
     line.validate()
     if line.locked or line.reviewed:raise ValueError('本句时间已确认或锁定；如需重算，请先解除本句时间确认。')
@@ -46,21 +55,21 @@ def plan(line):
             if [h.kana for h in unit.highlights]!=parts:raise ValueError('本句含人工拆合音节，请先在“补全音节”检查其假名划分。')
         else:
             unit.highlights=[Highlight(p,unit.start+round((unit.end-unit.start)*j/len(parts)),unit.start+round((unit.end-unit.start)*(j+1)/len(parts))) for j,p in enumerate(parts)]
-        if unit.source=='manual':flush(unit.start)
+        if manual_unit_bounds(unit):flush(unit.start)
         for j,(highlight,key) in enumerate(zip(unit.highlights,keys)):
-            if highlight.source=='manual' or set(highlight.fixed_edges)=={'start','end'}:
+            if manual_highlight(highlight) or set(highlight.fixed_edges)=={'start','end'}:
                 flush(highlight.start);left=highlight.end;protected.append({'unit':i,'highlight':j,'kind':'manual'})
             else:
                 if 'start' in highlight.fixed_edges:flush(highlight.start)
                 pending.append({'unit':i,'highlight':j,'kana':highlight.kana,'pronunciation':key})
                 if 'end' in highlight.fixed_edges:flush(highlight.end)
-        if unit.source=='manual':flush(unit.end)
+        if manual_unit_bounds(unit):flush(unit.end)
     flush(line.end)
     if not jobs:raise ValueError('本句全部音节已人工固定，没有可重算的部分。')
     return {'original':line.to_dict(),'baseline':baseline.to_dict(),'jobs':jobs,'protected':protected}
 
 def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=True):
-    line=LyricLine.from_dict(prepared['baseline']);notes=[];evidence=[];changed=0;changed_units=set();inferred_units=set()
+    line=LyricLine.from_dict(prepared['baseline']);notes=[];evidence=[];changed=0;changed_units=set();inferred_units=set();written=set()
     rows=result.get('jobs',[])
     guides=prepared.get('guide_points',[])
     if guides and any(row.get('error') for row in rows):raise ValueError('固定位置之间有区间未成功，整句原轴保留；定位草稿可继续或转手工校对。')
@@ -97,16 +106,20 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
             h.timing_origin=create('acoustic',value['start'],value['end'],'tifa','phoneme_alignment',h.kana)
             if (h.start,h.end)!=(value['start'],value['end']):
                 h.timing_origin['current']=[h.start,h.end];h.timing_origin['operations']=['manual_boundary']
-            changed_units.add(target['unit']);inferred_units.add(target['unit'])
-            if unit.source!='manual':unit.source='acoustic'
+            changed_units.add(target['unit']);inferred_units.add(target['unit']);written.add((target['unit'],target['highlight']))
+            if not manual_unit_bounds(unit):unit.source='acoustic'
         for a,b in zip(values,values[1:]):
             if a['phones'][-1]['phone']==b['phones'][0]['phone'] and a['end']==b['start']:warnings.append(a['kana']+'／'+b['kana']+'：相同音连续，内部分界需人工听拍。')
         evidence.append({'window':[job['start'],job['end']],'mora':values,'agreement':output.get('agreement'),'notes':warnings});notes+=warnings
     if not changed:raise ValueError('没有生成可用的声音边界，原时间保留。请核对假名与整句范围，或手工划音。')
     original=LyricLine.from_dict(prepared['original'])
+    if prepared.get('recalculation'):
+        for i,unit in enumerate(original.units):
+            for j,h in enumerate(unit.highlights):
+                if (i,j) not in written:line.units[i].highlights[j]=copy.deepcopy(h)
     for i,unit in enumerate(line.units):
         if i not in changed_units:line.units[i]=copy.deepcopy(original.units[i]);continue
-        if unit.highlights and not unit.locked and unit.source!='manual':
+        if unit.highlights and not unit.locked and not manual_unit_bounds(original.units[i]):
             unit.start=unit.highlights[0].start;unit.end=unit.highlights[-1].end
             if i in inferred_units:unit.timing_origin=create('acoustic',unit.start,unit.end,'tifa','phoneme_envelope',unit.kana)
             else:
@@ -120,7 +133,15 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
         line.timing_evidence['guide_scope']=prepared['guide_scope']
         line.timing_evidence['notice']+=' 人工固定的起点或终点精确保留；另一端仍为待审核候选。'
         validate_result(prepared,line)
-    line.validate();protected_equal(LyricLine.from_dict(prepared['original']),line)
+    line.validate()
+    if prepared.get('recalculation'):
+        from .recalculation import validate_result
+        refs=prepared['recalculation']['released'];applied=[p for p in refs if (p['unit'],p['highlight']) in written]
+        previous=[{'unit':p['unit'],'highlight':p['highlight'],'range':[original.units[p['unit']].highlights[p['highlight']].start,original.units[p['unit']].highlights[p['highlight']].end],'timing_origin':copy.deepcopy(original.units[p['unit']].highlights[p['highlight']].timing_origin)} for p in applied]
+        line.timing_evidence['recalculation']={'version':1,'requested':copy.deepcopy(refs),'applied':copy.deepcopy(applied),'previous':previous,'was_reviewed':original.reviewed}
+        line.timing_evidence['notice']+=' 本次经明确允许重算旧估算内部；真正人工调整、锁定与固定点保持，采用后时间需重新确认。'
+        validate_result(prepared,line)
+    else:protected_equal(LyricLine.from_dict(prepared['original']),line)
     return line
 
 def protected_equal(old,new):
@@ -129,8 +150,8 @@ def protected_equal(old,new):
     for before,after in zip(old.units,new.units):
         if (before.text,before.kana,before.romaji,before.reading_source,before.locked)!=(after.text,after.kana,after.romaji,after.reading_source,after.locked):raise ValueError('歌声对齐不能更改词组或读音。')
         if before.locked and before!=after:raise ValueError('人工锁定的词组已变化，拒绝采用。')
-        if before.source=='manual' and (before.start,before.end)!=(after.start,after.end):raise ValueError('人工固定的词组范围已变化，拒绝采用。')
+        if manual_unit_bounds(before) and (before.start,before.end)!=(after.start,after.end):raise ValueError('人工固定的词组范围已变化，拒绝采用。')
         for j,h in enumerate(before.highlights):
             if h.fixed_edges and (j>=len(after.highlights) or not set(h.fixed_edges)<=set(after.highlights[j].fixed_edges) or any(getattr(h,edge)!=getattr(after.highlights[j],edge) for edge in h.fixed_edges)):
                 raise ValueError('人工固定起止点已变化，拒绝采用。')
-            if h.source=='manual' and (j>=len(after.highlights) or h!=after.highlights[j]):raise ValueError('人工音节已变化，拒绝采用。')
+            if manual_highlight(h) and (j>=len(after.highlights) or h!=after.highlights[j]):raise ValueError('人工音节已变化，拒绝采用。')

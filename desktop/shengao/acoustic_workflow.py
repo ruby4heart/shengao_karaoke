@@ -8,6 +8,16 @@ from . import acoustic_audio,jobs,vocal_audio
 from .project import file_stamp
 
 class AcousticWorkflow:
+    def choose_acoustic_recalculation(self):
+        from .recalculation_workflow import choose
+        return choose(self)
+    def open_acoustic_recalculation(self,options=None):
+        from .recalculation_workflow import open_dialog
+        return open_dialog(self,options)
+    def resume_acoustic_recalculation(self,request):
+        from .recalculation_workflow import resume
+        return resume(self,request)
+
     def guide_draft_path(self):
         import hashlib
         key=hashlib.sha256((self.project.uid+'\0'+self.line.id).encode()).hexdigest()
@@ -76,8 +86,8 @@ class AcousticWorkflow:
     def build_acoustic_tools(self,layout,secondary=None):
         self.acoustic_button=QPushButton('按本句歌声重算音节')
         self.acoustic_button.setObjectName('acousticAlignment')
-        self.acoustic_button.setToolTip('本地 TIFA · 无需密钥。先圈住本句、填写正确假名；整句头尾不动，人工音节和锁定词组作为固定边界，只重算其间音节。采用前可比较与试听。模型限个人非商业用途（CC BY-NC-SA 4.0）。')
-        self.acoustic_button.clicked.connect(self.align_acoustic)
+        self.acoustic_button.setToolTip('本地 TIFA · 无需密钥。先圈住本句、填写正确假名；整句头尾不动，人工音节和锁定词组作为固定边界。整体移动或旧确认产生的估算保护会先说明，可明确选择重算；原轴在采用前保持。采用前可比较与试听。模型限个人非商业用途（CC BY-NC-SA 4.0）。')
+        self.acoustic_button.clicked.connect(lambda:self.choose_acoustic_recalculation())
         if secondary is None:layout.addWidget(self.acoustic_button)
         else:
             row=QHBoxLayout();row.addWidget(self.acoustic_button,2);row.addWidget(secondary,1);layout.addLayout(row)
@@ -120,6 +130,10 @@ class AcousticWorkflow:
         def work(cancel,report):
             try:
                 result=acoustic_audio.generate(prepared,source,track,self.home,cancel,report)
+                if prepared.get('recalculation'):
+                    total=sum(len(j['mora']) for j in prepared['jobs']);completed=sum(len(run['mora']) for value in result.get('suggestions',[]) for run in value.get('timing_evidence',{}).get('runs',[]))
+                    result['partial']=completed<total
+                    result['message']=f'已生成 {completed}/{total} 个音节候选；'+('未成功区间保留原数据，可明确重试或手工校对。' if result['partial'] else '全部区间返回。')+' 原工程时间与确认尚未改变。真正人工调整、锁定、固定点及读音保持；试听勾选采用后时间待确认，可一步撤销。'
                 if raw_ass:result['message']=result.get('message','')+' 采用后将使用声稿样式显示新音节轴；原 ASS 保留，可撤销。'
                 atomic_json(folder/'result.json',result);return result
             except Exception as error:
@@ -135,7 +149,7 @@ class AcousticWorkflow:
             self.pending={'result':result,'snapshots':snapshots,'folder':str(folder),'action':'acoustic','context':context,'checks':checks,'plan':prepared}
             # A table editor or time field may still contain unsubmitted input.
             # No model data changed, so avoid rebuilding the editing widgets.
-            self.save_recovery();self.update_workflow();self.message('歌声音节已返回；点击“比较并审核歌声音节建议”。尚未写入时间轴，处理中修改的内容会保留。')
+            self.save_recovery();self.update_workflow();self.message(('部分声音区间没有成功，原数据保持；' if result.get('partial') else '')+'歌声音节已返回，点击“比较并审核歌声音节建议”。尚未写入时间轴，处理中修改的内容会保留。')
         def progress(message):
             atomic_json(folder/'progress.json',{'message':str(message)})
             if valid():self.message(str(message))

@@ -1697,8 +1697,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                     from studio_backend.matching_context import protected
                     if protected(old) or p.checks.get(uid,{}).get('reading') or uid not in self.pending['result']['reading_reuse']['eligible_ids']:skipped.append(uid);continue
                 acoustic=bool(self.pending and self.pending.get('action')=='acoustic')
+                acoustic_plan=self.pending.get('plan',{}) if self.pending else {}
+                if not isinstance(acoustic_plan,dict):raise ValueError('声学任务请求格式无效，未采用。')
+                recalculation=acoustic_plan.get('recalculation',{})
+                if not isinstance(recalculation,dict):raise ValueError('内部重算许可格式无效，未采用。')
                 if not acoustic and any(h.fixed_edges for u in old.units for h in u.highlights):skipped.append(uid);continue
-                if old.locked or (old.reviewed and acoustic) or (any(u.locked for u in old.units) and not acoustic) or old.to_dict()!=snapshots.get(uid):skipped.append(uid);continue
+                if old.locked or (old.reviewed and acoustic and not recalculation.get('allow_reviewed')) or (any(u.locked for u in old.units) and not acoustic) or old.to_dict()!=snapshots.get(uid):skipped.append(uid);continue
                 check_snapshot=self.pending.get('checks') if self.pending else None
                 if self.pending and self.pending.get('action') in {'draft','acoustic','chorus_reuse'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
                 if data['text']!=old.text:raise ValueError('建议更改了原歌词，已拒绝应用；原始建议仍保留')
@@ -1708,8 +1712,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                     raise ValueError('自动建议不能新建人工固定点，原内容保留。')
                 if acoustic:
                     from studio_backend.acoustic import protected_equal
-                    protected_equal(old,candidate)
-                    guide_plan=self.pending.get('plan',{})
+                    if candidate.timing_evidence.get('recalculation') and not recalculation:
+                        raise ValueError('内部重算缺少原始许可请求，建议保留但未采用。')
+                    if recalculation:
+                        if acoustic_plan.get('original')!=old.to_dict():raise ValueError('内部重算请求与当前句不符，未采用。')
+                        from studio_backend.recalculation import validate_result as validate_recalculation
+                        validate_recalculation(acoustic_plan,candidate)
+                    else:protected_equal(old,candidate)
+                    guide_plan=acoustic_plan
                     if candidate.timing_evidence.get('guide_points') and not guide_plan.get('guide_points'):
                         raise ValueError('定位任务缺少原始固定点请求，建议保留但未采用。')
                     if not guide_plan.get('guide_points'):
@@ -1851,6 +1861,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             index=items.currentRow()
             if index<0:return
             request=entries[index][1];value=entries[index][2]
+            if (request.get('action')=='acoustic' or request.get('_studio_origin_action')=='acoustic') and request.get('plan',{}).get('recalculation'):
+                dialog.accept();self.resume_acoustic_recalculation(request);return
             if (request.get('action')=='acoustic' or request.get('_studio_origin_action')=='acoustic') and request.get('plan',{}).get('guide_points'):
                 dialog.accept();self.resume_acoustic_guides(request);return
             if request.get('action')=='chorus_reuse' or value.get('chorus_workflow'):

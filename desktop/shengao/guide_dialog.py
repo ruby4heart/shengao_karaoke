@@ -5,6 +5,7 @@ from PySide6.QtGui import QPainter,QPen,QColor
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QComboBox,QPushButton,
     QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QWidget,QDialogButtonBox,QSlider)
 from studio_backend.acoustic_guides import mora_rows,prepare
+from studio_backend.acoustic import manual_highlight
 from .timeline import Timeline
 from .widgets import TimeEdit,time_text
 
@@ -70,7 +71,8 @@ class GuideDialog(QDialog):
         self.seek.sliderMoved.connect(self.seek_to);layout.addWidget(self.seek)
         nav=QHBoxLayout();self.mora=QComboBox()
         self.mora.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon);self.mora.setMinimumContentsLength(10);self.mora.setMinimumWidth(0)
-        for i,j,h in self.rows:self.mora.addItem(f'{line.units[i].text} · {j+1} · {h.kana}',(i,j))
+        for i,j,h in self.rows:
+            self.mora.addItem(f'词组 {i+1} · 音节 {j+1} · {h.kana}',(i,j));self.mora.setItemData(self.mora.count()-1,line.units[i].text,Qt.ItemDataRole.ToolTipRole)
         self.edge=QComboBox();self.edge.addItem('起点','start');self.edge.addItem('终点','end')
         self.time=TimeEdit();self.time.setRange(line.start,line.end)
         nav.addWidget(self.mora,2);nav.addWidget(self.edge);nav.addWidget(self.time);layout.addLayout(nav)
@@ -78,7 +80,7 @@ class GuideDialog(QDialog):
         locate=QPushButton('定位到输入时间');locate.clicked.connect(lambda:self.seek_to(self.time.value()));controls.addWidget(locate)
         self.add=QPushButton('加入／更新固定位置');self.add.clicked.connect(self.add_point);controls.addWidget(self.add);layout.addLayout(controls)
         self.table=QTableWidget(0,4);self.table.setHorizontalHeaderLabels(['音节','固定边界','时间','状态']);self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
-        self.table.setMinimumHeight(130);self.table.setColumnWidth(1,75);self.table.setColumnWidth(2,115);self.table.setColumnWidth(3,100);self.table.cellClicked.connect(self.choose_point);layout.addWidget(self.table)
+        self.table.setMinimumHeight(130);self.table.setColumnWidth(1,75);self.table.setColumnWidth(2,115);self.table.setColumnWidth(3,160);self.table.cellClicked.connect(self.choose_point);layout.addWidget(self.table)
         remove=QPushButton('移除所选草稿点');remove.clicked.connect(self.remove_point);layout.addWidget(remove)
         self.scope=QComboBox();self.scope.addItem('只重算首尾固定位置之间（保留范围外音节）','between');self.scope.addItem('重算本句所有未固定部分','line')
         self.scope.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon);self.scope.setMinimumContentsLength(15);self.scope.setMinimumWidth(0)
@@ -105,8 +107,11 @@ class GuideDialog(QDialog):
         i,j=key;self.timeline.word=i;self.timeline.part=j;self.timeline.update()
         edge=self.edge.currentData();point=next((p for p in self.points if (p['unit'],p['highlight'],p['edge'])==(i,j,edge)),None)
         self.time.setValue(point['time'] if point else getattr(self.line.units[i].highlights[j],edge))
-        h=self.line.units[i].highlights[j];self.add.setEnabled(not (self.line.units[i].locked or h.source=='manual' or edge in h.fixed_edges))
-        self.add.setToolTip('此边界已人工固定或锁定；在主编辑区调整或解除固定。' if not self.add.isEnabled() else '只固定这一端，另一端仍为待审核候选。')
+        h=self.line.units[i].highlights[j];hard=self.line.units[i].locked or manual_highlight(h)
+        immutable=hard or edge in h.fixed_edges;self.time.setReadOnly(immutable);self.use_playhead.setEnabled(not immutable)
+        if immutable:self.time.setValue(getattr(h,edge))
+        self.add.setEnabled(edge not in h.fixed_edges);self.add.setText('使用已有边界作范围点' if hard else '加入／更新固定位置')
+        self.add.setToolTip('保留已有人工或锁定时间，只用于限定重算范围。' if hard else '此边界已经固定；在主编辑区调整或解除固定。' if not self.add.isEnabled() else '只固定这一端，另一端仍为待审核候选。')
     def select_mora(self,i,j):
         index=self.mora.findData((i,j))
         if index>=0:self.mora.setCurrentIndex(index)
@@ -133,8 +138,10 @@ class GuideDialog(QDialog):
     def add_point(self):
         i,j=self.mora.currentData();edge=self.edge.currentData()
         h=self.line.units[i].highlights[j]
-        if self.line.units[i].locked or h.source=='manual' or edge in h.fixed_edges:
-            self.status.setText('这个位置已经人工固定或锁定；请在主编辑区调整，或用“取消所选音节固定点”解除固定。');return
+        if edge in h.fixed_edges:
+            self.status.setText('这个位置已经固定并列在范围点中；如需改变，请先回主编辑区调整。');return
+        if (self.line.units[i].locked or manual_highlight(h)) and self.time.value()!=getattr(h,edge):
+            self.status.setText('已有人工或锁定边界只作范围参考，不能在这里移动。');return
         self.time.interpretText();self.points=[p for p in self.points if (p['unit'],p['highlight'],p['edge'])!=(i,j,edge)]
         self.points.append(dict(unit=i,highlight=j,edge=edge,time=self.time.value()));self.refresh()
     def remove_point(self):
@@ -155,7 +162,7 @@ class GuideDialog(QDialog):
         self.table.setRowCount(len(self.entries))
         for row,(p,fixed) in enumerate(self.entries):
             i,j=p['unit'],p['highlight'];h=self.line.units[i].highlights[j]
-            for col,text in enumerate([self.line.units[i].text+' · '+h.kana,'起点' if p['edge']=='start' else '终点',time_text(p['time']),'已采用固定' if fixed else '定位草稿']):
+            for col,text in enumerate([f'{i+1}.{j+1} · '+h.kana,'起点' if p['edge']=='start' else '终点',time_text(p['time']),'已采用固定' if fixed else '人工边界作范围参考' if self.line.units[i].locked or manual_highlight(h) else '定位草稿']):
                 item=QTableWidgetItem(text);item.setFlags(item.flags()&~Qt.ItemFlag.ItemIsEditable);self.table.setItem(row,col,item)
         all_points=existing+[p for p in self.points if not any((q['unit'],q['highlight'],q['edge'])==(p['unit'],p['highlight'],p['edge']) for q in existing)]
         self.prepared=None

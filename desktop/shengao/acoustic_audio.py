@@ -41,7 +41,9 @@ def read_cache(home,key,prepared,source_hash,audio_hash,role):
     try:
         value=json.loads(cache.read_text(encoding='utf-8'));raw=value['result'];payload=json.dumps(raw,ensure_ascii=True,sort_keys=True).encode()
         if value['key']!=key or value.get('result_sha256')!=hashlib.sha256(payload).hexdigest() or raw['engine']!=ENGINE_VERSION or raw['model_sha256']!=MODEL_SHA256:return None
-        acoustic.propose(prepared,raw,source_hash,audio_hash,role);return raw
+        candidate=acoustic.propose(prepared,raw,source_hash,audio_hash,role)
+        if prepared.get('recalculation') and len(candidate.timing_evidence.get('runs',[]))!=len(prepared['jobs']):return None
+        return raw
     except (OSError,ValueError,KeyError,TypeError):return None
 
 def write_cache(home,key,raw):
@@ -81,8 +83,9 @@ def generate(prepared,source,track,home,cancel,progress=lambda x:None):
             run(engine_command()+['--model',str(model_path()),'--align-request',str(request),'--report',str(report)],cancel,progress,engine=True,kind='alignment')
             raw=json.loads(report.read_text(encoding='utf-8'))
             if raw['engine']!=ENGINE_VERSION or raw['model_sha256']!=MODEL_SHA256:raise ValueError('歌声引擎版本不一致，未采用。')
-            acoustic.propose(prepared,raw,source_hash,audio_hash,role)
-            cancelled(cancel);write_cache(home,key,raw)
+            candidate=acoustic.propose(prepared,raw,source_hash,audio_hash,role)
+            cancelled(cancel)
+            if not prepared.get('recalculation') or len(candidate.timing_evidence.get('runs',[]))==len(prepared['jobs']):write_cache(home,key,raw)
     cancelled(cancel)
     if file_stamp(source)!=stamp or digest(source,cancel)!=source_hash or digest(audio,cancel)!=audio_hash:raise ValueError('对齐期间素材或人声已变化，结果保留但未采用。')
     line=acoustic.propose(prepared,raw,source_hash,audio_hash,role)
