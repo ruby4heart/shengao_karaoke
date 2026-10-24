@@ -87,3 +87,12 @@ def test_legacy_project_has_no_automatic_color_rewrite():
     with pytest.raises(ValueError,match='第 10 版'):Project.from_dict(raw)
     raw['version']=11
     with pytest.raises(ValueError,match='版本较新'):Project.from_dict(raw)
+
+
+def test_all_presets_are_valid_and_independent():
+    from shengao.project import Style
+    from shengao.color_states import PRESETS,preset_profile
+    for key,label in PRESETS:
+        p=preset_profile(Style(),key);validate_profile(p)
+        p['layers']['lyrics']['singing']['primary']['color']='#123456'
+        assert preset_profile(Style(),key)['layers']['lyrics']['singing']['primary']['color']!='#123456'

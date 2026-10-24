@@ -137,6 +137,16 @@ def compose(project,embed=False):
     for line,window in zip(project.lines,windows):
         effective,slot_count,band_height,scale=lane_layout(project,window,windows)
         mf,rf,size,ruby_size,widths,width=layout_line(line,effective)
+        from .color_states import effective_profile
+        palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
+        def colored(role,text,layer,font,cx,cy,text_width,font_size,timing=None,advance=None,lines=1):
+            if palette is None:return False
+            from .color_ass import component_events
+            height=max(font_size,sum(font.getmetrics()))*lines
+            margin=effective.outline+effective.shadow+effective.glow
+            color_bounds.append((cx-text_width/2-margin,cy-height/2-margin,cx+text_width/2+margin,cy+height/2+margin))
+            rows.extend(component_events(palette,role,text,window,(line.start,line.end),layer,effective.outline,effective.shadow,effective.glow,timing,advance,validated=True))
+            return True
         base=1080-style.bottom
         trans_y=base-effective.translation_size/2
         latin_y=trans_y-(effective.translation_size+20*scale if style.show_translation and line.translation else 0)
@@ -164,11 +174,13 @@ def compose(project,embed=False):
             # pretending that it already has syllable timing.
             if style.display_mode!='alternating':
                 x=row_left(width)+width/2;y=main_y-(row_count-1)*size/2
-                rows.append(dialogue(window.start,window.end,'Lyrics',f'{{\\an5\\q2\\pos({x:.2f},{y:.2f})\\fs{size}\\b{main_weight}{shape}\\1c{color(style.color)}}}'+literal(line.text),1))
+                body=f'{{\\an5\\q2\\pos({x:.2f},{y:.2f})\\fs{size}\\b{main_weight}{shape}\\1c{color(style.color)}}}'+literal(line.text)
+                if not colored('lyrics',body,1,mf,x,y,width,size,lines=row_count):rows.append(dialogue(window.start,window.end,'Lyrics',body,1))
             else:
                 for n,part in enumerate(line.text.split('\n')):
                     w=mf.getlength(part);x=row_left(w)+w/2;y=main_y-(row_count-1-n)*row_height
-                    rows.append(dialogue(window.start,window.end,'Lyrics',f'{{\\an5\\q2\\pos({x:.2f},{y:.2f})\\fs{size}\\b{main_weight}{shape}\\1c{color(style.color)}}}'+literal(part),1))
+                    body=f'{{\\an5\\q2\\pos({x:.2f},{y:.2f})\\fs{size}\\b{main_weight}{shape}\\1c{color(style.color)}}}'+literal(part)
+                    if not colored('lyrics',body,1,mf,x,y,w,size):rows.append(dialogue(window.start,window.end,'Lyrics',body,1))
         row_widths={}
         for (_,text,row,ruby),w in zip(segments,widths):row_widths[row]=row_widths.get(row,0)+w
         positions={row:row_left(w) for row,w in row_widths.items()}
@@ -176,7 +188,9 @@ def compose(project,embed=False):
         for index,((unit,text,row,can_ruby),w) in enumerate(zip(segments,widths)):
             center=positions[row]+w/2;y_main=main_y-(row_count-1-row)*row_height
             tags=f'{{\\an5\\q2\\pos({center:.2f},{y_main:.2f})\\fs{size}\\b{main_weight}}}'
-            styled_dialogue(rows,window,'Lyrics',tags+ktag(unit.start,unit.end,window.start)+literal(text),1,effective,unit.start)
+            body=tags+ktag(unit.start,unit.end,window.start)+literal(text)
+            if not colored('lyrics',body,1,mf,center,y_main,w,size,(unit.start,unit.end),(positions[row],positions[row]+w)):
+                styled_dialogue(rows,window,'Lyrics',body,1,effective,unit.start)
             if style.show_ruby:
                 y=y_main-size/2-ruby_size/2-8*scale
                 for annotation in (a for a in annotations if a.index==index):
@@ -185,14 +199,25 @@ def compose(project,embed=False):
                     for kana,start,end in reading_fragments(unit,annotation.reading_start,annotation.reading_end):
                         part_width=rf.getlength(kana)*annotation_scale;cx=left+part_width/2
                         tags=f'{{\\an5\\q2\\pos({cx:.2f},{y:.2f})\\fs{ruby_size}\\b{ruby_weight}\\fscx{annotation_scale*100:.2f}}}'
-                        styled_dialogue(rows,window,'Ruby',tags+ktag(start,end,window.start)+literal(kana),2,effective,start);left+=part_width
+                        body=tags+ktag(start,end,window.start)+literal(kana)
+                        if not colored('ruby',body,2,rf,cx,y,part_width,ruby_size,(start,end),(left,left+part_width)):
+                            styled_dialogue(rows,window,'Ruby',body,2,effective,start)
+                        left+=part_width
             positions[row]+=w
         if style.show_romaji and line.romaji:
             w=text_width(metric_font(str(main),effective.romaji_size,style.font),line.romaji);x=row_left(w)+w/2
-            rows.append(dialogue(window.start,window.end,'Romaji',f'{{\\an5\\q2\\pos({x:.2f},{latin_y:.2f})\\fs{effective.romaji_size}\\b{main_weight}{shape}}}'+literal(line.romaji),3))
+            body=f'{{\\an5\\q2\\pos({x:.2f},{latin_y:.2f})\\fs{effective.romaji_size}\\b{main_weight}{shape}}}'+literal(line.romaji)
+            font=metric_font(str(main),effective.romaji_size,style.font)
+            if not colored('romaji',body,3,font,x,latin_y,w,effective.romaji_size,lines=line.romaji.count('\n')+1):rows.append(dialogue(window.start,window.end,'Romaji',body,3))
         if style.show_translation and line.translation:
             w=text_width(metric_font(str(translated),effective.translation_size,style.translation_font),line.translation);x=row_left(w)+w/2
-            rows.append(dialogue(window.start,window.end,'Translation',f'{{\\an5\\q2\\pos({x:.2f},{trans_y:.2f})\\fs{effective.translation_size}\\b{trans_weight}{shape}}}'+literal(line.translation),3))
+            body=f'{{\\an5\\q2\\pos({x:.2f},{trans_y:.2f})\\fs{effective.translation_size}\\b{trans_weight}{shape}}}'+literal(line.translation)
+            font=metric_font(str(translated),effective.translation_size,style.translation_font)
+            if not colored('translation',body,3,font,x,trans_y,w,effective.translation_size,lines=line.translation.count('\n')+1):rows.append(dialogue(window.start,window.end,'Translation',body,3))
+        if palette is not None and color_bounds:
+            from .color_ass import box_events
+            bounds=(min(v[0] for v in color_bounds),min(v[1] for v in color_bounds),max(v[2] for v in color_bounds),max(v[3] for v in color_bounds))
+            rows.extend(box_events(palette,window,(line.start,line.end),bounds))
     text='\n'.join(rows)+'\n'
     if embed:
         data=base64.b64encode(json.dumps(project.to_dict(),ensure_ascii=False,separators=(',',':')).encode()).decode()

@@ -47,6 +47,7 @@ from .vocal_workflow import VocalWorkflow
 from .acoustic_workflow import AcousticWorkflow
 from .sound_gap_workflow import SoundGapWorkflow
 from .chorus_workflow import ChorusWorkflow
+from .color_workflow import ColorWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -54,7 +55,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -308,6 +309,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             spin=QDoubleSpinBox();spin.setRange(0,12);spin.setSingleStep(.5);self.style_decimals[name]=spin;form.addRow(title,spin);spin.valueChanged.connect(lambda value,n=name:self.set_style(n,value))
         l.addLayout(form)
         row=QHBoxLayout();row.addWidget(button('文字颜色',lambda:self.choose_color('color')));row.addWidget(button('高亮颜色',lambda:self.choose_color('highlight')));row.addWidget(button('描边颜色',lambda:self.choose_color('outline_color')));l.addLayout(row)
+        self.build_color_tools(l)
         self.style_checks={}
         for name,title in [('show_ruby','显示假名'),('show_romaji','显示罗马音'),('show_translation','显示译文')]:
             check=QCheckBox(title);self.style_checks[name]=check;l.addWidget(check);check.toggled.connect(lambda value,n=name:self.set_style(n,value))
@@ -1423,6 +1425,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         def apply(p):p.style=self.preset_style(index);p.source_ass_active=False
         if self.edit('应用样式模板',apply):self.preview_style()
     def choose_color(self,name):
+        if self.project.color_styles:return self.edit_color_states(quick=name)
         color=QColorDialog.getColor(QColor(getattr(self.project.style,name)),self,'选择字幕颜色')
         if color.isValid():self.set_style(name,color.name())
     def add_font(self):

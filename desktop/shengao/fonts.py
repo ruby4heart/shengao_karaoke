@@ -66,6 +66,7 @@ class AssMetrics:
     font:object
     scale:float
     def getlength(self,text):return self.font.getlength(text)*self.scale
+    def getmetrics(self):return tuple(value*self.scale for value in self.font.getmetrics())
 
 @lru_cache(maxsize=96)
 def ass_em_scale(path,family=''):

@@ -9,6 +9,7 @@ import re
 STATES=('waiting','singing','sung')
 ROLES=('lyrics','ruby','romaji','translation')
 CHANNELS=('primary','secondary','outline','shadow')
+PRESETS=(('blue','白字／蓝色扫亮'),('gold','高对比黄字'),('ruby','日式蓝字／白色描边'))
 
 
 def ink(color,opacity=100):return {'color':color,'opacity':opacity}
@@ -26,6 +27,20 @@ def default_profile(style):
                 'outline':ink(style.outline_color),'shadow':ink('#000000',50)}
     return {'version':1,'layers':layers,'motion':{'fill':'sweep','outline':'line','shadow':'line'},
         'box':{'enabled':False,'padding':12,'radius':0,'states':{state:ink('#000000',50) for state in STATES}}}
+
+
+def preset_profile(style,name):
+    if name not in {key for key,label in PRESETS}:raise ValueError('未知颜色预设')
+    result=default_profile(style)
+    highlight={'blue':'#58abf4','gold':'#ffd54f','ruby':'#58abf4'}[name]
+    for role in ROLES:
+        for phase in STATES:
+            state=result['layers'][role][phase]
+            state.update(primary=ink(highlight if phase=='singing' and role in {'lyrics','ruby'} else '#ffffff'),secondary=ink('#ffffff'),outline=ink('#10151d'),shadow=ink('#000000',50))
+            if name=='ruby' and phase=='singing':state['outline']=ink('#ffffff')
+    if name=='ruby':result['motion'].update(outline='sweep',shadow='sweep')
+    if name=='gold':result['box'].update(enabled=True,padding=14,radius=8)
+    return result
 
 
 def keys(value,expected,message):
@@ -67,9 +82,9 @@ def validate_settings(value,line_ids=None):
         validate_profile(profile)
 
 
-def effective_profile(settings,line_id):
+def effective_profile(settings,line_id,validated=False):
     if not settings:return None
-    validate_settings(settings)
+    if not validated:validate_settings(settings)
     return copy.deepcopy(settings['lines'].get(line_id,settings['global']))
 
 
