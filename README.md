@@ -8,7 +8,7 @@ Windows 日语卡拉 OK 字幕制作软件，使用独立 Qt 工作台。当前�
 
 说明见 [第一次制作](docs/DESKTOP-USER-GUIDE.md)、[0.24.0 验收范围](docs/V024-ACCEPTANCE.md)、[0.23.0 整首顺序](docs/V023-ACCEPTANCE.md)、[完整待办](docs/WORKFLOW-TODO.md)、[构建步骤](docs/DESKTOP-BUILD.md)。每个功能项单独发行；旧包及原始 Aegisub 保留。自动候选仍需试听，整首成品与真人新手验收继续实施。
 
-正式版缺项与完成标准见 [1.0 清单](docs/RELEASE-1.0-CHECKLIST.md)，当前余 **11 组、57 条功能／验收项**，含新增的待唱／演唱中／唱完详细颜色、描边、阴影及底板编辑，持续交付要求另列。从 0.21.0 起，每个完成的版本同时提交到本仓库，并在 [Releases](https://github.com/ruby4heart/shengao_karaoke/releases) 附 Windows 运行包、完整源码、公开验收和指纹；GitHub 自动生成的源码快照不包含大型第三方资源，构建请使用 Release 中命名的完整源码 ZIP。发布流程见 [GitHub 交付](docs/GITHUB-RELEASE.md)。
+正式版缺项与完成标准见 [1.0 清单](docs/RELEASE-1.0-CHECKLIST.md)，当前余 **10 组、56 条功能／验收项**，含新增的待唱／演唱中／唱完详细颜色、描边、阴影及底板编辑，持续交付要求另列。从 0.21.0 起，每个完成的版本同时提交到本仓库，并在 [Releases](https://github.com/ruby4heart/shengao_karaoke/releases) 附 Windows 运行包、完整源码、公开验收和指纹；GitHub 自动生成的源码快照不包含大型第三方资源，构建请使用 Release 中命名的完整源码 ZIP。发布流程见 [GitHub 交付](docs/GITHUB-RELEASE.md)。
 
 ## 下载与使用
 
