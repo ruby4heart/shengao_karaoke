@@ -41,14 +41,15 @@ def exercise(app,StudioWindow,out,check,wait):
     try:
         w.history=History(project);w.current=1;w.refresh();w.load_media(media)
         check('chorus_controlled_audio_ready',wait(lambda:w.analysis_job is None and w.original_audio is not None,20000))
-        before=w.project.to_dict();w.history.mark_saved();ui=[]
+        before=w.project.to_dict();w.history.mark_saved();ui=[];w.set_stage(1);w.pages.widget(1).ensureWidgetVisible(w.chorus_button,8,20);app.processEvents()
+        entry_visible=w.chorus_button.visibleRegion().boundingRect().height()==w.chorus_button.height()
         def choose():
             d=next(d for d in w.findChildren(ChorusDialog) if d.isVisible());d.resize(760,450);d.audio.setCurrentIndex(d.audio.findData('original'));app.processEvents()
             d.findChild(QScrollArea).ensureWidgetVisible(d.voice);app.processEvents();footer=d.findChild(QDialogButtonBox)
             ui.append(d.voice.isChecked() and d.selected_ids()==['chorus-target'] and footer.geometry().bottom()<d.height())
             d.grab().save(str(out/'chorus-reuse-options.png'));d.apply.click()
         QTimer.singleShot(30,choose);w.chorus_button.click()
-        check('chorus_actual_options_explicit_target_and_footer',ui==[True] and w.api.busy)
+        check('chorus_actual_options_explicit_target_and_footer',entry_visible and ui==[True] and w.api.busy)
         check('chorus_new_request_keeps_source_and_neighbors',len(w.api.request['lines'])==1 and len(w.api.request['neighbor_lines'])==2 and w.api.request['source_line']['reviewed'])
         check('chorus_actual_worker_and_tifa_complete',wait(lambda:not w.api.busy and w.pending is not None,90000))
         result=copy.deepcopy(w.pending['result']);value=LyricLine.from_dict(result['suggestions'][0]);parts=[h for u in value.units for h in u.highlights]

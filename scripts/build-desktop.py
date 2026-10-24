@@ -11,6 +11,7 @@ import zipfile
 from desktop_package_support import finalize
 from desktop_source_state import snapshot
 from vocal_source_state import state as vocal_state
+from python_tls_resources import pyinstaller_arguments
 
 root=Path(__file__).resolve().parents[1]
 before=snapshot(root)
@@ -24,7 +25,7 @@ command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','-
  '--add-data',str(root/'desktop'/'assets')+';assets']
 for module in ['PySide6.QtWebEngineCore','PySide6.QtWebEngineWidgets','PySide6.QtWebEngineQuick','PySide6.QtQuick','PySide6.QtQml','PySide6.QtPdf','tkinter','torch','torchaudio','demucs']:
     command+=['--exclude-module',module]
-command+=['desktop/main.py']
+command+=pyinstaller_arguments(root)+['desktop/main.py']
 subprocess.run(command,cwd=root,check=True)
 package=root/'build'/'desktop-dist'/'shengao-karaoke'
 shutil.copytree(vocal,package/'vocal-engine',dirs_exist_ok=True)

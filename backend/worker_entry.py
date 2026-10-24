@@ -25,8 +25,15 @@ def startup_failure(error):
             os.replace(temp,target)
         finally:
             Path(temp).unlink(missing_ok=True)
+    # Code locations are sufficient for diagnosing a frozen import/startup
+    # failure. Never include exception text, absolute paths, source or locals.
+    trace=[];frame=error.__traceback__
+    while frame is not None:
+        code=frame.tb_frame.f_code
+        trace.append({'file':Path(code.co_filename).name,'function':code.co_name,'line':frame.tb_lineno})
+        frame=frame.tb_next
     write(path,{'ok':False,'code':'invalid_request' if invalid else 'startup_failed',
-                'message':message,'exception':type(error).__name__})
+                'message':message,'exception':type(error).__name__,'code_trace':trace[-16:]})
     write(Path(str(path)+'.progress.json'),{'phase':'error','message':message})
 
 

@@ -197,6 +197,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.continuous_timing.setToolTip('高级选项：固定 500 ms 规则可能覆盖真正的短休止。默认关闭；推荐初稿后用“按声音检查空白”。')
         self.continuity_info=label('初稿默认保留间隔。生成后在校轴页按声音检查空白，避免用固定时长填平真正的休止。','muted');l.addWidget(self.continuity_info)
         self.build_draft_workflow(l)
+        self.build_chorus_tools(l)
         generation_layout=l;self.single_steps=Collapsible('单独运行某一步（进阶）');l=self.single_steps.body
         l.addWidget(self.continuous_timing)
         l.addWidget(label('不联网，也能开始','sectionTitle'))
@@ -209,7 +210,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.more_matching=Collapsible('已有转录／只修正一句')
         self.reuse_button=button('使用已有转录，重新匹配',lambda:self.start_api('match',transcript=self.project.transcript));self.more_matching.body.addWidget(self.reuse_button)
         self.align_button=button('当前句：ElevenLabs 精确对齐',lambda:self.start_api('align',only_current=True,range_mode='selection'));self.more_matching.body.addWidget(self.align_button)
-        self.local_match_button=button('当前句：限定时间重新匹配',self.local_match);self.more_matching.body.addWidget(self.local_match_button);self.build_chorus_tools(self.more_matching.body);l.addWidget(self.more_matching)
+        self.local_match_button=button('当前句：限定时间重新匹配',self.local_match);self.more_matching.body.addWidget(self.local_match_button);l.addWidget(self.more_matching)
         self.more_reading=Collapsible('用 DeepSeek 复核注音与译文')
         self.more_reading.body.addWidget(label('发送歌词和文字依据，不发送音频。特殊唱法仍需试听确认。','muted'))
         self.llm_button=button('复核整首待确认读音',lambda:self.refine_reading(True,False));self.more_reading.body.addWidget(self.llm_button);l.addWidget(self.more_reading)
@@ -1668,11 +1669,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         return True
     def apply_suggestions(self,selected):
         if not self.flush_edits():return
-        if self.pending and self.pending['result'].get('reading_reuse') and not self.chorus_reference_valid(self.pending['result']):
-            self.message('来源副歌或确认状态已变化，建议保留但未采用；请按当前来源重新生成。');return
+        pending_result=self.pending.get('result',{}) if self.pending else {}
         context=self.pending.get('context',{}) if self.pending else {}
         if context and (context['project']!=self.project.uid or context['media']!=file_stamp(self.project.media)):
             self.message('当前素材与任务版本不同，建议仍保留，未改动工程。');return
+        if pending_result.get('reading_reuse') and not self.chorus_reference_valid(pending_result):
+            self.message('来源副歌或确认状态已变化，建议保留但未采用；请按当前来源重新生成。');return
         if self.pending and (self.pending.get('action')=='acoustic' or self.pending['result'].get('acoustic')):
             from .vocal_audio import digest
             expected=self.pending['result'].get('source_sha256') or self.pending['result'].get('acoustic',{}).get('source_sha256')

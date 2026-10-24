@@ -12,7 +12,7 @@ from chorus_fixtures import fixture
 
 def window(qapp,tmp_path):
     source,target=fixture();project=Project(lines=[source,target],checks={source.id:{'reading':True}},duration=22000)
-    w=StudioWindow(tmp_path/'home',test=True);w.history=History(project);w.current=1;w.refresh();return w
+    w=StudioWindow(tmp_path/'home',test=True);w.history=History(project);w.current=1;w.refresh();w.set_stage(1);w.show();qapp.processEvents();return w
 
 
 def wait(qapp,fn,seconds=10):
@@ -24,6 +24,7 @@ def wait(qapp,fn,seconds=10):
 
 
 def start(w,qapp):
+    assert w.chorus_button.isVisible()
     def choose():
         d=next(d for d in w.findChildren(ChorusDialog) if d.isVisible());d.voice.setChecked(False);d.apply.click()
     QTimer.singleShot(20,choose);w.chorus_button.click()

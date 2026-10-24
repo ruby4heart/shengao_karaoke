@@ -10,6 +10,7 @@ import sys
 root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root/'scripts'))
 from vocal_source_state import state
+from python_tls_resources import pyinstaller_arguments
 before=state(root)
 command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','--console','--name','shengao-vocals','--distpath','build/vocal-dist','--workpath','build/vocal-pyinstaller','--specpath','build','--collect-all','demucs','--collect-all','julius','--collect-all','omegaconf','--hidden-import','demucs.htdemucs','--hidden-import','demucs.hdemucs','--hidden-import','demucs.transformer','--exclude-module','tkinter','--exclude-module','PySide6','desktop/vocal_engine.py']
 # The official 2022 checkpoint pickles these NumPy 1.x compatibility names.
@@ -17,6 +18,7 @@ command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','-
 # to static analysis; they must remain available in the frozen process.
 command[-1:-1]=['--hidden-import','numpy.core.multiarray','--hidden-import','numpy.core.numeric','--hidden-import','numpy.core._multiarray_umath']
 command[-1:-1]=['--paths',str(root/'vendor/tifa'),'--hidden-import','alignment_engine','--hidden-import','inference.backend','--hidden-import','modules.backbones.jebf','--collect-all','g2pflow','--collect-all','librosa','--collect-all','numba']
+command[-1:-1]=pyinstaller_arguments(root)
 subprocess.run(command,cwd=root,check=True)
 package=root/'build/vocal-dist/shengao-vocals'
 model=root/'vendor/vocal-model'
