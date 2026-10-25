@@ -212,7 +212,11 @@ def main():
         from .reading_candidates_acceptance import exercise as inline_reading_choices
         inline_reading_choices(app,StudioWindow,out,check,wait)
         from .reading_workflow_acceptance import exercise as reading_workflow
+        from .song_info_acceptance import exercise as song_info_workflow
+        from .audio_review_acceptance import exercise as audio_review_workflow
         reading_workflow(app,StudioWindow,out,check,wait)
+        song_info_workflow(app,StudioWindow,out,check,wait)
+        audio_review_workflow(app,StudioWindow,out,check,wait)
         original_mora=window.project.to_dict();word_times=[(u.start,u.end,u.kana,u.romaji) for u in window.line.units]
         window.fill_mora_button.click();check('missing_mora_is_previewed',window.inline_segment.pending and window.project.to_dict()==original_mora)
         window.inline_segment.apply.click();check('missing_mora_keeps_words_and_readings',all(u.highlights for u in window.line.units) and [(u.start,u.end,u.kana,u.romaji) for u in window.line.units]==word_times)

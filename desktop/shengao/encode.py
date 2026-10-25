@@ -68,7 +68,8 @@ def encode(project,options,cancel=None,progress=lambda x:None):
         for name,family in [('font_file','font'),('ruby_font_file','ruby_font'),('translation_font_file','translation_font')]:
             path=resolve_font(getattr(project.style,name),getattr(project.style,family))
             shutil.copy2(path,fonts/(hashlib.sha256(path.read_bytes()).hexdigest()[:12]+path.suffix))
-        for value in project.font_assets.values():
+        from .fonts import project_font_files
+        for value in project_font_files(project):
             path=Path(value)
             if path.is_file():shutil.copy2(path,fonts/(hashlib.sha256(path.read_bytes()).hexdigest()[:12]+path.suffix))
         (folder/'lyrics.ass').write_text(compose(project),encoding='utf-8-sig')

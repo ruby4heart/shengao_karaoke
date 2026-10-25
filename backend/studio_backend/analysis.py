@@ -92,7 +92,7 @@ def analyze_line(line,transcript,maximum=120,preserve_legacy=False,preserve_manu
         'context_available':bool(nearby),'words':words,'closed_gaps':count,'requires_review':True,
         'notice':'转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。'}
     value.reading_review['text_suggestion_version']=1
-    for key in ('translation','translation_suggestion','translation_original_changed','translation_notice','manual_choices'):
+    for key in ('translation','translation_suggestion','translation_original_changed','translation_notice','manual_choices','mora_edits'):
         if key in line.reading_review:value.reading_review[key]=copy.deepcopy(line.reading_review[key])
     if any(word['legacy'] for word in words):value.reading_review['notice']+=' 旧版未标记读音来源；未开启保留时仅提出候选，需人工选择。'
     if not preserve_manual:value.reading_review['notice']+=' 已允许重新复核手工读音；人工时间仍保留。'

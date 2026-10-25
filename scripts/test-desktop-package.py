@@ -17,7 +17,10 @@ for value in manifest['files']:
     path=package/value['path'];assert path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest()==value['sha256'],value['path']
 assert not any('aegisub.exe' in v['path'].lower() for v in manifest['files'])
 assert (package/'shengao-view.dll').is_file(), 'Original offscreen timeline drawing module is required'
-result=subprocess.run([str(package/'shengao-karaoke.exe'),'--self-test','--output',str(out)],env=env,cwd=out,capture_output=True,timeout=180,creationflags=subprocess.CREATE_NO_WINDOW)
+# The full workflow now includes several serial, real CPU singing inferences.
+# Individual checks keep their own deadlines; allow ten minutes for the suite
+# on machines under memory pressure instead of cutting it off at three.
+result=subprocess.run([str(package/'shengao-karaoke.exe'),'--self-test','--output',str(out)],env=env,cwd=out,capture_output=True,timeout=600,creationflags=subprocess.CREATE_NO_WINDOW)
 (out/'stdout.log').write_bytes(result.stdout);(out/'stderr.log').write_bytes(result.stderr)
 assert result.returncode==0,('Executable self-test failed',result.returncode,out)
 report=json.loads((out/'report.json').read_text(encoding='utf-8'));assert report['passed'],out

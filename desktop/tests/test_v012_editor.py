@@ -160,7 +160,7 @@ def test_tail_edits_apply_once_with_undo_and_keep_original_word_text(qapp,tmp_pa
     w=window(qapp,tmp_path,tail_song());before=w.project.to_dict()
     def edit():
         d=qapp.activeModalWidget();assert isinstance(d,TailDialog);d.end.setValue(2020);d.reading.setText('て');d.buttons.button(QDialogButtonBox.StandardButton.Apply).click()
-    QTimer.singleShot(20,edit);w.quick_tail.click()
+    w.quick_tail.click();QTimer.singleShot(20,edit);w.fine_listener.large.click()
     assert w.line.text=='歌います' and w.line.units[-1].text=='ます' and w.line.units[-1].kana=='まて'
     assert w.line.end==2020 and len(w.history.undo_stack)==1
     w.undo();assert w.project.to_dict()==before;w.redo();assert w.line.end==2020;w.close()

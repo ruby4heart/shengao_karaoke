@@ -35,6 +35,23 @@ def manual_unit_bounds(unit):
     return unit.source=='manual' or unit.timing_origin.get('kind')=='manual' or 'manual_boundary' in unit.timing_origin.get('operations',[])
 
 
+def highlight_keys(unit,parts,keys):
+    """Map untouched canonical segments around protected custom highlights."""
+    if [h.kana for h in unit.highlights]==parts:return keys
+    canonical={};cursor=0
+    for part,key in zip(parts,keys):canonical[(cursor,cursor+len(part))]=key;cursor+=len(part)
+    if len(hiragana(unit.kana))!=len(unit.kana):
+        if all(manual_highlight(h) or set(h.fixed_edges)=={'start','end'} for h in unit.highlights):return [None]*len(unit.highlights)
+        raise ValueError('本词假名字符位置不一致，先统一全角读音；手工音节保持。')
+    result=[];cursor=0
+    for h in unit.highlights:
+        end=cursor+len(h.kana);key=canonical.get((cursor,end))
+        if key is None and not (manual_highlight(h) or set(h.fixed_edges)=={'start','end'}):
+            raise ValueError('这段自定义高亮尚未保护，先在音节拆合中确认手工段或恢复默认划分；原轴保持。')
+        result.append(key);cursor=end
+    return result
+
+
 def plan(line):
     line.validate()
     if line.locked or line.reviewed:raise ValueError('本句时间已确认或锁定；如需重算，请先解除本句时间确认。')
@@ -52,7 +69,7 @@ def plan(line):
             flush(unit.start);left=unit.end;protected.append({'unit':i,'kind':'locked'});continue
         parts,keys=pronunciations(unit)
         if unit.highlights:
-            if [h.kana for h in unit.highlights]!=parts:raise ValueError('本句含人工拆合音节，请先在“补全音节”检查其假名划分。')
+            keys=highlight_keys(unit,parts,keys)
         else:
             unit.highlights=[Highlight(p,unit.start+round((unit.end-unit.start)*j/len(parts)),unit.start+round((unit.end-unit.start)*(j+1)/len(parts))) for j,p in enumerate(parts)]
         if manual_unit_bounds(unit):flush(unit.start)

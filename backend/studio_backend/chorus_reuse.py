@@ -55,6 +55,7 @@ def prepare(source,target,source_reading_confirmed,target_reading_confirmed=Fals
         'words':[{'text':u.text,'suggested':u.kana,'basis':'confirmed_chorus','reason':'来自已人工确认的相同原文；本次演唱仍需试听。'} for u in value.units]}
     from .translation import carry
     carry(target,value)
+    if 'mora_edits' in target.reading_review:value.reading_review['mora_edits']=copy.deepcopy(target.reading_review['mora_edits'])
     value.validate();return value
 
 

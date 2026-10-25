@@ -92,7 +92,7 @@ def exercise(w,app,out,check):
         path=out/'三状态配色.sgproj';save_project(w.project,path);reopened=load_project(path)
         ass=out/'三状态配色.ass';export_subtitle(w.project,ass);imported=load_project(ass)
         portable=all(value.color_styles==w.project.color_styles and [v.to_dict() for v in value.lines]==after_local['lines'] and value.checks==w.project.checks for value in (reopened,imported))
-        check('colors_current_schema_save_and_own_ass_reopen',SCHEMA==12 and portable and compose(reopened)==compose(w.project)==compose(imported))
+        check('colors_current_schema_save_and_own_ass_reopen',SCHEMA==13 and portable and compose(reopened)==compose(w.project)==compose(imported))
         w.undo();check('colors_local_override_one_undo',w.project.to_dict()==after_first)
         w.undo();schedule(lambda d:d.reject());cancelled=not w.edit_color_states()
         check('colors_global_adoption_one_undo_and_cancel',cancelled and w.project.to_dict()==before)

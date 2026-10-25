@@ -38,8 +38,11 @@ def missing_mora_indices(line):
             if not unit.locked and not unit.highlights and parts and unit.end-unit.start>=len(parts):result.append(i)
     return result
 
-def missing_mora_preview(original):
+def missing_mora_preview(original,selected=None):
     original.validate();indices=missing_mora_indices(original)
+    if selected is not None:
+        if not isinstance(selected,list) or any(type(i) is not int or i not in indices for i in selected) or len(selected)!=len(set(selected)):raise ValueError('指定词组不能安全补音节；请检查假名、范围或锁定')
+        indices=selected
     if not indices:raise ValueError('没有可补音节的词组；先填写有效假名、调整过短范围或解除相应锁定')
     line=copy.deepcopy(original)
     for index in indices:

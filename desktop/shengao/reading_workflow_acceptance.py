@@ -109,7 +109,7 @@ def exercise(app,StudioWindow,out,check,wait):
         check('reading_legacy_tail_manual_roman_kept',w.line.units[0].kana=='ひとき' and w.line.units[0].romaji=='HI-TO-KE' and w.line.units[0].reading_options['romaji']['basis']=='ひとけ' and same_axis(first,w.line))
         w.undo();check('reading_legacy_tail_one_undo',w.project.to_dict()==before)
         target=out/'日语读音完整校对.sgproj';ass=out/'日语读音完整校对.ass';save_project(w.project,target);export_subtitle(w.project,ass);reopened=load_project(target);imported=load_project(ass)
-        check('reading_workflow_schema12_project_and_own_ass_roundtrip',SCHEMA==12 and reopened.to_dict()==w.project.to_dict() and compose(imported)==compose(w.project) and imported.reading_dictionary==w.project.reading_dictionary and imported.reading_preferences==w.project.reading_preferences)
+        check('reading_workflow_schema13_project_and_own_ass_roundtrip',SCHEMA==13 and reopened.to_dict()==w.project.to_dict() and compose(imported)==compose(w.project) and imported.reading_dictionary==w.project.reading_dictionary and imported.reading_preferences==w.project.reading_preferences)
         select(1);w.show_editor_widget(w.reading_candidates.apply);w.grab().save(str(out/'reading-workflow-inline.png'));w.render_subtitles();active=w.playback.canvas.renderer.rgba(640,360,4020);Image.frombytes('RGBA',(640,360),active).save(out/'reading-workflow-subtitles.png')
         fonts=out/'reading-workflow-fonts';fonts.mkdir()
         for font in bundled_fonts():shutil.copy2(font.path,fonts/Path(font.path).name)

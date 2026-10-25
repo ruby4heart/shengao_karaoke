@@ -25,6 +25,8 @@ cmd /c scripts\build-desktop-engine.cmd
 .\.venv-desktop\Scripts\python.exe scripts\build-desktop.py
 ```
 
+本地引擎构建会先逐项核对 `desktop/vocal-requirements.lock` 的全部固定版本。旧 `.venv-vocals` 只有人声分离依赖，不能用于当前歌声对齐引擎；缺少 `g2pflow`、`librosa`、`numba` 或版本不符时必须在 PyInstaller 前失败。成功的引擎附 `engine-environment.json` 与 `engine-sources.json`，依赖校验通过也仍须实际推理与运行包验收，不能仅凭打包工具返回成功交付。
+
 新的根 Meson 工程只构建三个 C ABI 模块：音频底图、libass 字幕、原版离屏时间轴绘图。它不配置 Aegisub 应用，不编译 FrameMain，也不使用 agi::Context。wxWidgets 仅为最后一个模块提供原版 Windows GDI / GDI+ 绘制，整个编辑界面、工程模型和输入由 Qt 管理。`build-desktop-view.cmd` 是复用已有 baseline 静态库的开发快捷方式；正式可重复构建应使用根 Meson 工程。
 
 运行包必须包含 `shengao-view.dll`，不使用“缺少模块时悄悄回退近似绘图”的方式通过验收。Qt 6.12 使用 Windows 系统 ICU，不能混入 Poppler 的同名 `icuuc.dll`；构建脚本会移除这一构建 PATH 冲突。

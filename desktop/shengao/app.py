@@ -50,6 +50,10 @@ from .chorus_workflow import ChorusWorkflow
 from .color_workflow import ColorWorkflow
 from .reading_candidates_workflow import ReadingCandidatesWorkflow
 from .translation_workflow import TranslationWorkflow
+from .song_info_dialog import SongInfoWorkflow
+from .mora_editing_widget import MoraEditingWorkflow
+from .fine_listening import FineListeningWorkflow
+from .issues_workflow import IssuesWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -57,7 +61,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -132,12 +136,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.current_text=label('从拖入视频和原歌词开始','heading');current_row=QHBoxLayout();current_row.addWidget(self.current_text,1);self.original_button=button('编辑原歌词',self.edit_original);current_row.addWidget(self.original_button);ml.addLayout(current_row)
         self.current_info=label('新用户可以打开离线练习，不需要 API 密钥。','muted');ml.addWidget(self.current_info)
         self.edit_tools=QWidget();tools_row=QHBoxLayout(self.edit_tools);tools_row.setContentsMargins(0,0,0,0);tools_row.setSpacing(6)
-        self.quick_segment=button('① 分词',self.resegment_current);self.quick_reading=button('② 注音',self.go_reading);self.quick_timing=button('③ 调时间',self.go_audio_timing);self.quick_tail=button('尾音细听',self.inspect_tail)
+        self.quick_segment=button('① 分词',self.resegment_current);self.quick_reading=button('② 注音',self.go_reading);self.quick_timing=button('③ 调时间',self.go_audio_timing);self.quick_tail=button('尾音细听',self.open_inline_listening)
         for b in [self.quick_segment,self.quick_reading,self.quick_timing,self.quick_tail]:tools_row.addWidget(b,1)
         self.quick_segment.setToolTip('从原歌词划分词组，未匹配也能编辑；点击某字在它前面切分。')
         self.quick_reading.setToolTip('修改汉字的实际假名读音、罗马音与中文译文；不会改写原歌词。')
         self.quick_timing.setToolTip('选择词组或演唱音节，试听并调整起止时间。')
-        self.quick_tail.setToolTip('放大句尾，带前音慢放，按 10ms 调边界，或修正 て／す 等尾音的假名。');ml.addWidget(self.edit_tools)
+        self.quick_tail.setToolTip('在主编辑区带前音慢放、循环、增强与原声对照；没有选择时定位句尾。另保留独立放大微调窗口。');ml.addWidget(self.edit_tools)
         self.center_split=QSplitter(Qt.Orientation.Vertical);self.center_split.setChildrenCollapsible(False)
         preview_group=QWidget();self.preview_group=preview_group;vl=vertical(preview_group,0)
         self.playback=Playback();vl.addWidget(self.playback,1)
@@ -224,8 +228,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def build_calibrate(self):
         l=self.page_layouts[2];l.addWidget(label('本句编辑 · 边听边改','heading'))
+        self.build_issue_tools(l)
         row=QHBoxLayout();row.addWidget(button('← 上一句',lambda:self.move_line(-1)));row.addWidget(button('下一句 →',lambda:self.move_line(1)));l.addLayout(row)
-        self.pending_line_button=button('下一疑点',lambda:self.next_unconfirmed());self.pending_line_button.setObjectName('textButton');self.pending_line_button.setToolTip('按当前确认内容跳到待确认的时间或读音 Ctrl+J');row.addWidget(self.pending_line_button)
+        self.pending_line_button=button('下一待确认',lambda:self.next_unconfirmed());self.pending_line_button.setObjectName('textButton');self.pending_line_button.setToolTip('按当前确认内容跳到待确认的时间或读音 Ctrl+J；具体问题见集中疑点清单。');row.addWidget(self.pending_line_button)
         self.segmentation_hint=label('','muted');l.addWidget(self.segmentation_hint);self.resegment_button=self.quick_segment
         row=QHBoxLayout();row.addWidget(label('本次确认','sectionTitle',False));self.confirmation_kind=QComboBox();self.calibration_tabs=self.confirmation_kind
         self.confirmation_kind.addItems(['本句时间','本句读音']);self.confirmation_kind.setToolTip('只决定底部确认按钮的作用；原文、读音和时间始终在同一区域。Aegisub Enter/G 始终提交时间。');row.addWidget(self.confirmation_kind,1);l.addLayout(row)
@@ -239,6 +244,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.build_translation_tools(self.optional_reading.body)
         self.show_editor_romaji.toggled.connect(lambda value:(self.units.setColumnHidden(2,not value),self.preferences.set('editor_romaji',value)));self.units.setColumnHidden(2,not self.show_editor_romaji.isChecked())
         self.range_button=button('整句范围',self.select_entire_line);self.range_button.setToolTip('未匹配时先确定唱词范围；已有词组时只改整句头尾，不重新分词。');self.fill_mora_button=button('补全音节',self.fill_missing_mora);row=QHBoxLayout();row.addWidget(label('演唱音节','sectionTitle'),1);row.addWidget(self.fill_mora_button);row.addWidget(self.range_button);l.addLayout(row);self.mora_strip=MoraStrip();l.addWidget(self.mora_strip)
+        self.build_fine_listening(l)
+        self.build_mora_editing_tools(l)
         self.cleanup_gaps_button=button('检查空白…',self.start_sound_gaps);self.cleanup_gaps_button.setToolTip('按当前试听音轨检查声音连续性与已有音素依据；先试听再处理，不按固定时长填平休止。')
         self.build_acoustic_tools(l,secondary=self.cleanup_gaps_button)
         self.sound_gap_review=button('试听并审核空隙建议',self.review_pending);l.addWidget(self.sound_gap_review)
@@ -314,6 +321,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         l.addLayout(form)
         row=QHBoxLayout();row.addWidget(button('文字颜色',lambda:self.choose_color('color')));row.addWidget(button('高亮颜色',lambda:self.choose_color('highlight')));row.addWidget(button('描边颜色',lambda:self.choose_color('outline_color')));l.addLayout(row)
         self.build_color_tools(l)
+        self.build_song_info_tools(l)
         self.style_checks={}
         for name,title in [('show_ruby','显示假名'),('show_romaji','显示罗马音'),('show_translation','显示译文')]:
             check=QCheckBox(title);self.style_checks[name]=check;l.addWidget(check);check.toggled.connect(lambda value,n=name:self.set_style(n,value))
@@ -334,7 +342,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def connect_signals(self):
         self.search.textChanged.connect(self.refresh_lyrics);self.filter.currentIndexChanged.connect(self.refresh_lyrics)
         self.filter.currentIndexChanged.connect(lambda index:self.calibration_tabs.setCurrentIndex(index-1) if index in (1,2) else None)
-        self.lyrics.currentRowChanged.connect(self.choose_list);self.speed.currentIndexChanged.connect(lambda _:self.playback.player.setPlaybackRate(self.speed.currentData()))
+        self.lyrics.currentRowChanged.connect(self.choose_list);self.speed.currentIndexChanged.connect(lambda _:self.playback.set_rate(self.speed.currentData()))
+        self.playback.temporaryChanged.connect(self.update_play_button)
         self.lyrics.itemSelectionChanged.connect(self.lyric_selection_changed)
         self.lyrics.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu);self.lyrics.customContextMenuRequested.connect(self.lyric_menu)
         self.seek_slider.sliderMoved.connect(self.playback.seek);self.volume.valueChanged.connect(lambda v:self.playback.audio.setVolume(v/100))
@@ -825,7 +834,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def update_play_button(self,*args):
         from PySide6.QtMultimedia import QMediaPlayer
         playing=self.playback.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState
-        self.play_button.setText('暂停' if playing else '播放');self.play_button.setIcon(icon('pause' if playing else 'play'))
+        temporary=self.playback.temporary_owner is not None
+        self.play_button.setText('停止细听' if temporary else '暂停' if playing else '播放');self.play_button.setIcon(icon('pause' if temporary or playing else 'play'))
 
     def toggle_subtitles(self,on):
         self.playback.canvas.show_subtitles=on;self.playback.canvas.update()
@@ -869,6 +879,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         ready=idle and has_lines and not pending
         self.refresh_recognition()
         self.refresh_acoustic_tools()
+        self.refresh_mora_editing()
+        self.refresh_fine_listening()
+        self.refresh_issue_tools()
         self.refresh_sound_gap_tools()
         self.go_calibrate_button.setVisible(has_lines);self.go_calibrate_button.setEnabled(has_lines)
         for widget in [self.draft_button,self.draft_status,self.draft_resume_button,self.single_steps,self.continuous_timing,self.continuity_info]:widget.setVisible(has_lines)
@@ -1267,6 +1280,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.refresh_translation_tools()
         if hasattr(self,'mora_strip'):self.mora_strip.set_line(self.line,i,j)
         self.refresh_acoustic_tools()
+        self.refresh_mora_editing()
+        self.refresh_fine_listening()
         if hasattr(self,'inline_segment'):self.inline_segment.selected_word=i;self.inline_segment.render()
 
     def show_timing_sources(self):
@@ -1381,7 +1396,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def render_subtitles(self):
         if self.closing:return
         try:
-            self.playback.canvas.renderer.add_fonts([getattr(self.project.style,n) for n in ('font_file','ruby_font_file','translation_font_file') if getattr(self.project.style,n)]+list(self.project.font_assets.values()))
+            from .fonts import project_font_files
+            self.playback.canvas.renderer.add_fonts(project_font_files(self.project))
             self.playback.canvas.renderer.set_text(compose(self.project));self.playback.canvas.update()
             if self.stage==3:self.refresh_font_cards()
         except (ValueError,OSError) as error:self.message(str(error))
@@ -1948,6 +1964,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def dispose(self):
         if self.closing:return
         self.closing=True;self._source_serial+=1
+        if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
+        self.fine_listener.dispose()
         if self.source_job:self.source_job.cancel.set()
         QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.renderer.close()
         if self.cards_renderer:self.cards_renderer.close()

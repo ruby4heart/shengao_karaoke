@@ -1,0 +1,8 @@
+{
+  "version": "0.28.0",
+  "commit": "14247a440fb7e51a3398f5c2c065565e9f5409a5",
+  "path": "desktop/shengao/project.py",
+  "sha256": "b4c66d1d2bd231c2a3f552b3fc5e6014f55852a04ace5e9c4dd28c737718c400",
+  "license": "MIT, same Shengao application source license",
+  "purpose": "Actual released parser source for self-test schema rejection; not a runtime project reader"
+}

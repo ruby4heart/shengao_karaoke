@@ -11,6 +11,7 @@ def inspect(line):
             reason='';origin=inferred(h)
             if line.locked or unit.locked:reason='歌词或词组已锁定'
             elif set(h.fixed_edges)=={'start','end'}:reason='起止点都已固定'
+            elif h.source=='manual' and origin['method'] in {'manual_mora_split','manual_mora_merge','manual_mora_reset'}:reason='手工拆合结构保留，重算其余音节'
             elif origin['kind']=='manual' and not (origin['method']=='legacy' and h.source=='manual'):reason='逐音人工时间保留'
             elif not h.fixed_edges and 'manual_boundary' in origin.get('operations',[]):reason='逐音人工调整保留'
             elif h.source!='manual':continue

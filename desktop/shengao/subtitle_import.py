@@ -20,6 +20,8 @@ def import_ass(text,path=None):
         values=row.split(':',1)[1].lstrip().split(',',len(event_format)-1)
         if len(values)!=len(event_format):continue
         fields=dict(zip(event_format,values));start=milliseconds(fields['Start']);end=max(start+10,milliseconds(fields['End']))
+        from .song_info import own_event
+        if own_event(fields):continue
         raw=fields['Text'];units=[];tags=[];cursor=start
         # A karaoke tag's following text can contain other overrides; keep them in raw ASS.
         matches=list(re.finditer(r'\\([kK](?:f|o)?)(\d+)',raw))
@@ -142,6 +144,6 @@ def preserve_generated(project):
             fields=row.split(':',1)[1].strip().split(',',9)
             if len(fields)==10 and (milliseconds(fields[1]),milliseconds(fields[2])) in ranges:continue
         kept.append(row)
-    p=copy.deepcopy(project);p.source_ass_active=False;p.lines=[line for line in p.lines if line.id in changed]
+    p=copy.deepcopy(project);p.source_ass_active=False;p.lines=[line for line in p.lines if line.id in changed];p.song_info={}
     kept.extend(row for row in compose(p).splitlines() if row.startswith('Dialogue:'))
     return '\n'.join(kept)+'\n'

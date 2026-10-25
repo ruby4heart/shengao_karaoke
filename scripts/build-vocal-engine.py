@@ -11,6 +11,8 @@ root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root/'scripts'))
 from vocal_source_state import state
 from python_tls_resources import pyinstaller_arguments
+from vocal_build_environment import validate_environment
+environment=validate_environment(root/'desktop/vocal-requirements.lock')
 before=state(root)
 command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','--console','--name','shengao-vocals','--distpath','build/vocal-dist','--workpath','build/vocal-pyinstaller','--specpath','build','--collect-all','demucs','--collect-all','julius','--collect-all','omegaconf','--hidden-import','demucs.htdemucs','--hidden-import','demucs.hdemucs','--hidden-import','demucs.transformer','--exclude-module','tkinter','--exclude-module','PySide6','desktop/vocal_engine.py']
 # The official 2022 checkpoint pickles these NumPy 1.x compatibility names.
@@ -39,4 +41,5 @@ for name in ('LICENSE.txt','LICENSE'):
     if path.is_file():shutil.copy2(path,licenses/'Python-LICENSE.txt')
 assert state(root)==before,'Vocal engine sources changed during build'
 (package/'engine-sources.json').write_text(json.dumps(before,indent=2),encoding='utf-8')
+(package/'engine-environment.json').write_text(json.dumps(environment,indent=2),encoding='utf-8')
 print(json.dumps({'engine':str(package),'files':sum(p.is_file() for p in package.rglob('*')),'bytes':sum(p.stat().st_size for p in package.rglob('*') if p.is_file())}))

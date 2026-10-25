@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=12
+SCHEMA=13
 
 @dataclass
 class Style:
@@ -83,6 +83,8 @@ class Project:
     color_styles:dict=field(default_factory=dict)
     reading_dictionary:dict=field(default_factory=dict)
     reading_preferences:dict=field(default_factory=dict)
+    song_info:dict=field(default_factory=dict)
+    review_states:dict=field(default_factory=dict)
     font_assets:dict=field(default_factory=dict)
     checks:dict=field(default_factory=dict)
     transcript:list=field(default_factory=list)
@@ -137,6 +139,10 @@ class Project:
             from studio_backend.romanization import validate_rules
             validate_rules(self.reading_preferences['romaji'])
         self.style.validate()
+        from .song_info import validate as validate_song_info
+        validate_song_info(self.song_info)
+        from .review_issues import validate_states
+        validate_states(self.review_states)
         from .color_states import validate_settings
         validate_settings(self.color_styles,ids)
 
@@ -156,13 +162,16 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12): raise ValueError('工程版本较新，请使用对应版本软件')
+        if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12,13): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version<13 and data.get('song_info'):raise ValueError('歌名／歌手标识需要第 13 版工程格式')
+        if version<13 and data.get('review_states'):raise ValueError('集中疑点处理记录需要第 13 版工程格式')
         if version<12 and (data.get('reading_dictionary') or data.get('reading_preferences')):raise ValueError('读音词典与规则需要第 12 版工程格式')
         if version<10 and data.get('color_styles'):raise ValueError('详细颜色设置需要第 10 版工程格式')
         fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')
         if any(not isinstance(line.get('units',[]),list) or any(not isinstance(u,dict) for u in line.get('units',[])) for line in raw_lines):raise ValueError('词组列表格式无效')
+        if version<13 and any(isinstance(line.get('reading_review'),dict) and line['reading_review'].get('mora_edits') for line in raw_lines):raise ValueError('音节拆合记录需要第 13 版工程格式')
         if version<12 and any(u.get('reading_options') for line in raw_lines for u in line.get('units',[])):raise ValueError('注音对应与罗马音设置需要第 12 版工程格式')
         if version<11 and any(h.get('fixed_edges') for line in raw_lines for unit in line.get('units',[]) if isinstance(unit,dict) for h in unit.get('highlights',[]) if isinstance(h,dict)):
             raise ValueError('人工固定起止点需要第 11 版工程格式')
@@ -175,6 +184,8 @@ class Project:
         try:fields['media_versions']={key:MediaVersion(**value) for key,value in raw_versions.items()}
         except TypeError as error:raise ValueError('视频版本记录无效') from error
         project=cls(**fields)
+        from .song_info import validate as validate_song_info
+        validate_song_info(project.song_info)
         if base:
             for obj,name in [(project,'media'),(project.style,'font_file'),(project.style,'ruby_font_file'),(project.style,'translation_font_file')]:
                 path=getattr(obj,name)
@@ -184,6 +195,7 @@ class Project:
             for name in ('path','source_path'):
                 if project.vocal_track.get(name) and not Path(project.vocal_track[name]).is_absolute():project.vocal_track[name]=str((Path(base)/project.vocal_track[name]).resolve())
             project.font_assets={family:str((Path(base)/path).resolve()) if not Path(path).is_absolute() else path for family,path in project.font_assets.items()}
+            if project.song_info.get('font_file') and not Path(project.song_info['font_file']).is_absolute():project.song_info['font_file']=str((Path(base)/project.song_info['font_file']).resolve())
         project.validate()
         return project
 
@@ -245,6 +257,12 @@ def _load_project(path):
 def save_project(project,path,portable_fonts=True):
     project.validate();path=Path(path);value=project.to_dict()
     if portable_fonts:
+        if project.song_info.get('font_file') and Path(project.song_info['font_file']).is_file():
+            import hashlib
+            source=Path(project.song_info['font_file']);digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+            dest=path.parent/(path.stem+'.assets')/'fonts'/(digest+source.suffix);dest.parent.mkdir(parents=True,exist_ok=True)
+            if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):shutil.copy2(source,dest)
+            value['song_info']['font_file']=str(dest.relative_to(path.parent))
         for name in ('font_file','ruby_font_file','translation_font_file'):
             source=Path(value['style'][name]) if value['style'][name] else None
             if source and source.is_file():

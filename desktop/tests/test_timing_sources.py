@@ -71,7 +71,7 @@ def test_legacy_inspection_never_upgrades_or_modifies_old_timing(qapp,tmp_path):
 
 def test_schema_eight_and_exported_ass_preserve_each_timing_basis(qapp,tmp_path):
     p=sample();target=tmp_path/'来源.sgproj';save_project(p,target);again=load_project(target)
-    assert again.to_dict()==p.to_dict() and p.to_dict()['version']==SCHEMA==12
+    assert again.to_dict()==p.to_dict() and p.to_dict()['version']==SCHEMA==13
     ass=tmp_path/'来源.ass';export_subtitle(p,ass);restored=load_project(ass)
     assert [v.to_dict() for v in restored.lines]==[v.to_dict() for v in p.lines]
 

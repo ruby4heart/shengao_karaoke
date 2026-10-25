@@ -230,11 +230,16 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
                 duration=max(1,old.end-old.start)
                 unit.highlights=[Highlight(part.kana,left+round((right-left)*(part.start-old.start)/duration),
                                            left+round((right-left)*(part.end-old.start)/duration),'estimated') for part in old.highlights]
-                for h in unit.highlights:h.timing_origin=derived('estimated',h.start,h.end,[unit],'mora_distribution',h.kana)
+                from .mora_editing import METHODS
+                for h,previous in zip(unit.highlights,old.highlights):
+                    custom=previous.source=='manual' and previous.timing_origin.get('method') in METHODS
+                    h.source='manual' if custom else 'estimated'
+                    h.timing_origin=derived('estimated',h.start,h.end,[unit],previous.timing_origin['method'] if custom else 'mora_distribution',h.kana)
+                    if custom:h.timing_origin['operations']=['regroup']
             output.append(unit);cursor=right
         value=LyricLine(line.id,line.text,first,last,output,line.kana or ''.join(u.kana for u in output),line.romaji or ' '.join(u.romaji for u in output if u.romaji),line.translation,
                         line.locked,False,info)
-        for key in ('translation','translation_suggestion','translation_original_changed'):
+        for key in ('translation','translation_suggestion','translation_original_changed','mora_edits'):
             if key in line.reading_review:value.reading_review[key]=copy.deepcopy(line.reading_review[key])
         value.timing_origin=group_basis(output,first,last,'matched_envelope')
         value.validate();suggestions.append(value);summary[info['status']]+=1;previous_end=last

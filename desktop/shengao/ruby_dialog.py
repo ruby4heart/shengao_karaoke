@@ -12,7 +12,8 @@ from .subtitles import compose
 class RubyDialog(QDialog):
     def __init__(self,project,line_index,word,parent=None):
         super().__init__(parent);self.setWindowTitle('汉字与假名对应');self.original=copy.deepcopy(project);self.row=line_index;self.word=word;self.line=self.original.lines[line_index];self.unit=self.line.units[word];self.result_line=None;self.candidate=None
-        screen=self.screen().availableGeometry();self.resize(min(820,screen.width()-30),min(740,screen.height()-40));self.renderer=AssRenderer();self.renderer.add_fonts([project.style.font_file,project.style.ruby_font_file,*project.font_assets.values()])
+        from .fonts import project_font_files
+        screen=self.screen().availableGeometry();self.resize(min(820,screen.width()-30),min(740,screen.height()-40));self.renderer=AssRenderer();self.renderer.add_fonts(project_font_files(project))
         self.spans=copy.deepcopy(self.unit.reading_options.get('ruby',{}).get('spans',list(map(list,ruby_spans(self.unit.text,self.unit.kana)))))
         root=QVBoxLayout(self);intro=QLabel('只调整假名显示在原文哪里；歌词、实际读音、演唱时间和固定点保持。熟字训可选整词注音。');intro.setWordWrap(True);root.addWidget(intro)
         scroll=QScrollArea();scroll.setWidgetResizable(True);body=QWidget();layout=QVBoxLayout(body);scroll.setWidget(body);root.addWidget(scroll,1)

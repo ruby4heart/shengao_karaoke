@@ -1,5 +1,6 @@
 """Cancelable local stem cache and single-player, sample-aligned A/B previews."""
 from pathlib import Path
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -50,10 +51,26 @@ def model_path():
         if path.is_file():return path
     raise ValueError('缺少已校验的人声模型，请完整解压运行包。')
 
+@contextmanager
+def engine_log_directory():
+    directory=tempfile.TemporaryDirectory(prefix='shengao-engine-log-')
+    try:yield directory.name
+    finally:
+        # A terminated Windows descendant can briefly retain a shared log
+        # handle after the job reports zero active processes. Retry only that
+        # native sharing condition, after all our own file handles are closed.
+        # Other errors, or a persistent owner, remain visible failures.
+        deadline=time.monotonic()+5
+        while True:
+            try:directory.cleanup();break
+            except PermissionError as error:
+                if os.name!='nt' or error.winerror not in (32,33) or time.monotonic()>=deadline:raise
+                time.sleep(.02)
+
 def run(command,cancel,progress=lambda x:None,engine=False,kind='vocals',event=None):
     # Independent read/write handles: seeking a duplicated stdout handle can
     # otherwise rewind the child's file pointer and overwrite an unread event.
-    with tempfile.TemporaryDirectory(prefix='shengao-engine-log-') as temp, (Path(temp)/'worker.log').open('wb') as writer, (Path(temp)/'worker.log').open('rb') as log:
+    with engine_log_directory() as temp, (Path(temp)/'worker.log').open('wb') as writer, (Path(temp)/'worker.log').open('rb') as log:
         child_job=None;command=[str(x) for x in command]
         if engine and os.name=='nt':
             from .process_tree import ProcessTree

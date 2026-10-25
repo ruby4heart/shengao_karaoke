@@ -49,6 +49,7 @@ class VocalWorkflow:
         self.playback.replace_audition_source(path);self.playback.canvas.audio_only=not self.project.has_video
         self.timeline.set_audio(audio);self.timeline.left=left;self.timeline.position=position;self.timeline.update_scroll();self.timeline.update()
         self.audition_role=role;self._playing_vocal_hash=self.project.vocal_track.get('sha256','') if role=='vocals' else '';self.refresh_vocal_tools();self.render_subtitles()
+        self.refresh_fine_listening()
 
     def vocal_play_error(self,message):
         if self.audition_role=='vocals' and self.original_audio is not None:

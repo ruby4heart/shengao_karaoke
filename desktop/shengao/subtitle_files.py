@@ -55,6 +55,12 @@ def export_subtitle(project,path,kind='ass'):
             setattr(value.style,name,str(destination))
         # Embed relative resource paths so an exported ASS can reopen elsewhere.
         data=value.to_dict()
+        if value.song_info.get('font') or value.song_info.get('font_file'):
+            from .song_info import font_path
+            source=font_path(value);destination=resources/(hashlib.sha256(source.read_bytes()).hexdigest()[:12]+source.suffix)
+            if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
+            value.song_info['font_file']=str(destination)
+            data['song_info']['font_file']=str(destination.relative_to(path.parent))
         for name in ('font_file','ruby_font_file','translation_font_file'):data['style'][name]=os.path.relpath(getattr(value.style,name),path.parent)
         for family,source_name in value.font_assets.items():
             source=Path(source_name)

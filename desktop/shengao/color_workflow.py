@@ -66,7 +66,8 @@ class ColorWorkflow:
         def phase(value):draft['phase']=value;render()
         dialog=None
         try:
-            renderer.add_fonts([original.style.font_file,original.style.ruby_font_file,original.style.translation_font_file,*original.font_assets.values()])
+            from .fonts import project_font_files
+            renderer.add_fonts(project_font_files(original))
             dialog=ColorDialog(original,self.current,selected,self,panel)
             preview_timer=QTimer(dialog);preview_timer.setSingleShot(True);preview_timer.timeout.connect(render)
             if quick:

@@ -118,6 +118,9 @@ class LyricLine:
             raise ValueError('匹配资料无效')
         if not isinstance(self.reading_review,dict):
             raise ValueError('读音复核资料无效')
+        if 'mora_edits' in self.reading_review:
+            from .mora_editing import validate_history
+            validate_history(self.reading_review['mora_edits'])
         if not isinstance(self.timing_evidence,dict):raise ValueError('歌声对齐资料无效')
         if self.timing_evidence:
             import json

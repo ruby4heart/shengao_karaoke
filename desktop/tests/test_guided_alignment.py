@@ -67,7 +67,7 @@ def test_guided_proposal_review_save_undo_and_release_fixed_points(qapp,tmp_path
     assert not w.pending and w.line.units[0].highlights[1].start==2400
     assert w.line.units[0].highlights[2].end==3800 and w.project.checks['guide']['reading']
     target=tmp_path/'固定点.sgproj';save_project(w.project,target)
-    assert load_project(target).to_dict()==w.project.to_dict() and SCHEMA==12
+    assert load_project(target).to_dict()==w.project.to_dict() and SCHEMA==13
     with pytest.raises(ValueError,match='11'):Project.from_dict({**w.project.to_dict(),'version':10})
     w.select_target(0,1);times=w.selected_times();assert w.release_acoustic_guide()
     assert not w.line.units[0].highlights[1].fixed_edges and w.selected_times()==times

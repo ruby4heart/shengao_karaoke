@@ -117,6 +117,8 @@ def compose(project,embed=False):
     if project.source_ass_active and project.source_ass:
         from .subtitle_import import preserve_ass
         text=preserve_ass(project)
+        from .song_info import append_ass
+        text=append_ass(text,project)
         if embed:
             data=base64.b64encode(json.dumps(project.to_dict(),ensure_ascii=False,separators=(',',':')).encode()).decode()
             text='; ShengaoProject: '+data+'\n'+text
@@ -127,7 +129,7 @@ def compose(project,embed=False):
     main_family=family_name(str(main),style.font);ruby_family=family_name(str(ruby),style.ruby_font);trans_family=family_name(str(translated),style.translation_font)
     main_weight=font_weight(str(main),style.font);ruby_weight=font_weight(str(ruby),style.ruby_font);trans_weight=font_weight(str(translated),style.translation_font)
     rows=['[Script Info]','Title: Shengao Independent Studio','ScriptType: v4.00+',
-          'PlayResX: 1920','PlayResY: 1080','WrapStyle: 0','ScaledBorderAndShadow: yes','',
+          'PlayResX: 1920','PlayResY: 1080','YCbCr Matrix: None','WrapStyle: 0','ScaledBorderAndShadow: yes','',
           '[V4+ Styles]',
           'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
           style_row('Lyrics',main_family,style.size,style,font_file=main),style_row('Ruby',ruby_family,style.ruby_size,style,font_file=ruby),
@@ -219,13 +221,16 @@ def compose(project,embed=False):
             bounds=(min(v[0] for v in color_bounds),min(v[1] for v in color_bounds),max(v[2] for v in color_bounds),max(v[3] for v in color_bounds))
             rows.extend(box_events(palette,window,(line.start,line.end),bounds))
     text='\n'.join(rows)+'\n'
+    from .song_info import append_ass
+    text=append_ass(text,project)
     if embed:
         data=base64.b64encode(json.dumps(project.to_dict(),ensure_ascii=False,separators=(',',':')).encode()).decode()
         text='; ShengaoProject: '+data+'\n'+text
     return text
 
 def layout_issues(project):
-    result=[];s=project.style
+    from .song_info import issues as song_issues
+    result=song_issues(project,check_overlap=True);s=project.style
     if project.source_ass_active:
         from .subtitle_import import needed_fonts
         from .fonts import find_font

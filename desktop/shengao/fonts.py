@@ -89,6 +89,15 @@ def resolve_font(path='',family=''):
     if default.is_file():return default
     raise ValueError('默认字体资源缺失，请完整解压软件')
 
+
+def project_font_files(project):
+    paths=[getattr(project.style,n) for n in ('font_file','ruby_font_file','translation_font_file') if getattr(project.style,n)]
+    paths.extend(project.font_assets.values())
+    if project.song_info.get('enabled'):
+        from .song_info import font_path
+        paths.append(str(font_path(project)))
+    return list(dict.fromkeys(paths))
+
 def key(name):return unicodedata.normalize('NFKC',name).strip().casefold()
 
 @lru_cache(maxsize=1)

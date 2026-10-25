@@ -187,6 +187,8 @@ def verify_rows(rows, original):
 
 def keep_readings(row,original,confirmed=False):
     """Matching may move text, but cannot discard human reading/group choices."""
+    if 'mora_edits' in original.get('reading_review',{}):
+        row=copy.deepcopy(row);row.setdefault('reading_review',{})['mora_edits']=copy.deepcopy(original['reading_review']['mora_edits'])
     if original.get('translation') or any(k in original.get('reading_review',{}) for k in ('translation','translation_suggestion','translation_original_changed','translation_notice')):
         from .translation import carry
         row=carry(LyricLine.from_dict(original),LyricLine.from_dict(row)).to_dict()
