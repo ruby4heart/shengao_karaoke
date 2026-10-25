@@ -57,6 +57,7 @@ for name in ['NotoSans-LICENSE.txt','NotoSerif-LICENSE.txt','NotoSerif-Black-LIC
 (package/'INDEPENDENT-STUDIO.txt').write_text('声稿 · 独立卡拉 OK 工作台\n完整解压后运行 shengao-karaoke.exe。无需安装 Python 或 Aegisub。\n第一次使用请查看“快速开始.txt”或“使用说明.md”，也可在软件中打开离线练习。\n',encoding='utf-8-sig')
 shutil.copy2(root/'desktop'/'assets'/'快速开始.txt',package/'快速开始.txt')
 shutil.copy2(root/'docs'/'DESKTOP-USER-GUIDE.md',package/'使用说明.md')
+shutil.copy2(root/'docs'/'ROMANIZATION-REFERENCES.md',package/'ROMANIZATION-REFERENCES.md')
 guide=(root/'docs'/'DESKTOP-USER-GUIDE.md').read_text(encoding='utf-8')
 for relative in set(re.findall(r'!\[[^\]]*\]\((images/[^)]+)\)',guide)):
     image=(root/'docs'/relative).resolve();assert image.is_relative_to((root/'docs/images').resolve()) and image.is_file()

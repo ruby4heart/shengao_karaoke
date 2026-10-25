@@ -118,14 +118,20 @@ def merge_pauses(original,indices,policy,edges=False):
     record_tree(original,line,'manual_boundary')
     line.validate();return line
 
-def edit_reading(original,index,kana,latin=''):
+def edit_reading(original,index,kana,latin='',defaults=None):
     line=copy.deepcopy(original);unit=line.units[index]
     if line.locked or unit.locked:raise ValueError('已锁定词组不能修改')
     if any('\u3400'<=c<='\u9fff' or '\uf900'<=c<='\ufaff' for c in kana):raise ValueError('假名栏请填写实际日语读音，例如“きょう”；汉字保留在原文栏')
     changed=unit.kana!=kana
     if changed:remember(unit)
-    unit.kana=kana;unit.romaji=latin or romaji(kana);unit.reading_source='manual'
-    if changed:unit.highlights=[];add_mora(unit);manual(line)
+    before=copy.deepcopy(original.units[index]);unit.kana=kana
+    if changed:unit.reading_source='manual';unit.highlights=[];add_mora(unit);manual(line)
+    from studio_backend.romanization import after_reading_change,set_manual,state,automatic,DEFAULT
+    if latin:
+        line=set_manual(line,index,latin,defaults);unit=line.units[index]
+    elif changed:after_reading_change(before,unit,defaults)
+    else:
+        rules={key:state(before,defaults)[key] for key in DEFAULT};unit.romaji=automatic(unit,rules);unit.reading_options['romaji']={'mode':'auto',**rules}
     line.kana=''.join(u.kana for u in line.units);line.romaji=' '.join(u.romaji for u in line.units if u.romaji)
     line.validate();return line
 
@@ -135,6 +141,7 @@ def merge_words(original,first,last):
     if not 0<=first<last<len(line.units):raise ValueError('请选中至少两个相邻词组')
     from studio_backend.model import Unit
     words=line.units[first:last+1]
+    if any(u.reading_options.get('ruby',{}).get('mode','auto')!='auto' for u in words):raise ValueError('合并会改变手工注音对应，请先将相关词切回自动，旧对应保持。')
     merged=Unit(''.join(u.text for u in words),words[0].start,words[-1].end,''.join(u.kana for u in words),
                 ' '.join(u.romaji for u in words if u.romaji),'manual',False,[], 'manual')
     merged.timing_origin=group_basis(words,merged.start,merged.end,'regroup')
@@ -145,6 +152,7 @@ def merge_words(original,first,last):
 
 def split_word(original,index,position):
     line=copy.deepcopy(original);word=line.units[index]
+    if word.reading_options.get('ruby',{}).get('mode','auto')!='auto':raise ValueError('拆分会改变手工注音对应，请先将该词切回自动，旧对应保持。')
     if line.locked or word.locked:raise ValueError('所选词组已锁定')
     if not 0<position<len(word.text):raise ValueError('请选择词组内部的文字边界')
     from studio_backend.japanese import Group,retime_groups,word_groups

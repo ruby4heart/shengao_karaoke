@@ -165,7 +165,10 @@ def inputs(request):
     opt=options(request)
     transcript = [LyricLine.from_dict(v).to_dict() for v in request.get('transcript', [])] if opt['source']=='reuse' else []
     value = {k: copy.deepcopy(request[k]) for k in ('media', 'language', 'gap_ms', 'join_lines',
-             '_studio_context', '_studio_checks', 'reading_confirmed_ids', 'transcript_stamp') if k in request}
+             '_studio_context', '_studio_checks', 'reading_confirmed_ids', 'transcript_stamp','romanization_rules') if k in request}
+    if 'romanization_rules' in value:
+        from .romanization import validate_rules
+        validate_rules(value['romanization_rules'])
     value.update(action='draft', draft_options=opt, lines=[v.to_dict() for v in lines],
                  transcript=transcript)
     if opt.get('acoustic'):value['vocal_track']=copy.deepcopy(request.get('vocal_track',{}))
@@ -184,7 +187,10 @@ def verify_rows(rows, original):
 
 def keep_readings(row,original,confirmed=False):
     """Matching may move text, but cannot discard human reading/group choices."""
-    if not confirmed and not any(u.get('reading_source')=='manual' for u in original.get('units',[])):return row
+    if original.get('translation') or any(k in original.get('reading_review',{}) for k in ('translation','translation_suggestion','translation_original_changed','translation_notice')):
+        from .translation import carry
+        row=carry(LyricLine.from_dict(original),LyricLine.from_dict(row)).to_dict()
+    if not confirmed and not any(u.get('reading_source')=='manual' or u.get('reading_options',{}).get('romaji',{}).get('mode')=='manual' or u.get('reading_options',{}).get('ruby',{}).get('mode','auto')!='auto' for u in original.get('units',[])):return row
     from .japanese import Group,retime_groups,word_groups,add_mora
     from .model import Unit
     value=LyricLine.from_dict(row);groups=[];cursor=0
@@ -195,7 +201,7 @@ def keep_readings(row,original,confirmed=False):
         groups.append(Group(u['text'],cursor,cursor+len(u['text']),kana,latin));cursor+=len(u['text'])
     if groups:
         value.units=retime_groups(value,groups,preserve_readings=False)
-        for u,old in zip(value.units,original['units']):u.reading_source=old.get('reading_source','')
+        for u,old in zip(value.units,original['units']):u.reading_source=old.get('reading_source','');u.reading_options=copy.deepcopy(old.get('reading_options',{}))
     elif original.get('kana'):
         from .provenance import group_basis
         origin=group_basis(value.units,value.start,value.end,'confirmed_reading_group')
@@ -340,6 +346,7 @@ async def _run(request, root, report, operation):
             await verify_media()
             base = {'media': supplied.get('media', ''), 'language': supplied.get('language', 'ja'),
                     'gap_ms': supplied.get('gap_ms', 0), 'join_lines': supplied.get('join_lines', False)}
+            if 'romanization_rules' in supplied:base['romanization_rules']=copy.deepcopy(supplied['romanization_rules'])
             if key == 'transcript':
                 if opt['source'] == 'cloud':
                     data = await operation({**base, 'action': 'transcribe', 'provider': opt['provider'], 'lines': []}, root, report)

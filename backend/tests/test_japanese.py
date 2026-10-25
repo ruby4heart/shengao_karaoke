@@ -76,15 +76,17 @@ def test_confirmed_middle_chorus_anchors_surrounding_verses():
     assert values[1]['start']==10000 and values[2]['start']==15000
 
 
-def test_llm_reading_can_correct_dictionary_without_destroying_manual_morae():
+def test_llm_reading_keeps_manual_morae_when_alternative_changes_count():
     from studio_backend.convert import annotation_suggestion
     line=LyricLine('1','明日',1000,3000,[Unit('明日',1000,3000,'あした','ashita',source='matched',
         highlights=[Highlight('あ',1000,1400,'manual'),Highlight('し',1400,2200,'manual'),Highlight('た',2200,3000,'manual')])])
     same=annotation_suggestion(line,{'kana':'あした','romaji':'ashita','translation':'明天','groups':[{'text':'明日','kana':'あした','romaji':'ashita'}]})
     assert same.units[0].highlights==line.units[0].highlights
     changed=annotation_suggestion(line,{'kana':'あす','romaji':'asu','translation':'明天','groups':[{'text':'明日','kana':'あ す','romaji':'asu'}]})
-    assert changed.units[0].kana=='あす'
-    assert [h.kana for h in changed.units[0].highlights]==['あ','す']
+    assert changed.units[0].kana=='あした'
+    assert changed.units[0].highlights==line.units[0].highlights
+    assert changed.reading_review['words'][0]['deepseek_suggested']=='あ す'
+    assert '旧轴保持' in changed.reading_review['words'][0]['protection_notice']
     assert (changed.units[0].start,changed.units[0].end)==(1000,3000)
 
 

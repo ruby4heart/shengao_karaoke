@@ -155,7 +155,7 @@ def insert(value,index,raw):
     validate(result,raw);return result
 
 
-def confirmed_lines(value,raw):
+def confirmed_lines(value,raw,romanization_rules=None):
     """Local matching/dictionary only, after an explicit wording confirmation."""
     from .matching import match_lyrics
     from .japanese import segment_line
@@ -164,7 +164,7 @@ def confirmed_lines(value,raw):
     transcript=[LyricLine.from_dict(r) for r in raw]
     matched=match_lyrics(base,transcript);output=[]
     for original,data in zip(value['rows'],matched['suggestions']):
-        line=LyricLine.from_dict(data);line,_=segment_line(line,'mora')
+        line=LyricLine.from_dict(data);line,_=segment_line(line,'mora',romanization_rules)
         if line.id!=original['id'] or line.text!=original['text']:raise ValueError('本地分词改变了已核对原文，已拒绝加入')
         line.match.update(text_confirmed=True,text_origin='recognition_draft',draft_id=value['id'],
             recognized_original=source_text(original,raw),range_source=original['range_source'])

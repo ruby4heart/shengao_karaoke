@@ -132,6 +132,8 @@ class DraftWorkflow:
                  'reading_confirmed_ids':[x.id for x in lines if self.project.checks.get(x.id,{}).get('reading')],
                  'language':'ja','gap_ms':500 if self.continuous_timing.isChecked() else 0,
                  'join_lines':self.continuous_timing.isChecked(),'_studio_context':context}
+        from studio_backend.romanization import DEFAULT
+        request['romanization_rules']=copy.deepcopy(self.project.reading_preferences.get('romaji',DEFAULT))
         request['_studio_checks']={x.id:copy.deepcopy(self.project.checks.get(x.id,{})) for x in lines}
         if opt.get('acoustic'):request['vocal_track']=copy.deepcopy(self.project.vocal_track) if bound(self.project.vocal_track,self.project.media) else {}
         self.submit_draft(request)

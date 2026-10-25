@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QComboBox,
     QPlainTextEdit,QCheckBox,QTableWidget,QTableWidgetItem,QHeaderView,QDialogButtonBox,QWidget,QScrollArea)
 from studio_backend import recognition
 from studio_backend.model import LyricLine
+from studio_backend.romanization import DEFAULT
 from .dialogs import button
 from .project import file_stamp
 from .timeline import stamp
@@ -219,6 +220,7 @@ class RecognitionWorkflow:
         except ValueError as error:self.message(str(error));return
         self.api.start({'action':'confirm_recognition','media':p.media,'transcript':copy.deepcopy(p.transcript),
             'recognition_draft':value,'_text_confirmed_by_user':True,
+            'romanization_rules':copy.deepcopy(p.reading_preferences.get('romaji',DEFAULT)),
             '_studio_context':{'project':p.uid,'media':file_stamp(p.media)}})
         self.message('在本机按核对后的原文生成粗稿，不重新上传；原文草稿仍保留到成功加入。')
 

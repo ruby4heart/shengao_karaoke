@@ -147,7 +147,9 @@ def validate_annotations(result, source):
             from .analysis import kana_only
             reading=kana_only(group['kana'])
             if group['kana'].strip() and not reading:raise ApiError('DeepSeek 的假名字段含汉字或无效字符，未应用结果')
-            if any(ord(c)>0x024F and not c.isspace() for c in group['romaji']):raise ApiError('DeepSeek 的罗马音字段无效，未应用结果')
+            from .romanization import validate_manual
+            try:validate_manual(group['romaji'])
+            except ValueError:raise ApiError('DeepSeek 的罗马音字段无效，未应用结果') from None
             if not reading and any('\u3400'<=c<='\u9fff' for c in group['text']):raise ApiError('DeepSeek 漏掉了汉字读音，未应用结果')
             normalized.append({'text':group['text'],'kana':reading,'romaji':group['romaji'],
                                'reason':str(group.get('reason',''))[:500]})

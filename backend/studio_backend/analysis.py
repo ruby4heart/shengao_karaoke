@@ -15,6 +15,9 @@ def protected(line,reviewed=True):
     return line.locked or (reviewed and line.reviewed) or any(u.locked or any(h.fixed_edges for h in u.highlights) for u in line.units)
 
 
+def reading_protected(line):return line.locked or any(u.locked for u in line.units)
+
+
 def smooth_gaps(line,maximum=120):
     if type(maximum) is not int or not 0<=maximum<=500:raise ValueError('短空隙阈值应为 0 到 500 毫秒')
     value=copy.deepcopy(line);count=0
@@ -36,9 +39,9 @@ def recognition_for(line,transcript):
     return [item for item in transcript if item.end>line.start-700 and item.start<line.end+700][:12]
 
 
-def analyze_line(line,transcript,maximum=120,preserve_legacy=False,preserve_manual=True):
+def analyze_line(line,transcript,maximum=120,preserve_legacy=False,preserve_manual=True,romanization_rules=None):
     line.validate()
-    if protected(line,reviewed=False):return copy.deepcopy(line),True
+    if reading_protected(line):return copy.deepcopy(line),True
     value=copy.deepcopy(line)
     if not line.units:
         value.reviewed=False;value,_=segment_line(value,'words')
@@ -48,7 +51,9 @@ def analyze_line(line,transcript,maximum=120,preserve_legacy=False,preserve_manu
         preserve_before_confirmation(value)
         for unit in value.units:unit.source='manual'
     nearby=recognition_for(line,transcript);words=[]
-    for unit in value.units:
+    for word_index in range(len(value.units)):
+        unit=value.units[word_index];protection_notice=''
+        old_reading_unit=copy.deepcopy(unit)
         dictionary=''.join(g.kana for g in word_groups(unit.text))
         evidence=[]
         for row in nearby:
@@ -67,24 +72,31 @@ def analyze_line(line,transcript,maximum=120,preserve_legacy=False,preserve_manu
         if legacy and not preserve_legacy:unit.reading_source='legacy'
         candidate=heard if heard and coverage>=.6 and len(heard)<=max(12,len(unit.text)*5) else ''
         if candidate and not manual and candidate!=kana_only(before):
-            unit.kana=candidate;unit.romaji=(' '.join(g.romaji for g in word_groups(unit.text) if g.romaji) if candidate==dictionary else romaji(candidate));unit.highlights=[];unit.reading_source='transcript';add_mora(unit)
+            from .reading_suggestion import propose_unit
+            unit,protection_notice=propose_unit(value,word_index,candidate,'transcript',romanization_rules);value.units[word_index]=unit
         elif (not unit.kana or not kana_only(unit.kana)) and dictionary and not manual:
-            unit.kana=dictionary;unit.romaji=' '.join(g.romaji for g in word_groups(unit.text) if g.romaji);unit.reading_source='dictionary'
-            if unit.highlights:unit.highlights=[];add_mora(unit)
+            from .reading_suggestion import propose_unit
+            unit,protection_notice=propose_unit(value,word_index,dictionary,'dictionary',romanization_rules);value.units[word_index]=unit
         if unit.kana and kana_only(unit.kana) and not unit.romaji and not manual:
             unit.romaji=' '.join(g.romaji for g in word_groups(unit.text) if g.romaji) if kana_only(unit.kana)==dictionary else romaji(unit.kana)
+        if old_reading_unit.reading_options.get('romaji') or romanization_rules is not None:
+            from .romanization import after_reading_change
+            after_reading_change(old_reading_unit,unit,romanization_rules)
         words.append({'text':unit.text,'before':before,'dictionary':dictionary,'recognized':recognized,
                       'suggested':unit.kana,'basis':'manual' if manual else 'transcript' if candidate else 'dictionary',
                       'changed':before!=unit.kana or before_romaji!=unit.romaji,'legacy':legacy,
-                      'before_romaji':before_romaji,'suggested_romaji':unit.romaji})
+                      'before_romaji':before_romaji,'suggested_romaji':unit.romaji,'protection_notice':protection_notice})
     value,count=smooth_gaps(value,maximum)
     value.kana=''.join(u.kana for u in value.units);value.romaji=' '.join(u.romaji for u in value.units if u.romaji)
     value.reading_review={'method':'local','recognized':' / '.join(x.text for x in nearby),
         'context_available':bool(nearby),'words':words,'closed_gaps':count,'requires_review':True,
         'notice':'转录是假名时才提出实际读音候选；同为汉字不能证明唱法，建议用 DeepSeek 结合上下文复核。'}
+    value.reading_review['text_suggestion_version']=1
+    for key in ('translation','translation_suggestion','translation_original_changed','translation_notice','manual_choices'):
+        if key in line.reading_review:value.reading_review[key]=copy.deepcopy(line.reading_review[key])
     if any(word['legacy'] for word in words):value.reading_review['notice']+=' 旧版未标记读音来源；未开启保留时仅提出候选，需人工选择。'
     if not preserve_manual:value.reading_review['notice']+=' 已允许重新复核手工读音；人工时间仍保留。'
-    value.reviewed=line.reviewed and bool(line.units) and not count and not any(word['changed'] for word in words)
+    value.reviewed=line.reviewed and bool(line.units) and not count and not any(word['before']!=word['suggested'] for word in words)
     value.validate();return value,False
 
 
@@ -106,7 +118,9 @@ def aligned_words(value,original):
     value.units=retime_groups(value,groups or word_groups(value.text),preserve_readings=False)
     for index,unit in enumerate(value.units):
         unit.source='alignment'
-        if index<len(original.units):unit.reading_source=original.units[index].reading_source
+        if index<len(original.units):unit.reading_source=original.units[index].reading_source;unit.reading_options=copy.deepcopy(original.units[index].reading_options)
         if unit.kana:add_mora(unit)
     value.kana=''.join(u.kana for u in value.units);value.romaji=' '.join(u.romaji for u in value.units if u.romaji)
+    from .translation import carry
+    carry(original,value)
     value.validate();return value

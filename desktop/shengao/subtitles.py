@@ -6,7 +6,7 @@ from pathlib import Path
 from .fonts import resolve_font,metric_font,missing,family_name,traits,font_weight
 from studio_backend.model import literal
 from studio_backend.export import ass_time
-from .furigana import ruby_spans,reading_fragments,kanji
+from .furigana import ruby_spans,unit_ruby_spans,reading_fragments,kanji
 from .presentation import display_windows
 
 def color(value):
@@ -71,8 +71,8 @@ def ruby_layout(groups,widths,font,main_font,row_lefts=None):
     for row,items in rows.items():
         left=row_lefts[row] if row_lefts is not None else (1920-sum(item[4] for item in items))/2;annotations=[]
         for index,unit,text,allowed,width in items:
-            if allowed and unit.kana and unit.kana!=text:
-                for a,b,rs,re in ruby_spans(text,unit.kana):
+            if allowed and unit.kana and (unit.kana!=text or unit.reading_options.get('ruby',{}).get('mode') in {'whole','custom'}):
+                for a,b,rs,re in unit_ruby_spans(unit,text):
                     center=left+(main_font.getlength(text[:a])+main_font.getlength(text[:b]))/2
                     annotations.append((index,center,font.getlength(unit.kana[rs:re]),rs,re))
             left+=width
@@ -245,8 +245,8 @@ def layout_issues(project):
         if s.show_ruby and any(a.scale<.6 for a in ruby_layout(pieces(line),widths,rf,mf)):result.append((line.id,'相邻假名较密，已仅压缩假名宽度；可降低假名字号以改善阅读'))
         if s.show_ruby:
             for unit in line.units:
-                spans=ruby_spans(unit.text,unit.kana)
-                if spans==((0,len(unit.text),0,len(unit.kana)),) and any('\u3040'<=c<='\u30ff' and not kanji(c) for c in unit.text):
+                spans=unit_ruby_spans(unit)
+                if unit.reading_options.get('ruby',{}).get('mode','auto')=='auto' and spans==((0,len(unit.text),0,len(unit.kana)),) and any('\u3040'<=c<='\u30ff' and not kanji(c) for c in unit.text):
                     result.append((line.id,'有假名无法与汉字唯一对应，暂用整词注音；请核对读音或拆分该词组'));break
         if any('\n' in u.text.strip('\n') and u.kana for u in line.units):result.append((line.id,'有词组跨越多行，请拆分该词组后分别核对假名'))
         if s.show_romaji and text_width(metric_font(str(main),s.romaji_size,s.font),line.romaji)>1792:result.append((line.id,'罗马音较长，请缩小字号或拆行'))

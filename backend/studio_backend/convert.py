@@ -88,7 +88,7 @@ def mai_lines(result):
     return lines
 
 
-def annotation_suggestion(line, annotation):
+def annotation_suggestion(line, annotation, romanization_rules=None):
     """Preserve existing acoustic boundaries where a reading group's edges match."""
     groups=[];position=0
     for group in annotation['groups']:
@@ -100,15 +100,33 @@ def annotation_suggestion(line, annotation):
     for old in line.units:starts.add(offset);offset+=len(old.text);ends.add(offset)
     for group,unit in zip(groups,units):
         if group.begin in starts and group.end in ends and not any(old.text==unit.text and old.start==unit.start and old.end==unit.end for old in line.units):unit.source='mapped'
-    for unit in units:
+    word_reviews=[]
+    for index,unit in enumerate(units):
+        protection_notice=''
         old=next((old for old in line.units if old.text==unit.text and old.start==unit.start and old.end==unit.end),None)
-        if old and (old.reading_source=='manual' or legacy_manual_reading(old) or old.locked):
-            unit.kana=old.kana;unit.romaji=old.romaji;unit.highlights=copy.deepcopy(old.highlights);unit.reading_source=old.reading_source
-        else:unit.reading_source='llm'
-        add_mora(unit)
+        if old and (old.reading_source=='manual' or legacy_manual_reading(old) or old.locked or old.reading_options.get('ruby',{}).get('mode','auto')!='auto'):
+            unit.kana=old.kana;unit.romaji=old.romaji;unit.highlights=copy.deepcopy(old.highlights);unit.reading_source=old.reading_source;unit.reading_options=copy.deepcopy(old.reading_options)
+        else:
+            if old and old.kana!=unit.kana:
+                from .reading_suggestion import propose_unit
+                old_index=line.units.index(old);unit,protection_notice=propose_unit(line,old_index,unit.kana,'llm',romanization_rules);units[index]=unit
+            unit.reading_source='llm' if not protection_notice else old.reading_source
+            from .romanization import after_reading_change,automatic,DEFAULT
+            if old:after_reading_change(old,unit,romanization_rules)
+            else:
+                rules=DEFAULT if romanization_rules is None else romanization_rules
+                unit.romaji=automatic(unit,rules);unit.reading_options['romaji']={'mode':'auto',**rules}
+        if old is None or old.kana!=unit.kana:add_mora(unit)
+        previous=line.reading_review.get('words',[]);review=copy.deepcopy(previous[index]) if isinstance(previous,list) and index<len(previous) and isinstance(previous[index],dict) and previous[index].get('text')==unit.text else {}
+        review.update(text=unit.text,before=review.get('before',old.kana if old else ''),suggested=unit.kana,deepseek_suggested=annotation['groups'][index]['kana'],reason=annotation['groups'][index].get('reason',''),protection_notice=protection_notice,suggested_romaji=unit.romaji)
+        word_reviews.append(review)
     suggestion=LyricLine(line.id,line.text,line.start,line.end,units,
                          ''.join(u.kana for u in units),' '.join(u.romaji for u in units if u.romaji),annotation['translation'],
                          match=copy.deepcopy(line.match),reading_review=copy.deepcopy(line.reading_review))
+    suggestion.display_start=line.display_start;suggestion.display_end=line.display_end;suggestion.locked=line.locked
+    suggestion.reading_review.update(method='deepseek',words=word_reviews,stale=False,text_suggestion_version=1)
+    from .translation import record_suggestion
+    record_suggestion(line,suggestion,annotation['translation'])
     suggestion.timing_origin=copy.deepcopy(line.timing_origin);suggestion.timing_evidence=copy.deepcopy(line.timing_evidence)
     def timing(words):return [(u.text,u.start,u.end,[(h.kana,h.start,h.end) for h in u.highlights]) for u in words]
     suggestion.reviewed=line.reviewed and timing(units)==timing(line.units)

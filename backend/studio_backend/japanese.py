@@ -125,6 +125,7 @@ def retime_groups(line,groups,preserve_readings=True):
                   old.source if old else 'estimated',old.locked if old else False,
                   copy.deepcopy(old.highlights) if old and old.kana==reading else [])
         unit.reading_source=old.reading_source if old and old.kana==reading else 'dictionary'
+        unit.reading_options=copy.deepcopy(old.reading_options) if old and old.kana==reading else {}
         from .provenance import group_basis,derived
         parents=[u for a,b,u in positions if a<group.end and b>group.begin]
         unit.timing_origin=copy.deepcopy(old.timing_origin) if old else group_basis(parents,unit.start,unit.end) if parents else derived('estimated',unit.start,unit.end,[line],'line_distribution')
@@ -132,10 +133,10 @@ def retime_groups(line,groups,preserve_readings=True):
     return output
 
 
-def segment_line(line,mode='words'):
+def segment_line(line,mode='words',romanization_rules=None):
     if mode not in {'words','mora'}:raise ValueError('不支持的分词方式')
     line.validate();value=copy.deepcopy(line)
-    if line.locked or line.reviewed or any(u.locked for u in line.units):return value,True
+    if line.locked or line.reviewed or any(u.locked or u.reading_options.get('ruby',{}).get('mode','auto')!='auto' for u in line.units):return value,True
     if mode=='words' or not line.units:
         value.units=retime_groups(line,word_groups(line.text))
     if mode=='mora':
@@ -143,6 +144,9 @@ def segment_line(line,mode='words'):
             if not unit.kana:
                 pieces=word_groups(unit.text);unit.kana=''.join(g.kana for g in pieces);unit.romaji=' '.join(g.romaji for g in pieces if g.romaji)
             add_mora(unit)
+    if romanization_rules is not None:
+        from .romanization import apply_rules
+        value=apply_rules(value,range(len(value.units)),romanization_rules)['line']
     value.kana=''.join(u.kana for u in value.units)
     value.romaji=' '.join(u.romaji for u in value.units if u.romaji)
     value.reviewed=False;value.validate()

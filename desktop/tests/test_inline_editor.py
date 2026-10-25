@@ -104,13 +104,24 @@ def test_pending_segmentation_blocks_navigation_and_save_until_resolved(qapp,tmp
     w.inline_segment.cancel.click();w.move_line(1);assert w.current==2 and not w.history.undo_stack;w.close()
 
 def test_click_word_edits_kana_inline_and_preserves_other_manual_mora(qapp,tmp_path):
-    w=window(qapp,tmp_path);before=w.project.to_dict();w.show_editor_widget(w.inline_segment)
+    from studio_backend.romanization import DEFAULT
+    p=song();p.lines[1].units[0].reading_options['romaji']={'mode':'auto',**DEFAULT}
+    w=window(qapp,tmp_path,p);before=w.project.to_dict();w.show_editor_widget(w.inline_segment)
     click_anchor(qapp,w.inline_segment.text,'char:1');assert QApplication.activeModalWidget() is None
     editor=QApplication.focusWidget();assert isinstance(editor,QLineEdit);editor.setText('きょう');w.quick_timing.click()
     assert w.line.units[0].kana=='きょう' and w.line.units[0].romaji=='kyou'
     assert [asdict(u) for u in w.line.units[1:]]==[asdict(u) for u in lyric().units[1:]]
     assert not w.project.checks[w.line.id]['reading'] and w.calibration_tabs.currentIndex()==0
     w.undo();assert w.project.to_dict()==before;w.close()
+
+def test_inline_kana_change_keeps_unrecorded_legacy_roman_and_explains_review(qapp,tmp_path):
+    w=window(qapp,tmp_path);w.show_editor_widget(w.inline_segment)
+    click_anchor(qapp,w.inline_segment.text,'char:1');editor=QApplication.focusWidget();editor.setText('きょう');w.quick_timing.click()
+    unit=w.line.units[0]
+    assert unit.kana=='きょう' and unit.romaji=='konnichi' and unit.reading_options['romaji']['mode']=='manual'
+    assert unit.reading_options['romaji']['basis']=='こんにち'
+    w.calibration_tabs.setCurrentIndex(1);w.select_target(0,-1)
+    assert '假名已改，请复核' in w.reading_candidates.romanization_state.text();w.close()
 
 @pytest.mark.filterwarnings('ignore:.*setActiveWindow.*:DeprecationWarning')
 def test_edit_buffer_commits_even_when_main_window_is_not_active(qapp,tmp_path):

@@ -224,6 +224,7 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
             unit=Unit(text,left,right,old.kana if old else '',old.romaji if old else '',
                       source='matched' if precise else 'estimated',reading_source=old.reading_source if old else '')
             pairs=[mapping[i] for i in positions if mapping[i] is not None]
+            unit.reading_options=copy.deepcopy(old.reading_options) if old else {}
             unit.timing_origin=timing_basis(pairs,source,left,right,len(pairs)==len(positions) and all(exact[i] for i in positions))
             if old and old.highlights:
                 duration=max(1,old.end-old.start)
@@ -233,6 +234,8 @@ def _match_channel(lines,transcript,time_range=None,reading=False,candidates=Tru
             output.append(unit);cursor=right
         value=LyricLine(line.id,line.text,first,last,output,line.kana or ''.join(u.kana for u in output),line.romaji or ' '.join(u.romaji for u in output if u.romaji),line.translation,
                         line.locked,False,info)
+        for key in ('translation','translation_suggestion','translation_original_changed'):
+            if key in line.reading_review:value.reading_review[key]=copy.deepcopy(line.reading_review[key])
         value.timing_origin=group_basis(output,first,last,'matched_envelope')
         value.validate();suggestions.append(value);summary[info['status']]+=1;previous_end=last
     if candidates:

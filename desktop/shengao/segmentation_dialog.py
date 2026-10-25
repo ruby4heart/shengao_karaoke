@@ -22,6 +22,9 @@ def regroup(original,cuts,start=None,end=None):
     changed_range=(start,end)!=(line.start,line.end)
     old={};cursor=0
     for u in line.units:old[(cursor,cursor+len(u.text))]=u;cursor+=len(u.text)
+    spans={(g.begin,g.end) for g in groups}
+    if any(key not in spans and unit.reading_options.get('ruby',{}).get('mode','auto')!='auto' for key,unit in old.items()):
+        raise ValueError('这次分词会改变手工注音对应，请先在相关词切回自动；旧对应与时间保持。')
     if changed_range:
         # Explicitly selecting a new range estimates a new axis, without
         # throwing away an unchanged group's approved pronunciation.
@@ -31,7 +34,8 @@ def regroup(original,cuts,start=None,end=None):
         groups=[Group(g.text,g.begin,g.end,old[(g.begin,g.end)].kana,old[(g.begin,g.end)].romaji) if (g.begin,g.end) in old else g for g in groups]
     line.units=retime_groups(line,groups)
     for g,u in zip(groups,line.units):
-        if changed_range and (g.begin,g.end) in old:u.reading_source=old[(g.begin,g.end)].reading_source
+        if changed_range and (g.begin,g.end) in old:
+            previous=old[(g.begin,g.end)];u.reading_source=previous.reading_source;u.reading_options=copy.deepcopy(previous.reading_options)
         add_mora(u)
     line.kana=''.join(u.kana for u in line.units);line.romaji=' '.join(u.romaji for u in line.units if u.romaji)
     manual(line);line.validate();return line

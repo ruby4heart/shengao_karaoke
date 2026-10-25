@@ -22,6 +22,8 @@ class TailDialog(QDialog):
         self.setWindowTitle('句尾细听 · 放大、慢放、微调');self.setMinimumSize(740,520);self.resize(900,640)
         layout=QVBoxLayout(self);title=QLabel(line.text);title.setTextFormat(Qt.TextFormat.PlainText);title.setWordWrap(True);layout.addWidget(title)
         hint=QLabel('先带前音听，再单独听尾音；拖边界或用 10ms 按钮微调。句末“す”的元音可能很弱，歌唱还会改变发音，需结合原声确认。');hint.setWordWrap(True);layout.addWidget(hint)
+        if parent is not None and getattr(parent,'project',None) and parent.project.source_ass_active:
+            hint.setText(hint.text()+' 修改读音并保存后使用声稿注音排版，原 ASS 保留，可一步撤销。')
         row=QHBoxLayout();self.combo=QComboBox();self.combo.setMinimumContentsLength(12);self.combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon);self.combo.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Fixed)
         for i,j,a,b,text in self.items:self.combo.addItem(f'{text} · {time_text(a)} — {time_text(b)} · {line.units[i].text}')
         row.addWidget(self.combo,1)

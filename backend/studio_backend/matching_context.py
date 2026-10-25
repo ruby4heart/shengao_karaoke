@@ -9,7 +9,7 @@ def protected(line,replace_manual=False):
         return bool(getattr(item,'fixed_edges',[])) or getattr(item,'source','')=='manual' or origin.get('kind')=='manual' or bool(
             set(origin.get('operations',[]))&{'manual_boundary','shift','stretch'})
     return line.locked or line.reviewed or (not replace_manual and manual(line)) or any(
-        u.locked or (not replace_manual and (manual(u) or any(manual(h) for h in u.highlights))) for u in line.units)
+        u.locked or (not replace_manual and (manual(u) or any(manual(h) for h in u.highlights) or u.reading_options.get('romaji',{}).get('mode')=='manual' or u.reading_options.get('ruby',{}).get('mode','auto')!='auto')) for u in line.units)
 
 
 def plan(target,source,line_data,lines,allow_text=True,time_range=None,replace_manual=False):

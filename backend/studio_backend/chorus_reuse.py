@@ -36,7 +36,8 @@ def prepare(source,target,source_reading_confirmed,target_reading_confirmed=Fals
     for word in source.units:
         groups.append(Group(word.text,offset,offset+len(word.text),word.kana,word.romaji));offset+=len(word.text)
     value=copy.deepcopy(target);value.units=retime_groups(target,groups,preserve_readings=False)
-    for word in value.units:
+    for word,reference in zip(value.units,source.units):
+        word.reading_options=copy.deepcopy(reference.reading_options)
         word.source='estimated';word.locked=False;word.reading_source='reused'
         word.timing_origin=derived('estimated',word.start,word.end,target.units or [target],'chorus_reuse_range',word.kana)
         parts,_=pronunciations(word)
@@ -52,6 +53,8 @@ def prepare(source,target,source_reading_confirmed,target_reading_confirmed=Fals
         'reuse':{'source_id':source.id,'source_sha256':signature(source),'source_range':[source.start,source.end],
                  'source_reading_confirmed':True,'source_time_confirmed':True,'timing_copied':False},
         'words':[{'text':u.text,'suggested':u.kana,'basis':'confirmed_chorus','reason':'来自已人工确认的相同原文；本次演唱仍需试听。'} for u in value.units]}
+    from .translation import carry
+    carry(target,value)
     value.validate();return value
 
 

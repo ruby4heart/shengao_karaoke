@@ -48,6 +48,8 @@ from .acoustic_workflow import AcousticWorkflow
 from .sound_gap_workflow import SoundGapWorkflow
 from .chorus_workflow import ChorusWorkflow
 from .color_workflow import ColorWorkflow
+from .reading_candidates_workflow import ReadingCandidatesWorkflow
+from .translation_workflow import TranslationWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -55,7 +57,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -231,8 +233,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.units=QTableWidget(0,3);self.units.setObjectName('readingTable');self.units.setHorizontalHeaderLabels(['词组原文','日语假名','罗马音']);self.units.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch);self.units.verticalHeader().hide();self.units.setAlternatingRowColors(True);self.units.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows);self.units.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection);self.units.setFixedHeight(126);l.addWidget(self.units)
         self.change_reading_button=button('直接改假名',self.edit_selected_reading);self.change_reading_button.setToolTip('直接在本句表格里填写实际假名，原文保持；变化的词组会重新估算音节，其他词组保留。')
         self.word_source=label('','muted');row=QHBoxLayout();row.addWidget(self.change_reading_button);row.addWidget(self.word_source,1);l.addLayout(row)
+        self.build_reading_candidates(l)
         self.optional_reading=Collapsible('罗马音与中文译文（可选）');self.show_editor_romaji=QCheckBox('显示罗马音列');self.show_editor_romaji.setChecked(self.preferences.data.get('editor_romaji',False) is True);self.optional_reading.body.addWidget(self.show_editor_romaji)
         self.translation=QLineEdit();self.translation.setPlaceholderText('中文译文；可手改或采用 DeepSeek 建议');self.optional_reading.body.addWidget(self.translation)
+        self.build_translation_tools(self.optional_reading.body)
         self.show_editor_romaji.toggled.connect(lambda value:(self.units.setColumnHidden(2,not value),self.preferences.set('editor_romaji',value)));self.units.setColumnHidden(2,not self.show_editor_romaji.isChecked())
         self.range_button=button('整句范围',self.select_entire_line);self.range_button.setToolTip('未匹配时先确定唱词范围；已有词组时只改整句头尾，不重新分词。');self.fill_mora_button=button('补全音节',self.fill_missing_mora);row=QHBoxLayout();row.addWidget(label('演唱音节','sectionTitle'),1);row.addWidget(self.fill_mora_button);row.addWidget(self.range_button);l.addLayout(row);self.mora_strip=MoraStrip();l.addWidget(self.mora_strip)
         self.cleanup_gaps_button=button('检查空白…',self.start_sound_gaps);self.cleanup_gaps_button.setToolTip('按当前试听音轨检查声音连续性与已有音素依据；先试听再处理，不按固定时长填平休止。')
@@ -456,7 +460,18 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if project.uid!=uid:raise ValueError('工程已切换，请重新预览分词')
             row=next((i for i,line in enumerate(project.lines) if line.id==expected['id']),None)
             if row is None or project.lines[row].to_dict()!=expected:raise ValueError('原句已修改，请重新预览；没有覆盖人工数据')
-            project.lines[row]=copy.deepcopy(candidate)
+            result=copy.deepcopy(candidate)
+            defaults=project.reading_preferences.get('romaji')
+            if defaults is not None:
+                from studio_backend.romanization import apply_rules
+                previous=set();offset=0
+                for old in old_units:previous.add((offset,offset+len(old['text'])));offset+=len(old['text'])
+                fresh=[];offset=0
+                for index,unit in enumerate(result.units):
+                    if (offset,offset+len(unit.text)) not in previous:fresh.append(index)
+                    offset+=len(unit.text)
+                result=apply_rules(result,fresh,defaults)['line']
+            project.lines[row]=result
             if reading_changed:project.checks.setdefault(candidate.id,{})['reading']=False
             project.source_ass_active=False
         if self.edit('应用本句分词预览' if reading_changed else '补全估算音节',apply):
@@ -519,7 +534,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         ok=dialog.exec()==QDialog.DialogCode.Accepted;text=dialog.textValue()
         if ok and text!=word.kana:
             row=self.current;uid=self.line.id
-            def apply(p):p.lines[row]=edit_reading(p.lines[row],index,text);p.checks.setdefault(uid,{})['reading']=False
+            def apply(p):p.lines[row]=edit_reading(p.lines[row],index,text,defaults=p.reading_preferences.get('romaji'));p.checks.setdefault(uid,{})['reading']=False
             if self.edit('修改词组假名',apply):self.select_target(index,-1)
 
     def set_move_mode(self,on):
@@ -655,7 +670,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             changed_reading=any(a.kana!=b.kana for a,b in zip(self.line.units,result.units))
             def apply(p):
                 p.lines[row]=result
-                if changed_reading:p.checks.setdefault(uid,{})['reading']=False
+                if changed_reading:p.checks.setdefault(uid,{})['reading']=False;p.source_ass_active=False
             if self.edit('校准句尾音节',apply):self.message('尾音修改已保存，可一步撤销；请带前音再听一次确认。')
 
     def cancel_audio(self):self.timeline.cancel_drag();self.playback.stop()
@@ -820,6 +835,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.next_callback:self.next_callback()
 
     def update_confirmation_action(self,*args):
+        self.refresh_reading_candidates()
         self.calibrate_footer.setText('✓ 确认读音，继续下一句' if self.calibration_tabs.currentIndex()==1 else '✓ 确认时间，继续下一句')
         self.calibrate_footer.setToolTip('只确认本句假名读音，再找下一句待确认读音。' if self.calibration_tabs.currentIndex()==1 else '只确认本句时间，再找下一句待确认时间；读音需单独确认。')
         if not self.refreshing and hasattr(self,'play_output_button'):self.update_workflow()
@@ -1089,7 +1105,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if not text.strip():self.message('原文不能为空；删除整句可使用歌词列表右键菜单');return
             row=self.current
             def update(p):
-                old=p.lines[row];p.lines[row]=LyricLine(old.id,text,old.start,old.end,translation=old.translation);p.checks[old.id]={'reading':False}
+                old=p.lines[row];p.lines[row]=LyricLine(old.id,text,old.start,old.end,translation=old.translation)
+                from studio_backend.translation import carry_after_lyric_edit
+                carry_after_lyric_edit(old,p.lines[row]);p.checks[old.id]={'reading':False}
             self.edit('修改本句原文',update)
 
     def delete_current(self):
@@ -1245,6 +1263,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             unit=self.line.units[i] if self.line and 0<=i<len(self.line.units) else None
             self.word_source.setText((('人工读音' if unit.reading_source=='manual' else '读音建议')+f' · {len(unit.highlights)} 音节') if unit else '先选词组或定范围')
             self.word_source.setToolTip('修改假名只重估所选词组，其他人工音节保留；时间来源可在音节上悬停查看。')
+        self.refresh_reading_candidates()
+        self.refresh_translation_tools()
         if hasattr(self,'mora_strip'):self.mora_strip.set_line(self.line,i,j)
         self.refresh_acoustic_tools()
         if hasattr(self,'inline_segment'):self.inline_segment.selected_word=i;self.inline_segment.render()
@@ -1283,11 +1303,16 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         kana=self.units.item(row,1).text();latin='' if col==1 and kana!=self.line.units[row].kana else self.units.item(row,2).text();index=self.current
         if kana==self.line.units[row].kana and latin==self.line.units[row].romaji:return
         def update(p):
-            p.lines[index]=edit_reading(p.lines[index],row,kana,latin);p.checks.setdefault(p.lines[index].id,{})['reading']=False
+            changed_kana=p.lines[index].units[row].kana!=kana
+            p.lines[index]=edit_reading(p.lines[index],row,kana,latin,p.reading_preferences.get('romaji'))
+            if changed_kana:p.checks.setdefault(p.lines[index].id,{})['reading']=False
         if not self.edit('修改词组读音',update):self.refresh_table()
     def edit_translation(self,*args):
         if not self.refreshing and self.line:
-            row=self.current;text=self.translation.text();uid=self.line.id;self.edit('修改译文',lambda p:setattr(p.lines[row],'translation',text),merge_key=('translation',uid))
+            row=self.current;text=self.translation.text();uid=self.line.id
+            if text==self.line.translation or self.line.locked:return
+            from studio_backend.translation import manual
+            self.edit('修改译文',lambda p:p.lines.__setitem__(row,manual(p.lines[row],text)),merge_key=('translation',uid))
     def flush_edits(self,allow_segmentation=False):
         if self._flushing:return True
         if not allow_segmentation and hasattr(self,'inline_segment') and self.inline_segment.pending:
@@ -1584,7 +1609,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if action=='match' and self.project.transcript_stamp and self.project.transcript_stamp!=file_stamp(self.project.media):self.message('素材已被替换，已有转录不再对应当前版本，请重新添加正确素材或重新转录');return
         context={'project':self.project.uid,'media':file_stamp(self.project.media)}
         automatic_axis=action in {'segment','match','transcribe_match','align'} and self.continuous_timing.isChecked()
-        request={'action':action,'lines':[x.to_dict() for x in lines],'media':self.project.media,'language':'ja','gap_ms':500 if automatic_axis else 0,'join_lines':bool(automatic_axis),'_studio_context':context,**options}
+        if action in {'annotate','refine','segment','match','transcribe_match','align'}:
+            from studio_backend.romanization import DEFAULT
+            options.setdefault('romanization_rules',copy.deepcopy(self.project.reading_preferences.get('romaji',DEFAULT)))
+        request={'action':action,'lines':[x.to_dict() for x in lines],'media':self.project.media,'language':'ja','gap_ms':500 if automatic_axis else 0,'join_lines':bool(automatic_axis),'_studio_context':context,'_studio_checks':copy.deepcopy(self.project.checks),**options}
         self.snapshots={x.id:x.to_dict() for x in lines}
         if action=='match' and options.get('rematch_confirmed'):
             request['_studio_snapshots']=copy.deepcopy(self.snapshots)
@@ -1623,7 +1651,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if (kana,latin)==(old.kana,old.romaji):return
         index=self.current
         def keep(p):
-            p.lines[index]=edit_reading(p.lines[index],row,kana,latin);p.checks.setdefault(p.lines[index].id,{})['reading']=False
+            changed_kana=p.lines[index].units[row].kana!=kana
+            p.lines[index]=edit_reading(p.lines[index],row,kana,latin,p.reading_preferences.get('romaji'))
+            if changed_kana:p.checks.setdefault(p.lines[index].id,{})['reading']=False
         try:self.history.apply('修改词组读音',keep)
         except ValueError:return # Invalid input stays visible for explicit repair.
         cursor=editor.cursorPosition();selection=editor.selectionStart();length=len(editor.selectedText())
@@ -1701,14 +1731,18 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 if not isinstance(acoustic_plan,dict):raise ValueError('声学任务请求格式无效，未采用。')
                 recalculation=acoustic_plan.get('recalculation',{})
                 if not isinstance(recalculation,dict):raise ValueError('内部重算许可格式无效，未采用。')
-                if not acoustic and any(h.fixed_edges for u in old.units for h in u.highlights):skipped.append(uid);continue
+                textual=bool(self.pending and self.pending.get('action') in {'refine','annotate'})
+                if not acoustic and not textual and any(h.fixed_edges for u in old.units for h in u.highlights):skipped.append(uid);continue
                 if old.locked or (old.reviewed and acoustic and not recalculation.get('allow_reviewed')) or (any(u.locked for u in old.units) and not acoustic) or old.to_dict()!=snapshots.get(uid):skipped.append(uid);continue
                 check_snapshot=self.pending.get('checks') if self.pending else None
-                if self.pending and self.pending.get('action') in {'draft','acoustic','chorus_reuse'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
+                if self.pending and self.pending.get('action') in {'draft','acoustic','chorus_reuse','refine','annotate'} and isinstance(check_snapshot,dict) and p.checks.get(uid,{})!=check_snapshot.get(uid,{}):skipped.append(uid);continue
                 if data['text']!=old.text:raise ValueError('建议更改了原歌词，已拒绝应用；原始建议仍保留')
                 same_reading=(old.kana,old.romaji,[(u.text,u.kana,u.romaji) for u in old.units])==(data.get('kana',''),data.get('romaji',''),[(u['text'],u.get('kana',''),u.get('romaji','')) for u in data.get('units',[])])
                 candidate=LyricLine.from_dict(data)
-                if not acoustic and any(h.fixed_edges for u in candidate.units for h in u.highlights):
+                if textual:
+                    from studio_backend.reading_suggestion import validate_text_result
+                    validate_text_result(old,candidate)
+                if not acoustic and not textual and any(h.fixed_edges for u in candidate.units for h in u.highlights):
                     raise ValueError('自动建议不能新建人工固定点，原内容保留。')
                 if acoustic:
                     from studio_backend.acoustic import protected_equal
@@ -1729,9 +1763,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                         from studio_backend.acoustic_guides import validate_result
                         validate_result(guide_plan,candidate)
                 p.lines[index]=candidate
-                if chorus:p.source_ass_active=False
+                if chorus or textual:p.source_ass_active=False
                 if acoustic or (self.pending and self.pending['result'].get('acoustic',{}).get('lines',{}).get(uid,{}).get('status')=='aligned'):p.source_ass_active=False
-                if not (self.pending and self.pending.get('action') in {'draft','acoustic'} and same_reading):p.checks.setdefault(uid,{})['reading']=False
+                same_japanese=(old.kana or ''.join(u.kana for u in old.units))==(candidate.kana or ''.join(u.kana for u in candidate.units)) and [(u.text,u.kana) for u in old.units]==[(u.text,u.kana) for u in candidate.units]
+                if not ((textual and same_japanese) or (self.pending and self.pending.get('action') in {'draft','acoustic'} and same_reading)):p.checks.setdefault(uid,{})['reading']=False
                 accepted.append(uid)
         self.edit('采用审核建议',apply)
         if self.validation_error:return

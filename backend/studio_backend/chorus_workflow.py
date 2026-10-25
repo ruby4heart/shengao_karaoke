@@ -129,7 +129,7 @@ async def run(request,root,report):
                 before=by_id[uid]
                 if any(before.get(k)!=value.get(k) for k in ('kana','romaji','translation','reading_review','display_start','display_end')):
                     raise ValueError('声音结果更改了复用文字或读音，原候选保留。')
-                fields=lambda row:[(u['text'],u.get('kana',''),u.get('romaji',''),u.get('reading_source',''),u.get('locked',False),[h['kana'] for h in u.get('highlights',[])]) for u in row['units']]
+                fields=lambda row:[(u['text'],u.get('kana',''),u.get('romaji',''),u.get('reading_source',''),u.get('locked',False),u.get('reading_options',{}),[h['kana'] for h in u.get('highlights',[])]) for u in row['units']]
                 if fields(before)!=fields(value):raise ValueError('声音结果更改了复用词组或读音，原候选保留。')
             state['data']={**copy.deepcopy(data),'suggestions':[updates.get(v['id'],v) for v in state['data']['suggestions']]}
             save('本段声音结果已逐句保存，仍需试听确认。','running')

@@ -77,6 +77,12 @@ def segmentation_preview(original,cuts):
     else:
         result=copy.deepcopy(original);old_cuts=cuts_for(original)
         if cuts==old_cuts:return BoundaryPreview(result,(),False)
+        cursor=0
+        for unit in original.units:
+            end=cursor+len(unit.text)
+            if unit.reading_options.get('ruby',{}).get('mode','auto')!='auto' and ((cursor and cursor not in cuts) or (end<len(original.text) and end not in cuts) or any(cursor<p<end for p in cuts)):
+                raise ValueError('这次分词会改变手工注音对应，请先在该词切回自动，或保留现有分词。旧对应与时间保持。')
+            cursor=end
         for position in old_cuts:
             if position not in cuts:
                 index=cuts_for(result).index(position);result=merge_words(result,index,index+1)

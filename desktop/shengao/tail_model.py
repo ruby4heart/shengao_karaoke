@@ -28,8 +28,10 @@ def replace_mora(original,index,part,reading):
     reading=kana_only(reading)
     if not reading or len(morae(reading))!=1:raise ValueError('这里填写一个日语音节，例如 て、す、きょ；整词读音请在注音页修改')
     if not 0<=index<len(original.units) or not 0<=part<len(original.units[index].highlights):raise ValueError('请先选择一个演唱音节')
-    line=copy.deepcopy(original);unit=line.units[index];remember(unit);remember(unit.highlights[part]);unit.highlights[part].kana=reading
-    unit.kana=''.join(h.kana for h in unit.highlights);unit.romaji=romaji(unit.kana);unit.reading_source='manual'
+    line=copy.deepcopy(original);unit=line.units[index];before=copy.deepcopy(unit);remember(unit);remember(unit.highlights[part]);unit.highlights[part].kana=reading
+    unit.kana=''.join(h.kana for h in unit.highlights);unit.reading_source='manual'
+    from studio_backend.romanization import after_reading_change
+    after_reading_change(before,unit)
     line.kana=''.join(u.kana for u in line.units);line.romaji=' '.join(u.romaji for u in line.units if u.romaji)
     manual(line);line.validate();return line
 

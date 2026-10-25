@@ -53,3 +53,20 @@ def reading_fragments(unit,start,end):
         if a<b:result.append((h.kana[a-offset:b-offset],h.start,h.end))
         offset=finish
     return result
+
+
+def unit_ruby_spans(unit,text=None):
+    """Resolve the one mapping used by preview, ASS and final video output."""
+    setting=unit.reading_options.get('ruby',{'mode':'auto'});mode=setting['mode'];visible=unit.text if text is None else text
+    if mode=='auto':return ruby_spans(visible,unit.kana)
+    from studio_backend.reading_options import validate_ruby
+    validate_ruby(setting,unit.text,unit.kana)
+    if mode=='off':return ()
+    if mode=='whole':return ((0,len(visible),0,len(unit.kana)),)
+    offset=0 if visible==unit.text else unit.text.find(visible)
+    if offset<0:raise ValueError('当前显示文字与手工注音对应不一致。')
+    spans=[]
+    for a,b,c,d in setting['spans']:
+        start,end=max(0,a-offset),min(len(visible),b-offset)
+        if start<end:spans.append((start,end,c,d))
+    return tuple(spans)

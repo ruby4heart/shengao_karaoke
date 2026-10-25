@@ -11,7 +11,7 @@ import sys
 from . import api
 from .convert import annotation_suggestion, eleven_lines, mai_lines
 from .media import extract
-from .model import LyricLine, align_characters, plain_ass
+from .model import LyricLine,Unit, align_characters, plain_ass
 from .settings import Settings, atomic_json
 from .continuity import continuous_result,DEFAULT_GAP_MS
 
@@ -45,7 +45,21 @@ def alignment_suggestions(lines,raw,start=0):
 
 
 def timing_result(result,request):
-    return continuous_result(result,request.get('gap_ms',0),request.get('join_lines',False))
+    result=continuous_result(result,request.get('gap_ms',0),request.get('join_lines',False))
+    rules=request.get('romanization_rules')
+    if rules is not None and request.get('action') in {'match','transcribe_match','align'}:
+        from .romanization import apply_rules,validate_rules
+        validate_rules(rules)
+        for data in result.get('suggestions',[]):
+            if data.get('match',{}).get('status')=='protected':continue
+            line=LyricLine.from_dict(data)
+            indices=[i for i,u in enumerate(line.units) if not u.reading_options.get('romaji')]
+            value=apply_rules(line,indices,rules)['line'];data.update(value.to_dict())
+            for choice in data.get('match',{}).get('candidates',[]):
+                candidate=LyricLine(line.id,line.text,choice['start'],choice['end'],[Unit(**u) for u in choice['units']])
+                candidate=apply_rules(candidate,[i for i,u in enumerate(candidate.units) if not u.reading_options.get('romaji')],rules)['line']
+                choice['units']=candidate.to_dict()['units']
+    return result
 
 
 async def operation(request, root, report):
@@ -79,7 +93,7 @@ async def operation(request, root, report):
         if draft.get('media_fingerprint') and await asyncio.to_thread(fingerprint,media)!=draft['media_fingerprint']:
             raise ValueError('素材内容已变化，未生成新的歌词；原文草稿保留')
         report('confirming_text','在本机按已核对原文生成可编辑粗稿；不重新上传')
-        return await asyncio.to_thread(confirmed_lines,draft,transcript)
+        return await asyncio.to_thread(confirmed_lines,draft,transcript,request.get('romanization_rules'))
     if action not in {'transcribe','align','annotate','export','match','transcribe_match','segment','refine'}:
         raise ValueError('不支持的后台操作')
     lines=[LyricLine.from_dict(line) for line in request.get('lines',[])]
@@ -87,13 +101,13 @@ async def operation(request, root, report):
         from .export import export_file
         return export_file(lines,request)
     if action=='refine':
-        from .analysis import analyze_line,annotation_input,protected
+        from .analysis import analyze_line,annotation_input,reading_protected as protected
         if not lines:raise ValueError('请先选择要二次校对的歌词')
         transcript=[LyricLine.from_dict(item) for item in request.get('transcript',[])]
         report('analyzing','结合转录、原歌词和词典分析读音及短空隙；原文保持不变')
         values=[];protected_ids=[]
         for line in lines:
-            value,skipped=await asyncio.to_thread(analyze_line,line,transcript,request.get('gap_ms',0),request.get('preserve_legacy',False),request.get('preserve_manual',True));values.append(value)
+            value,skipped=await asyncio.to_thread(analyze_line,line,transcript,request.get('gap_ms',0),request.get('preserve_legacy',False),request.get('preserve_manual',True),request.get('romanization_rules'));values.append(value)
             if not skipped and transcript:
                 value.reading_review['source_verified']=bool(request.get('transcript_verified'))
                 if not request.get('transcript_verified') and not request.get('manual_source'):
@@ -106,7 +120,7 @@ async def operation(request, root, report):
             context=[LyricLine.from_dict(item) for item in request.get('context',[])] or lines
             pending=[]
             for index,value in enumerate(values):
-                if protected(value,reviewed=False):continue
+                if protected(value):continue
                 position=next((i for i,item in enumerate(context) if item.id==value.id),-1)
                 neighbors=(context[position-1].text if position>0 else '',context[position+1].text if 0<=position<len(context)-1 else '')
                 payload=await asyncio.to_thread(annotation_input,value,transcript,neighbors)
@@ -133,10 +147,10 @@ async def operation(request, root, report):
                     warnings.append('后续批次失败：'+str(error)+'；已完成结果已保留，未自动重试。')
                     break
                 for (index,_),annotation in zip(batch,annotations):
-                    value=values[index];result=annotation_suggestion(value,annotation)
+                    value=values[index];result=annotation_suggestion(value,annotation,request.get('romanization_rules'))
                     result.reading_review['method']='deepseek+transcript'
                     for word,group,unit in zip(result.reading_review.get('words',[]),annotation['groups'],result.units):
-                        word['suggested']=unit.kana;word['suggested_romaji']=unit.romaji
+                        word['suggested']=unit.kana;word['deepseek_suggested']=group['kana'];word['suggested_romaji']=unit.romaji
                         word['changed']=word['before']!=unit.kana or word.get('before_romaji','')!=unit.romaji
                         word['basis']='manual' if unit.reading_source=='manual' else 'deepseek'
                         word['reason']=group.get('reason','')
@@ -153,7 +167,7 @@ async def operation(request, root, report):
         report('segmenting','正在本地按原歌词分词、生成假名；不使用转录空格')
         suggestions=[];protected=[]
         for line in lines:
-            value,skipped=await asyncio.to_thread(segment_line,line,request.get('mode','words'))
+            value,skipped=await asyncio.to_thread(segment_line,line,request.get('mode','words'),request.get('romanization_rules'))
             if not skipped and value.match.get('status')=='unmatched':value.match={}
             suggestions.append(value.to_dict())
             if skipped:protected.append(line.id)
@@ -193,9 +207,11 @@ async def operation(request, root, report):
     diagnostics={}
     if action=='annotate':
         report('annotating','DeepSeek 正在生成假名、罗马音和中文翻译；完成后需人工审核')
-        annotations=await api.deepseek_annotate([{'id':line.id,'text':line.text} for line in lines],key,
+        from .analysis import annotation_input
+        payloads=[annotation_input(line,[],('','')) if line.units else {'id':line.id,'text':line.text} for line in lines]
+        annotations=await api.deepseek_annotate(payloads,key,
                                                config.get('model') or 'deepseek-flash',diagnostics)
-        suggestions=[annotation_suggestion(line,annotation).to_dict() for line,annotation in zip(lines,annotations)]
+        suggestions=[annotation_suggestion(line,annotation,request.get('romanization_rules')).to_dict() for line,annotation in zip(lines,annotations)]
         return {'suggestions':suggestions,'annotations':annotations,'diagnostics':diagnostics,'review_required':True}
     media=Path(request['media'])
     if not media.is_file():

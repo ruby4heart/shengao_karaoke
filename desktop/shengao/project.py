@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=11
+SCHEMA=12
 
 @dataclass
 class Style:
@@ -81,6 +81,8 @@ class Project:
     lines:list=field(default_factory=list)
     style:Style=field(default_factory=Style)
     color_styles:dict=field(default_factory=dict)
+    reading_dictionary:dict=field(default_factory=dict)
+    reading_preferences:dict=field(default_factory=dict)
     font_assets:dict=field(default_factory=dict)
     checks:dict=field(default_factory=dict)
     transcript:list=field(default_factory=list)
@@ -128,6 +130,12 @@ class Project:
             import os
             current=self.media_versions.get(self.media_role)
             if not current or os.path.normcase(os.path.abspath(current.path))!=os.path.normcase(os.path.abspath(self.media)):raise ValueError('当前源与视频版本不一致')
+        from studio_backend.reading_dictionary import validate as validate_reading_dictionary
+        validate_reading_dictionary(self.reading_dictionary)
+        if not isinstance(self.reading_preferences,dict) or set(self.reading_preferences)-{'romaji'}:raise ValueError('读音默认设置无效')
+        if 'romaji' in self.reading_preferences:
+            from studio_backend.romanization import validate_rules
+            validate_rules(self.reading_preferences['romaji'])
         self.style.validate()
         from .color_states import validate_settings
         validate_settings(self.color_styles,ids)
@@ -148,11 +156,14 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if version not in (1,2,3,4,5,6,7,8,9,10,11): raise ValueError('工程版本较新，请使用对应版本软件')
+        if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version<12 and (data.get('reading_dictionary') or data.get('reading_preferences')):raise ValueError('读音词典与规则需要第 12 版工程格式')
         if version<10 and data.get('color_styles'):raise ValueError('详细颜色设置需要第 10 版工程格式')
         fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')
+        if any(not isinstance(line.get('units',[]),list) or any(not isinstance(u,dict) for u in line.get('units',[])) for line in raw_lines):raise ValueError('词组列表格式无效')
+        if version<12 and any(u.get('reading_options') for line in raw_lines for u in line.get('units',[])):raise ValueError('注音对应与罗马音设置需要第 12 版工程格式')
         if version<11 and any(h.get('fixed_edges') for line in raw_lines for unit in line.get('units',[]) if isinstance(unit,dict) for h in unit.get('highlights',[]) if isinstance(h,dict)):
             raise ValueError('人工固定起止点需要第 11 版工程格式')
         if version>=2 and any(not x.get('text') for x in raw_lines):raise ValueError('工程包含缺失或空白的歌词记录')

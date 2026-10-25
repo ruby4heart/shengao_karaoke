@@ -46,6 +46,7 @@ class Unit:
     highlights: list[Highlight] = field(default_factory=list)
     reading_source: str = ''
     timing_origin: dict = field(default_factory=dict)
+    reading_options: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.highlights=[Highlight(**h) if isinstance(h,dict) else h for h in self.highlights]
@@ -53,6 +54,8 @@ class Unit:
     def validate(self):
         from .provenance import validate
         validate(self.timing_origin)
+        from .reading_options import validate as validate_reading_options
+        validate_reading_options(self.reading_options,self.text,self.kana,self.romaji)
         if not isinstance(self.text, str) or len(self.text) > 20000:
             raise ValueError('音节文字无效')
         if type(self.start) is not int or type(self.end) is not int or self.start < 0 or self.end < self.start:
@@ -149,6 +152,7 @@ class LyricLine:
         for item in [value,*value['units'],*(h for u in value['units'] for h in u['highlights'])]:
             if not item.get('timing_origin'):item.pop('timing_origin',None)
             if 'fixed_edges' in item and not item['fixed_edges']:item.pop('fixed_edges')
+            if 'reading_options' in item and not item['reading_options']:item.pop('reading_options')
         return value
 
     def karaoke(self, tag='kf', furigana=False):
