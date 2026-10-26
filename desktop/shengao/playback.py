@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt,Signal,Slot,QTimer,QElapsedTimer,QUrl,QEvent,QSize,QRectF
-from PySide6.QtGui import QPainter,QColor,QImage,QLinearGradient
+from PySide6.QtGui import QPainter,QColor,QImage,QLinearGradient,QTransform
 from PySide6.QtWidgets import QWidget,QScrollArea,QFrame
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFrame
 from .render import AssRenderer
@@ -17,7 +17,11 @@ class VideoCanvas(QWidget):
     def video_frame(self,frame):
         image=frame.toImage()
         if not image.isNull():
-            changed=self.frame.size()!=image.size();self.frame=image;self.aspect=image.width()/image.height()
+            # toImage already applies the surface format's transform. Only
+            # the separate frame presentation transform remains (Qt 6.12).
+            if frame.rotation().value:image=image.transformed(QTransform().rotate(frame.rotation().value))
+            if frame.mirrored():image=image.flipped(Qt.Orientation.Horizontal)
+            changed=self.frame.size()!=image.size();self.frame=image
             if changed:self.frameSizeChanged.emit(image.width(),image.height())
             self.update()
 
@@ -162,6 +166,9 @@ class Playback(QWidget):
 
     def set_frame_size(self,width,height):
         self.set_source_size(*(self.reference_size or (width,height)))
+
+    def set_reference_size(self,width,height):
+        self.reference_size=(int(width),int(height));self.set_source_size(*self.reference_size)
 
     def set_source_size(self,width,height):
         self.source_size=QSize(max(16,width),max(16,height));self.canvas.aspect=width/max(1,height);self.resize_canvas()

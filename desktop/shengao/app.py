@@ -1668,7 +1668,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if self.project.uid!=uid or self.project.media!=path:return
             self.timeline.set_audio(result)
             self.original_audio=result
-            p=self.project;p.duration=int(result['duration']);p.width=int(result['width']);p.height=int(result['height']);p.fps=float(result['fps']);p.media_stamp=file_stamp(path);p.has_video=bool(result['has_video']);self.playback.canvas.audio_only=not p.has_video;self.playback.set_source_size(p.width,p.height)
+            p=self.project;p.duration=int(result['duration']);p.width=int(result['width']);p.height=int(result['height']);p.fps=float(result['fps']);p.media_stamp=file_stamp(path);p.has_video=bool(result['has_video']);self.playback.canvas.audio_only=not p.has_video;self.playback.set_reference_size(p.width,p.height)
             if p.media_role in p.media_versions:p.media_versions[p.media_role]=MediaVersion(path,p.duration,p.media_stamp.copy())
             self.refresh();self.seek_slider.setMaximum(self.project.duration);self.message('音频波形已就绪。')
         def failed(message):

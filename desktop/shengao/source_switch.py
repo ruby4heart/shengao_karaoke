@@ -79,7 +79,7 @@ class SourceSwitch:
             if not valid() or self.project.uid!=uid or self.project.media_role!=old_role or file_stamp(self.project.media)!=old_stamp or file_stamp(path)!=stamp:self.message('素材版本已变化，本次未切换。');return
             position=self.playback.canvas.position;zoom=self.playback.zoom
             if not self.edit('切换到'+ROLES[role],lambda p:apply_media_version(p,role,path,result,stamp)):return
-            self.clear_media();self.playback.open(path,position,preview=True);self.timeline.set_audio(result);self.original_audio=result;self.playback.canvas.audio_only=not self.project.has_video;self.playback.set_source_size(self.project.width,self.project.height);self.playback.set_zoom(zoom)
+            self.clear_media();self.playback.open(path,position,preview=True);self.timeline.set_audio(result);self.original_audio=result;self.playback.canvas.audio_only=not self.project.has_video;self.playback.set_reference_size(self.project.width,self.project.height);self.playback.set_zoom(zoom)
             target=min(position,max(0,self.project.duration-1));self.playback.seek(target)
             self.seek_slider.setMaximum(self.project.duration);self.refresh();self.save_recovery()
             self.message('已切到'+ROLES[role]+'：歌词、注音和时间轴保持；预览、频谱与导出使用此源。'+(' 请检查两版同步及片尾。' if warnings else ''))

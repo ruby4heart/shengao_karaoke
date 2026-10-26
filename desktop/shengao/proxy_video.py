@@ -7,9 +7,11 @@ from pathlib import Path
 import hashlib,json,os,queue,re,subprocess,tempfile,threading,time
 from .paths import ffmpeg
 from .project import file_stamp
+from .video_geometry import geometry
+import math
 
-VERSION='h264-pcm-preview-v1'
-PROFILE={'max_width':1280,'max_height':720,'video':'h264_mf_cpu','bitrate':3000000,'audio':'pcm_s16le'}
+VERSION='h264-pcm-preview-display-v2'
+PROFILE={'max_width':1280,'max_height':720,'video':'h264_mf_cpu','bitrate':3000000,'audio':'pcm_s16le','square_pixels':True,'rotation_baked':True}
 
 
 def cancelled(cancel):
@@ -33,15 +35,26 @@ class TimingAudit:
         self.pts=array('q');self.width=0;self.height=0;self.last_duration=0
         self.samples=0;self.rate=0;self.channels=0;self.audio_start=None;self.audio_end=None
         self.audio_packets=0
+        self.sar_num=0;self.sar_den=0;self.input_lines=[];self.input_selected=False;self.input_done=False
 
     def feed(self,line):
+        if not self.input_done:
+            if line.startswith('Output #'):self.input_done=True
+            elif 'Stream #' in line:
+                if self.input_selected:self.input_done=True
+                elif 'Video:' in line and 'attached pic' not in line.lower():self.input_selected=True;self.input_lines.append(line)
+            elif self.input_selected and re.search(r'rotation of\s+[-+\d.]+',line,re.I):self.input_lines.append(line)
         if 'Parsed_showinfo_' in line and 'pts_time:' in line:
             match=re.search(r'\bn:\s*(\d+)\s+pts:.*?pts_time:([^\s]+).*?duration_time:([^\s]+).*?\bs:(\d+)x(\d+)',line)
             if not match:raise ValueError('无法完整核对视频帧时间，代理未采用。')
             if int(match[1])!=len(self.pts):raise ValueError('视频帧核对记录不连续，代理未采用。')
             pts=microseconds(match[2]);duration=microseconds(match[3]);width,height=int(match[4]),int(match[5])
+            sar=re.search(r'\bsar:(\d+)/(\d+)',line)
+            if not sar or not int(sar[2]):raise ValueError('无法核对视频像素比例，代理未采用。')
+            sar_num,sar_den=int(sar[1]),int(sar[2])
+            if self.pts and (sar_num,sar_den)!=(self.sar_num,self.sar_den):raise ValueError('视频中途改变像素比例，代理未采用。')
             if self.pts and (pts<self.pts[-1] or (width,height)!=(self.width,self.height)):raise ValueError('视频时间倒序或中途改变尺寸，代理未采用。')
-            self.pts.append(pts);self.last_duration=duration;self.width=width;self.height=height
+            self.pts.append(pts);self.last_duration=duration;self.width=width;self.height=height;self.sar_num=sar_num;self.sar_den=sar_den
         elif 'Parsed_ashowinfo_' in line and 'pts_time:' in line:
             match=re.search(r'\bn:(\d+)\s+pts:.*?pts_time:([^\s]+).*?channels:(\d+).*?rate:(\d+).*?nb_samples:(\d+)',line)
             if not match:raise ValueError('无法完整核对声音时间，代理未采用。')
@@ -56,7 +69,7 @@ class TimingAudit:
         if not self.pts or not self.samples:raise ValueError('代理需要完整的视频和音频，当前素材保持。')
         return {'video_frames':len(self.pts),'video_start_us':self.pts[0],'video_last_us':self.pts[-1],
                 'video_end_us':self.pts[-1]+self.last_duration,'frame_times_sha256':hashlib.sha256(self.pts.tobytes()).hexdigest(),
-                'width':self.width,'height':self.height,'audio_samples':self.samples,'sample_rate':self.rate,
+                'width':self.width,'height':self.height,'sar_num':self.sar_num,'sar_den':self.sar_den,'input_geometry':geometry('\n'.join(self.input_lines)),'audio_samples':self.samples,'sample_rate':self.rate,
                 'channels':self.channels,'audio_start_us':self.audio_start,'audio_end_us':self.audio_end}
 
 
@@ -66,10 +79,14 @@ def compare_timing(source,proxy):
     drift=max(max(abs(x-y) for x,y in zip(source.pts,proxy.pts)),abs(a['video_end_us']-b['video_end_us']))
     if drift>1000:raise ValueError(f'代理视频时间相差 {drift/1000:.3f}ms，未采用；原片保持。')
     if (a['width'],a['height'])!=(b['width'],b['height']) or b['width']>1280 or b['height']>720:raise ValueError('代理尺寸核对失败，原片保持。')
+    if any(v['sar_num']!=v['sar_den'] or v['sar_den']<=0 for v in (a,b)) or b['input_geometry']['rotation_ccw']!=0:raise ValueError('代理仍含像素拉伸或旋转元数据，尚未采用。')
+    original=a['input_geometry'];dar=original['display_width']/original['display_height']
+    display_error=min(abs(b['width']-b['height']*dar),abs(b['height']-b['width']/dar))
+    if display_error>2:raise ValueError('代理显示比例与原片不同，尚未采用。')
     if any(a[key]!=b[key] for key in ('audio_samples','sample_rate','channels')):raise ValueError('代理声音样本与原片不同，未采用。')
     audio_drift=max(abs(a[key]-b[key]) for key in ('audio_start_us','audio_end_us'))
     if audio_drift>2000:raise ValueError(f'代理声音时间相差 {audio_drift/1000:.3f}ms，未采用。')
-    return {'source':a,'proxy':b,'max_video_drift_us':drift,'max_audio_edge_drift_us':audio_drift}
+    return {'source':a,'proxy':b,'max_video_drift_us':drift,'max_audio_edge_drift_us':audio_drift,'display_error_pixels':display_error}
 
 
 def run(command,cancel=None,progress=lambda value:None,audit=None,phase='processing'):
@@ -107,9 +124,9 @@ def run(command,cancel=None,progress=lambda value:None,audit=None,phase='process
 
 
 def command(source,target):
-    scale="scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,showinfo=checksum=0"
+    scale="scale=w='min(1280,iw*max(1,if(gt(sar,0),sar,1)))':h='min(720,ih*max(1,if(gt(sar,0),1/sar,1)))':force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1,showinfo=checksum=0"
     return [ffmpeg(),'-hide_banner','-nostdin','-y','-copyts','-start_at_zero','-threads','2','-i',source,
-        '-map','0:v:0','-map','0:a:0','-vf',scale,'-filter_threads','2',
+        '-map','0:V:0','-map','0:a:0','-vf',scale,'-filter_threads','2',
         '-c:v','h264_mf','-hw_encoding','0','-b:v','3M','-pix_fmt','nv12','-bf','0','-g','48',
         '-enc_time_base:v','demux','-fps_mode:v','passthrough','-c:a','pcm_s16le',
         '-avoid_negative_ts','disabled','-map_metadata','-1','-map_chapters','-1','-progress','pipe:1','-nostats',target]
@@ -118,7 +135,7 @@ def command(source,target):
 def scan(path,cancel,progress):
     audit=TimingAudit()
     run([ffmpeg(),'-hide_banner','-nostdin','-copyts','-start_at_zero','-threads','2','-i',path,
-         '-map','0:v:0','-vf','showinfo=checksum=0','-an',
+         '-map','0:V:0','-vf','showinfo=checksum=0','-an',
          '-fps_mode:v','passthrough','-progress','pipe:1','-nostats','-f','null','-'],cancel,progress,audit,'verify')
     if not audit.pts:raise ValueError('没有完整的视频核对记录，代理未采用。')
     return audit
@@ -151,16 +168,22 @@ def ready_record(value,source_hash,engine_hash):
     audit=value.get('verification')
     if not isinstance(audit,dict) or type(audit.get('max_video_drift_us')) is not int or not 0<=audit['max_video_drift_us']<=1000 or type(audit.get('max_audio_edge_drift_us')) is not int or not 0<=audit['max_audio_edge_drift_us']<=2000:raise ValueError('代理同步记录无效')
     if not isinstance(value.get('audio_sha256'),str) or not re.fullmatch('[0-9a-f]{64}',value['audio_sha256']):raise ValueError('代理声音指纹无效')
-    required={'video_frames','video_start_us','video_last_us','video_end_us','frame_times_sha256','width','height','audio_samples','sample_rate','channels','audio_start_us','audio_end_us'}
+    if isinstance(audit.get('display_error_pixels'),bool) or not isinstance(audit.get('display_error_pixels'),(int,float)) or not math.isfinite(audit['display_error_pixels']) or not 0<=audit['display_error_pixels']<=2:raise ValueError('代理显示比例核对记录无效')
+    required={'video_frames','video_start_us','video_last_us','video_end_us','frame_times_sha256','width','height','sar_num','sar_den','input_geometry','audio_samples','sample_rate','channels','audio_start_us','audio_end_us'}
     summaries=[]
     for name in ('source','proxy'):
         record=audit.get(name)
-        if not isinstance(record,dict) or set(record)!=required or any(type(record[k]) is not int for k in required-{'frame_times_sha256'}):raise ValueError('代理同步明细无效')
+        if not isinstance(record,dict) or set(record)!=required or any(type(record[k]) is not int for k in required-{'frame_times_sha256','input_geometry'}):raise ValueError('代理同步明细无效')
         if not isinstance(record['frame_times_sha256'],str) or not re.fullmatch('[0-9a-f]{64}',record['frame_times_sha256']):raise ValueError('代理帧时间指纹无效')
         if any(record[k]<=0 for k in ('video_frames','width','height','audio_samples','sample_rate','channels')) or not record['video_start_us']<=record['video_last_us']<=record['video_end_us'] or record['audio_start_us']>=record['audio_end_us']:raise ValueError('代理同步范围无效')
         if record['width']>1280 or record['height']>720:raise ValueError('代理尺寸过大')
+        if record['sar_num']!=record['sar_den'] or record['sar_den']<=0:raise ValueError('代理像素比例无效')
+        display=record['input_geometry'];keys={'coded_width','coded_height','sar_num','sar_den','rotation_ccw','display_width','display_height'}
+        if not isinstance(display,dict) or set(display)!=keys or any(type(display[k]) is not int or display[k]<=0 for k in keys-{'rotation_ccw'}):raise ValueError('原片显示几何记录无效')
+        if isinstance(display['rotation_ccw'],bool) or not isinstance(display['rotation_ccw'],(int,float)) or not math.isfinite(display['rotation_ccw']) or not 0<=display['rotation_ccw']<360:raise ValueError('原片显示方向无效')
         summaries.append(record)
     a,b=summaries
+    if b['input_geometry']['rotation_ccw']!=0 or b['input_geometry']['sar_num']!=b['input_geometry']['sar_den']:raise ValueError('代理显示元数据未归一化')
     if any(a[k]!=b[k] for k in ('video_frames','audio_samples','sample_rate','channels','width','height')):raise ValueError('代理同步明细不一致')
     if any(abs(a[k]-b[k])>1000 for k in ('video_start_us','video_last_us','video_end_us')) or any(abs(a[k]-b[k])>2000 for k in ('audio_start_us','audio_end_us')):raise ValueError('代理同步边界不一致')
 
@@ -220,7 +243,7 @@ def prepare_mix(base,audition,cache,cancel=None,progress=lambda value:None):
         with tempfile.TemporaryDirectory(prefix='pending-',dir=folder) as temporary:
             target=Path(temporary)/'preview.mkv';progress('正在为人声试听准备轻量视频，保持当前试听与编辑…')
             run([ffmpeg(),'-hide_banner','-loglevel','error','-nostdin','-y','-copyts','-start_at_zero',
-                 '-i',base_path,'-i',audition,'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','pcm_s16le',
+                 '-i',base_path,'-i',audition,'-map','0:V:0','-map','1:a:0','-c:v','copy','-c:a','pcm_s16le',
                  '-avoid_negative_ts','disabled','-map_metadata','-1','-map_chapters','-1',target],cancel)
             source_audit=scan(base_path,cancel,progress);proxy_audit=scan(target,cancel,progress)
             source_audio=audio_digest(audition,cancel,source_audit);proxy_audio=audio_digest(target,cancel,proxy_audit)

@@ -8,9 +8,7 @@ import tempfile
 import time
 import numpy as np
 from .paths import ffmpeg
-
-def video_stream(log):
-    return next((line for line in log.splitlines() if 'Stream #' in line and 'Video:' in line and 'attached pic' not in line.lower()),'')
+from .video_geometry import video_stream,geometry
 
 def has_video(path):
     result=subprocess.run([ffmpeg(),'-hide_banner','-nostdin','-i',str(path)],capture_output=True,timeout=30,creationflags=subprocess.CREATE_NO_WINDOW)
@@ -45,7 +43,7 @@ def original_rate(path,rate,cancel=None):
 
 def keyframes(path,cancel=None):
     command=[ffmpeg(),'-hide_banner','-nostdin','-skip_frame','nokey','-i',str(path),
-             '-map','0:v:0','-vf','showinfo','-an','-sn','-fps_mode','passthrough','-f','null','-']
+             '-map','0:V:0','-vf','showinfo','-an','-sn','-fps_mode','passthrough','-f','null','-']
     with tempfile.TemporaryFile() as errors:
         process=subprocess.Popen(command,stdout=subprocess.DEVNULL,stderr=errors,creationflags=subprocess.CREATE_NO_WINDOW)
         try:
@@ -73,13 +71,13 @@ def analyze(path,cache,cancel=None,progress=lambda x:None):
                 result.update(data)
         return result.hexdigest()
     progress('正在核对素材内容与音频缓存…');source_hash=fingerprint(path)
-    signature=hashlib.sha256(f'{path.resolve()}:{source_hash}:aeg-pcm-keyframes-v7'.encode()).hexdigest()
+    signature=hashlib.sha256(f'{path.resolve()}:{source_hash}:aeg-pcm-keyframes-display-v8'.encode()).hexdigest()
     target=Path(cache)/(signature+'.npz');target.parent.mkdir(parents=True,exist_ok=True);pcm=target.with_suffix('.s16')
     if target.exists() and pcm.exists() and pcm.stat().st_size:
         try:
             with np.load(target,allow_pickle=False) as saved:
                 data={k:saved[k] for k in saved.files}
-            if (all(k in data for k in ('sample_rate','duration','peaks','keyframes','width','height','fps','has_video','frames','pcm_sha256','source_sha256')) and
+            if (all(k in data for k in ('sample_rate','duration','peaks','keyframes','width','height','fps','has_video','frames','pcm_sha256','source_sha256','coded_width','coded_height','sar_num','sar_den','rotation_ccw','display_width','display_height')) and
                     str(data['source_sha256'])==source_hash and int(data['frames'])*2==pcm.stat().st_size and fingerprint(pcm)==str(data['pcm_sha256'])):
                 if not stable() or fingerprint(path)!=source_hash:raise ValueError('素材在读取缓存期间已变化，请重新载入')
                 return {**data,'pcm':str(pcm)}
@@ -114,14 +112,15 @@ def analyze(path,cache,cancel=None,progress=lambda x:None):
         rate_match=re.search(r'Audio:.*? (\d+) Hz',log);rate=int(rate_match[1]) if rate_match else 48000
         if rate<32000:
             progress('正在对齐原版低采样率音频');rate=original_rate(staging,rate,cancel);count=staging.stat().st_size//2
-        video=video_stream(log);size=re.search(r'Video:.*? (\d{2,5})x(\d{2,5})(?:[ ,\[])',video);fps=re.search(r'(\d+(?:\.\d+)?) fps',video)
+        video=video_stream(log);display=geometry(log);fps=re.search(r'(\d+(?:\.\d+)?) fps',video)
         result={'peaks':np.asarray(peaks,np.float32),'spectrum':np.empty((96,0),np.uint8),
                 'duration':np.array(round(count*1000/rate)),'sample_rate':np.array(rate),
-                'width':np.array(int(size[1]) if size else 1920),'height':np.array(int(size[2]) if size else 1080),
+                'width':np.array(display['display_width']),'height':np.array(display['display_height']),
                 'fps':np.array(float(fps[1]) if fps else 25),'has_video':np.array(bool(video))}
         result.update(source_sha256=np.array(source_hash),pcm_sha256=np.array(fingerprint(staging)),frames=np.array(count))
-        progress('正在索引视频关键帧' if size else '音频分析完成')
-        result['keyframes']=np.asarray(keyframes(path,cancel) if size else [],np.int64)
+        result.update({name:np.array(value) for name,value in display.items()})
+        progress('正在索引视频关键帧' if video else '音频分析完成')
+        result['keyframes']=np.asarray(keyframes(path,cancel) if video else [],np.int64)
         if cancelled():raise ValueError('已取消音频分析')
         if not stable() or fingerprint(path)!=source_hash:raise ValueError('素材在分析期间已变化，请重新载入；原文件保持')
         np.savez_compressed(metadata,**result)

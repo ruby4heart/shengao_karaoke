@@ -12,6 +12,7 @@ from .paths import ffmpeg
 from .fonts import resolve_font
 from .subtitles import compose
 from .media import has_video
+from .video_geometry import SQUARE_FILTER
 
 @dataclass
 class EncodeOptions:
@@ -79,7 +80,8 @@ def encode(project,options,cancel=None,progress=lambda x:None):
         elif options.size!='source':raise ValueError('输出尺寸选项无效')
         command=[ffmpeg(),'-hide_banner','-loglevel','error','-nostdin','-y']
         if video:
-            command+=['-i',str(Path(project.media).resolve()),'-map','0:v:0','-map','0:a:0?']
+            command+=['-i',str(Path(project.media).resolve()),'-map','0:V:0','-map','0:a:0?']
+            filter_text=SQUARE_FILTER+','+filter_text
         else:
             command+=['-f','lavfi','-i',f'color=c=0x0c1423:s={project.width}x{project.height}:r={project.fps:g}',
                       '-i',str(Path(project.media).resolve()),'-map','0:v:0','-map','1:a:0']
