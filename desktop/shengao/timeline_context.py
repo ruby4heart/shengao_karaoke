@@ -79,6 +79,9 @@ class PreviousContext(QWidget):
     def set_compact(self,compact,hide_caption=False):
         self.caption.setVisible(not hide_caption);self.layout().setSpacing(0 if hide_caption else 3)
         self.listen.setVisible(not compact);self.edit.setVisible(not compact);self.lane.setFixedHeight(23 if compact else 27)
+        # Its parent splitter asks for the minimum synchronously during resize.
+        # Clear this inner layout's old 23px lane hint before that query.
+        self.layout().invalidate();self.layout().activate();self.updateGeometry()
 
     def refresh(self):
         t=self.timeline;previous=self.lane.neighbour();current=t.preview_line();self.setVisible(bool(previous and current))

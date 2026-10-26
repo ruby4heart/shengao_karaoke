@@ -258,6 +258,6 @@ def layout_issues(project):
         if s.show_translation and text_width(metric_font(str(trans),s.translation_size,s.translation_font),line.translation)>1792:result.append((line.id,'译文较长，请缩小字号或拆行'))
     if s.display_mode=='alternating':
         for i,(line,window) in enumerate(zip(project.lines,display_windows(project))):
-            if window.slot>=2:result.append((line.id,'有三句以上同时演唱，已增加临时字幕行；请检查是否误匹配了重复歌词'))
+            if window.slot>=2:result.append((line.id,'有三句以上字幕同时显示，已增加临时字幕行；请检查留屏时间或重复歌词匹配'))
             if i and line.start<project.lines[i-1].start:result.append((line.id,'本句演唱早于上一句，请检查重复歌词的匹配顺序'))
     return result

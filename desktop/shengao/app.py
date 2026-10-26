@@ -17,6 +17,8 @@ from .project import Project,Style,History,load_project,save_project,file_stamp
 from .fonts import bundled_fonts,register_qt_fonts,missing,font_weight,family_name
 from .subtitles import compose,layout_issues
 from .presentation import display_windows
+from .display_ribbon import DisplayTimingRibbon
+from .display_timing import change_display
 from .playback import Playback
 from .timeline import Timeline,stamp
 from .timeline_context import PreviousContext
@@ -132,7 +134,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         middle=QFrame();middle.setObjectName('card');middle_layout=vertical(middle,0);self.center_pages=QStackedWidget();middle_layout.addWidget(self.center_pages)
         self.welcome=WelcomePane(self.add_media,self.paste_lyrics,self.open_dialog,self.open_demo);self.welcome.openProject.connect(self.open_recent);self.welcome.set_recent(self.preferences.recent())
         welcome_scroll=QScrollArea();welcome_scroll.setWidgetResizable(True);welcome_scroll.setWidget(self.welcome);welcome_scroll.setMinimumSize(0,0);self.center_pages.addWidget(welcome_scroll)
-        workspace=QWidget();ml=vertical(workspace,10);ml.setSpacing(8);self.center_pages.addWidget(workspace)
+        workspace=QWidget();workspace.setObjectName('workspace');self.workspace=workspace;ml=vertical(workspace,10);ml.setSpacing(8)
+        self.workspace_scroll=QScrollArea();self.workspace_scroll.setWidgetResizable(True);self.workspace_scroll.setFrameShape(QFrame.Shape.NoFrame);self.workspace_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff);self.workspace_scroll.setMinimumSize(0,0);self.workspace_scroll.setWidget(workspace);self.center_pages.addWidget(self.workspace_scroll)
+        self._center_reveal_widget=None;self._center_reveal_geometry=None;self._center_reveal_attempts=0;self.center_reveal_timer=QTimer(self);self.center_reveal_timer.setSingleShot(True);self.center_reveal_timer.timeout.connect(self.reveal_center_target)
         self.current_text=label('从拖入视频和原歌词开始','heading');current_row=QHBoxLayout();current_row.addWidget(self.current_text,1);self.original_button=button('编辑原歌词',self.edit_original);current_row.addWidget(self.original_button);ml.addLayout(current_row)
         self.current_info=label('新用户可以打开离线练习，不需要 API 密钥。','muted');ml.addWidget(self.current_info)
         self.edit_tools=QWidget();tools_row=QHBoxLayout(self.edit_tools);tools_row.setContentsMargins(0,0,0,0);tools_row.setSpacing(6)
@@ -144,7 +148,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.quick_tail.setToolTip('在主编辑区带前音慢放、循环、增强与原声对照；没有选择时定位句尾。另保留独立放大微调窗口。');ml.addWidget(self.edit_tools)
         self.center_split=QSplitter(Qt.Orientation.Vertical);self.center_split.setChildrenCollapsible(False)
         preview_group=QWidget();self.preview_group=preview_group;vl=vertical(preview_group,0)
-        self.playback=Playback();vl.addWidget(self.playback,1)
+        self.playback=Playback();self.playback.viewport.setMinimumHeight(280);vl.addWidget(self.playback,1)
         self.preview_tools=QWidget();preview_tools=QHBoxLayout(self.preview_tools);preview_tools.setContentsMargins(0,0,0,0);preview_tools.addWidget(label('视频预览','muted',False))
         self.video_zoom=QComboBox();self.video_zoom.setMinimumContentsLength(6);self.video_zoom.addItem('适合窗口',None)
         for value in [.125,.25,.375,.5,.625,.75,.875,1.,1.25,1.5,2.,3.,4.,10.]:self.video_zoom.addItem(f'{value*100:g}%',value)
@@ -158,21 +162,25 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.speed=QComboBox()
         for n in [.5,.75,1,1.25]:self.speed.addItem(f'{n:g}×',n)
         self.speed.setCurrentIndex(2);self.speed.setToolTip('慢放保留音高');transport.addWidget(self.speed)
-        self.view_choice=QComboBox();self.view_choice.addItems(['制作视图','专注校轴','放大预览']);self.view_choice.currentIndexChanged.connect(self.apply_view);transport.addWidget(self.view_choice)
+        self.view_choice=QComboBox();self.view_choice.addItems(['视频＋时间轴','只看时间轴','只看视频']);self.view_choice.setToolTip('同时显示时可上下滚动；只看时间轴或视频可扩大对应区域。软件记住每个步骤的选择，调整窗口不会自动切换。');self.view_choice.currentIndexChanged.connect(self.apply_view);self.view_choice.activated.connect(self.remember_view);transport.addWidget(self.view_choice)
         self.subtitle_toggle=QPushButton();self.subtitle_toggle.setIcon(icon('eye'));self.subtitle_toggle.setObjectName('iconButton');self.subtitle_toggle.setCheckable(True);self.subtitle_toggle.setChecked(True);self.subtitle_toggle.setToolTip('显示／隐藏字幕，比较原画面 Ctrl+Shift+P');self.subtitle_toggle.toggled.connect(self.toggle_subtitles);transport.addWidget(self.subtitle_toggle)
         transport.addStretch();self.play_time=label('00:00.00','',False);transport.addWidget(self.play_time);vl.addWidget(self.transport_controls)
         self.seek_controls=QWidget();row=QHBoxLayout(self.seek_controls);row.setContentsMargins(0,0,0,0);self.seek_slider=QSlider(Qt.Orientation.Horizontal);self.seek_slider.setRange(0,0);row.addWidget(self.seek_slider,1)
         self.volume=QSlider(Qt.Orientation.Vertical);self.volume.setRange(0,100);self.volume.setValue(70);self.volume.setToolTip('试听音量');vl.addWidget(self.seek_controls)
         self.center_split.addWidget(preview_group);audio_group=QWidget();self.audio_group=audio_group;al=vertical(audio_group,0)
-        row=QHBoxLayout();row.addWidget(label('音频时间轴','',False));row.addStretch();self.audio_view=QComboBox();self.audio_view.addItem('频谱','spectrum');self.audio_view.addItem('波形','waveform');self.audio_view.setToolTip('切换 Aegisub 原版频谱／波形；不会改变时间或播放位置。');row.addWidget(self.audio_view)
+        row=QHBoxLayout();self.audio_heading=label('音频时间轴','',False);row.addWidget(self.audio_heading);row.addStretch();self.audio_view=QComboBox();self.audio_view.addItem('频谱','spectrum');self.audio_view.addItem('波形','waveform');self.audio_view.setToolTip('切换 Aegisub 原版频谱／波形；不会改变时间或播放位置。');row.addWidget(self.audio_view)
         self.granularity=QComboBox();self.granularity.addItem('调整词组','words');self.granularity.addItem('调整演唱音节','mora');self.granularity.addItem('调整整句','line');row.addWidget(self.granularity)
         row.addWidget(self.build_vocal_tools());row.addWidget(button('显示设置',self.audio_options));row.addWidget(button('定位本句',lambda:self.timeline.focus_line()));al.addLayout(row)
         self.timeline=Timeline();audio_navigation=QHBoxLayout();self.drag_line=QPushButton('拖动整句');self.drag_line.setCheckable(True);self.drag_line.setToolTip('开启后左键拖整句，所有词组一起移动；再次点击恢复逐音边界。也可按 Alt 拖动。');self.drag_line.toggled.connect(self.set_move_mode);audio_navigation.addWidget(self.drag_line)
         self.focus_playhead=button('找播放点',self.timeline.focus_position);self.focus_playhead.setToolTip('把时间轴视图移到当前播放位置，不改变歌词时间。');audio_navigation.addWidget(self.focus_playhead)
         self.focus_selected=button('放大所选',self.timeline.focus_selection);self.focus_selected.setToolTip('放大当前音节附近，便于抓住短音和相邻边界。');audio_navigation.addWidget(self.focus_selected);al.addLayout(audio_navigation)
-        audio_body=QHBoxLayout();self.audio_body_layout=audio_body;audio_body.setContentsMargins(0,0,0,0);audio_body.setSpacing(4);audio_left=QWidget();audio_left.setMinimumWidth(0);left_audio_layout=vertical(audio_left,0);self.previous_context=PreviousContext(self.timeline);self.next_context=PreviousContext(self.timeline,direction=1);left_audio_layout.addWidget(self.previous_context);left_audio_layout.addWidget(self.next_context);left_audio_layout.addWidget(self.timeline,1);audio_body.addWidget(audio_left,1)
+        self.display_ribbon_toggle=QPushButton('字幕留屏');self.display_ribbon_toggle.setCheckable(True);self.display_ribbon_toggle.setToolTip('显示与原音频同刻度的前／本／后句留屏条；只改字幕出现／消失，不改演唱和音节。');audio_navigation.addWidget(self.display_ribbon_toggle)
+        audio_body=QHBoxLayout();self.audio_body_layout=audio_body;audio_body.setContentsMargins(0,0,0,0);audio_body.setSpacing(4);audio_left=QWidget();audio_left.setMinimumWidth(0);left_audio_layout=vertical(audio_left,0);self.previous_context=PreviousContext(self.timeline);self.next_context=PreviousContext(self.timeline,direction=1);left_audio_layout.addWidget(self.previous_context);left_audio_layout.addWidget(self.next_context)
+        self.display_ribbon=DisplayTimingRibbon(self.timeline);left_audio_layout.addWidget(self.display_ribbon);self.display_ribbon.hide();left_audio_layout.addWidget(self.timeline,1);audio_body.addWidget(audio_left,1)
+        self.display_ribbon_toggle.toggled.connect(self.toggle_display_ribbon);self.display_ribbon.changed.connect(self.adopt_display_ribbon);self.display_ribbon.selected.connect(self.select_display_line);self.display_ribbon.preview.connect(self.preview_display_boundary);self.display_ribbon.notice.connect(self.message)
         self.audio_controls=AudioControls(self.timeline,self.volume);audio_body.addWidget(self.audio_controls);al.addLayout(audio_body,1)
-        self.center_split.addWidget(audio_group);self.center_split.setStretchFactor(0,3);self.center_split.setStretchFactor(1,1);self.center_split.setSizes([540,240]);ml.addWidget(self.center_split,1);self.splitter.addWidget(middle)
+        self.center_split.addWidget(audio_group);self.center_split.setStretchFactor(0,3);self.center_split.setStretchFactor(1,1);self.center_split.setSizes([540,240]);ml.addWidget(self.center_split,1)
+        vl.removeWidget(self.seek_controls);vl.removeWidget(self.transport_controls);middle_layout.addWidget(self.seek_controls);middle_layout.addWidget(self.transport_controls);self.splitter.addWidget(middle)
         right=QFrame();self.right_panel=right;right.setObjectName('card');right.setMinimumWidth(310);right.setMaximumWidth(440);rl=vertical(right,0)
         self.pages=QStackedWidget();rl.addWidget(self.pages)
         self.calibrate_footer=button('✓ 确认时间，进入下一句',self.confirm_current);self.calibrate_footer.setObjectName('primary');rl.addWidget(self.calibrate_footer);self.calibrate_footer.hide()
@@ -297,6 +305,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.display_mode=QComboBox();self.display_mode.addItem('逐句显示','single');self.display_mode.addItem('双行接唱 · 上下交替','alternating');l.addWidget(self.display_mode)
         self.display_mode.currentIndexChanged.connect(lambda _:self.set_style('display_mode',self.display_mode.currentData()))
         self.display_summary=label('','muted');l.addWidget(self.display_summary)
+        self.display_axis_button=button('在时间轴调整出现／消失',self.open_display_ribbon);self.display_axis_button.setToolTip('展开本句及前后句的字幕留屏条，拖动后一次采用；保持演唱、音节、读音和确认，Ctrl+Z撤销。');l.addWidget(self.display_axis_button)
         self.presentation_options=Collapsible('调整接唱速度与光晕');form=QFormLayout();self.presentation_spins={}
         for name,title,maximum,factor,suffix in [('preview_percent','唱到多少时提示下一句',90,1,' %'),('previous_hold_ms','下句出现后保留上句',15,1000,' 秒'),('preview_lead_ms','最多提前显示',15,1000,' 秒'),('glow','演唱光晕',12,1,'')]:
             spin=QDoubleSpinBox();spin.setRange(10 if name=='preview_percent' else 0,maximum);spin.setDecimals(0 if factor==1 else 1);spin.setSingleStep(5 if name=='preview_percent' else .5 if factor==1000 else 1);spin.setSuffix(suffix)
@@ -422,7 +431,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def select_editor_mora(self,index,part):
         if not self.flush_edits() or not self.line or not 0<=index<len(self.line.units):return
         if part>=len(self.line.units[index].highlights) or part<-1:self.message('读音或音节已变化，请重新选择音节。');return
-        self.drag_line.setChecked(False);self.calibration_tabs.setCurrentIndex(0);self.granularity.setCurrentIndex(self.granularity.findData('mora' if part>=0 else 'words'));self.select_target(index,part);self.timeline.focus_selection();self.seek_selection_preview();self.show_editor_widget(self.target);return True
+        self.drag_line.setChecked(False);self.calibration_tabs.setCurrentIndex(0);self.granularity.setCurrentIndex(self.granularity.findData('mora' if part>=0 else 'words'));self.select_target(index,part);self.timeline.focus_selection();self.seek_selection_preview();self.show_editor_widget(self.target);self.show_audio_axis();return True
 
     def audition_editor_mora(self,index,part):
         if self.select_editor_mora(index,part):self.audition_selected()
@@ -529,7 +538,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.drag_line.setChecked(False)
         self.set_stage(2);self.calibration_tabs.setCurrentIndex(0)
         mode='mora' if self.line and any(u.highlights for u in self.line.units) else 'words'
-        self.granularity.setCurrentIndex(self.granularity.findData(mode));self.timeline.focus_line();self.timeline.setFocus();self.show_editor_widget(self.target)
+        self.granularity.setCurrentIndex(self.granularity.findData(mode));self.timeline.focus_line();self.timeline.setFocus();self.show_editor_widget(self.target);self.show_audio_axis()
 
     def reading_dialog(self):
         if not self.flush_edits() or not self.line:return
@@ -575,6 +584,57 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if project.duration and end>project.duration:raise ValueError('消失时间不能超出素材结尾')
             line.display_start,line.display_end=start,end
         if self.edit('修改本句显示时间',apply):self.message('已修改本句画面留屏，演唱和音节时间保持；Ctrl+Z 撤销。')
+
+    def toggle_display_ribbon(self,visible):
+        self.display_ribbon.setVisible(visible);self.fit_center_layout()
+
+    def reveal_center_widget(self,widget):
+        if self.closing:return
+        self._center_reveal_widget=widget;self._center_reveal_geometry=None;self._center_reveal_attempts=0;self.center_reveal_timer.start(0)
+
+    def reveal_center_target(self):
+        widget=self._center_reveal_widget
+        if self.closing or widget is None or not widget.isVisible() or self.center_pages.currentIndex()!=1:self._center_reveal_widget=None;return
+        self.workspace_scroll.ensureWidgetVisible(widget,8,12)
+        viewport=self.workspace_scroll.viewport();pos=widget.mapTo(viewport,widget.rect().topLeft());rect=widget.rect().translated(pos)
+        geometry=(rect.x(),rect.y(),rect.width(),rect.height(),viewport.width(),viewport.height(),self.workspace_scroll.verticalScrollBar().maximum())
+        # Showing a splitter pane relays geometry in more than one layout
+        # event. Verify a stable full rectangle before dropping the request.
+        fully_inside=viewport.rect().contains(rect);ancestor=widget.parentWidget()
+        while fully_inside and ancestor is not None and ancestor is not viewport:
+            at=widget.mapTo(ancestor,widget.rect().topLeft());fully_inside=ancestor.rect().contains(widget.rect().translated(at));ancestor=ancestor.parentWidget()
+        if fully_inside and geometry==self._center_reveal_geometry:self._center_reveal_widget=None;return
+        self._center_reveal_geometry=geometry;self._center_reveal_attempts+=1
+        if self._center_reveal_attempts<10:self.center_reveal_timer.start(16)
+        else:self._center_reveal_widget=None
+
+    def show_audio_axis(self):
+        if self.view_choice.currentIndex()==2:self.view_choice.setCurrentIndex(0)
+        self.reveal_center_widget(self.timeline)
+
+    def open_display_ribbon(self):
+        if not self.line or not self.flush_edits():return
+        self.display_ribbon_toggle.setChecked(True);self.view_choice.setCurrentIndex(0);self.timeline.focus_line();self.display_ribbon.setFocus();self.show_audio_axis()
+        self.message('拖留屏条的两端只改出现／消失；松开采用、Esc取消、Ctrl+Z撤销。Home／End选择边界，左右键10ms、Shift为100ms；双击查看边界。')
+
+    def select_display_line(self,row):
+        if not 0<=row<len(self.project.lines) or not self.flush_edits():return False
+        view=(self.timeline.left,self.timeline.span,self.timeline.zoom_level);self.current=row;self._selected_lyric_ids={self.line.id};self.refresh(False)
+        self.timeline.left,self.timeline.span,self.timeline.zoom_level=view;self.timeline.invalidate();return True
+
+    def preview_display_boundary(self,row,part):
+        if row!=self.current and not self.select_display_line(row):return
+        if not 0<=row<len(self.project.lines):return
+        window=display_windows(self.project)[row];self.playback.seek(window.start if part=='start' else window.end)
+        if self.view_choice.currentIndex()==1:self.view_choice.setCurrentIndex(0)
+        self.reveal_center_widget(self.playback)
+        self.message(f'正在查看第 {row+1} 句字幕'+('出现' if part=='start' else '消失')+'位置；演唱和音节时间保持。')
+
+    def adopt_display_ribbon(self,row,start,end,part,context):
+        if row!=self.current or not self.flush_edits():return
+        if self.edit('拖动字幕留屏',lambda p:change_display(p,row,start,end,part=part,context=context)):
+            self.playback.seek(start if part!='end' else end)
+            self.message(f'第 {row+1} 句字幕留屏已采用；演唱、音节、读音和确认保持。Ctrl+Z一步撤销。')
 
     def reset_display_timing(self):
         if not self.flush_edits():return
@@ -682,7 +742,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 if changed_reading:p.checks.setdefault(uid,{})['reading']=False;p.source_ass_active=False
             if self.edit('校准句尾音节',apply):self.message('尾音修改已保存，可一步撤销；请带前音再听一次确认。')
 
-    def cancel_audio(self):self.timeline.cancel_drag();self.playback.stop()
+    def cancel_audio(self):
+        self.timeline.cancel_drag();self.display_ribbon.cancel();self.playback.stop()
 
     def change_audio_view(self,*args):
         value=self.audio_view.currentData();self.timeline.show_spectrum=value=='spectrum';self.timeline.cache_key=None;self.timeline.update();self.preferences.set('audio_view',value)
@@ -1033,6 +1094,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.refresh_inline_editor()
         self.refresh_media_source()
         self.refresh_vocal_tools()
+        self.display_ribbon.set_project(self.project,self.current)
         self.fit_center_layout()
         if hasattr(self,'render_timer'):self.render_timer.start()
         else:self.render_subtitles()
@@ -1154,7 +1216,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.calibrate_footer.setVisible(index==2)
         self.export_footer.setVisible(index==4)
         if self.width()<1180:self.left_panel.hide();self.right_panel.show()
-        self.view_choice.setCurrentIndex((1 if self.height()<900 else 0) if index==2 else 2)
+        raw_views=self.preferences.data.get('stage_views',{});preferred=raw_views.get(str(index)) if isinstance(raw_views,dict) else None
+        self.view_choice.setCurrentIndex(preferred if type(preferred) is int and preferred in (0,1,2) else 0 if index==2 else 2)
         for i,b in enumerate(self.steps):b.setChecked(i==index)
         if index==2:self.timeline.focus_line()
         if index==3:self.refresh_font_cards()
@@ -1167,7 +1230,6 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not hasattr(self,'left_panel') or not hasattr(self,'right_panel'):return
         if self.width()<1180:self.left_panel.hide();self.right_panel.show()
         elif hasattr(self,'view_choice') and self.view_choice.currentIndex()==0:self.left_panel.show();self.right_panel.show()
-        if hasattr(self,'view_choice') and self.height()<900 and self.stage==2:self.view_choice.setCurrentIndex(1)
         if hasattr(self,'play_output_button'):self.update_workflow()
         if hasattr(self,'timeline'):self.fit_center_layout()
 
@@ -1183,11 +1245,16 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if hasattr(self,'play_output_button'):self.update_workflow()
         self.fit_center_layout()
 
+    def remember_view(self,index):
+        if type(index) is not int or index not in (0,1,2):return
+        raw=self.preferences.data.get('stage_views',{});views={k:v for k,v in raw.items() if k in {'0','1','2','3','4'} and type(v) is int and v in (0,1,2)} if isinstance(raw,dict) else {}
+        views[str(self.stage)]=index;self.preferences.set('stage_views',views)
+
     def fit_center_layout(self):
         expanded=self.workflow_toggle.isChecked();calibration=self.stage==2;compact=self.height()<700
         self.current_info.setVisible(self.height()>=780 and not (calibration and expanded))
         self.workflow_banner.setVisible(not (calibration and (expanded or self.height()<640)))
-        self.transport_controls.setVisible(not (calibration and expanded and self.height()<640))
+        self.transport_controls.setVisible(self.center_pages.currentIndex()==1)
         both=bool(self.timeline.previous_line and self.timeline.next_line)
         shared=self.view_choice.currentIndex()==0 and bool(self.timeline.previous_line or self.timeline.next_line)
         self.previous_context.combined_caption=both;self.previous_context.set_compact(compact or self.height()<900 or both)
@@ -1196,13 +1263,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.audio_group.layout().setSpacing(6 if compact else 10)
         self.timeline.setMinimumHeight(((140 if self.height()<640 else 160) if expanded else 180) if compact else (180 if shared else 222))
         self.preview_tools.setVisible(self.view_choice.currentIndex()!=1)
-        self.seek_controls.setVisible(self.view_choice.currentIndex()!=1 or self.height()>=780)
+        self.seek_controls.setVisible(self.center_pages.currentIndex()==1)
+        self.audio_heading.setVisible(self.workspace_scroll.viewport().width()>=680)
         # Propagate dynamic lane/height changes through both nested layouts.
         # QSplitter otherwise keeps an old minimum after leaving compact mode.
         audio_left=self.timeline.parentWidget()
         audio_left.layout().setSpacing(2 if both else 10)
         if audio_left.layout():audio_left.layout().invalidate();audio_left.layout().activate()
-        audio_left.updateGeometry();self.audio_body_layout.invalidate();self.audio_group.layout().invalidate();self.audio_group.updateGeometry()
+        audio_left.setMinimumHeight(audio_left.layout().totalMinimumSize().height());audio_left.updateGeometry()
+        self.audio_body_layout.invalidate();self.audio_body_layout.activate();self.audio_group.layout().invalidate();self.audio_group.layout().activate();self.audio_group.updateGeometry()
         self.audio_group.setMinimumHeight(self.audio_group.layout().totalMinimumSize().height())
         self.preview_group.layout().invalidate();self.preview_group.updateGeometry()
         self.preview_group.setMaximumHeight(self.preview_group.layout().totalMinimumSize().height() if self.view_choice.currentIndex()==1 else 16777215)
@@ -1967,6 +2036,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
         self.fine_listener.dispose()
         if self.source_job:self.source_job.cancel.set()
+        self.center_reveal_timer.stop();self._center_reveal_widget=None
         QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.renderer.close()
         if self.cards_renderer:self.cards_renderer.close()
 

@@ -84,23 +84,24 @@ def test_move_to_playhead_recovers_out_of_view_line_and_protects_locks(qapp,tmp_
     w.undo();assert w.line.to_dict()==before;w.project.lines[0].locked=True;w.refresh();assert not w.move_to_playhead.isEnabled();w.close()
 
 
-def test_workflow_is_collapsed_by_default_expands_and_gives_video_more_room(qapp,tmp_path,project):
+def test_workflow_collapses_and_saves_its_state_without_shrinking_video(qapp,tmp_path,project):
     w=window(qapp,tmp_path,project);w.resize(1460,940);w.set_stage(3);w.view_choice.setCurrentIndex(0);QTest.qWait(60)
-    assert not w.navigation_panel.isVisible() and not w.workflow_toggle.isChecked();height=w.playback.height()
+    assert not w.navigation_panel.isVisible() and not w.workflow_toggle.isChecked();height=w.workspace_scroll.viewport().height()
     w.workflow_toggle.click();QTest.qWait(60)
     assert w.navigation_panel.isVisible() and all(b.visibleRegion().boundingRect().height()>=60 for b in w.steps)
-    assert w.playback.height()<height;w.close()
+    assert w.workspace_scroll.viewport().height()<height and w.playback.height()>=280;w.close()
     w=window(qapp,tmp_path,project);assert w.workflow_toggle.isChecked();w.workflow_toggle.click();w.close()
 
 
-def test_default_views_keep_full_timeline_and_prioritize_large_style_preview(qapp,tmp_path,project):
+def test_default_views_keep_video_choice_and_reach_full_axis_and_large_style_preview(qapp,tmp_path,project):
     p=copy.deepcopy(project);other=copy.deepcopy(p.lines[0]);other.id='second';p.lines.append(other)
     w=window(qapp,tmp_path,p);w.current=1;w.refresh()
     for width,height in [(1460,940),(960,680),(1280,800),(960,620),(1460,940)]:
-        w.resize(width,height);w.set_stage(2);QTest.qWait(50)
+        w.resize(width,height);w.set_stage(2);w.show_audio_axis();QTest.qWait(80)
+        assert w.view_choice.currentIndex()==0 and w.playback.isVisible()
         assert w.timeline.visibleRegion().boundingRect().height()==w.timeline.height(),(width,height,w.timeline.geometry())
         assert w.previous_context.isVisible() and w.timeline.height()>=180
-        w.workflow_toggle.setChecked(True);QTest.qWait(50)
+        w.workflow_toggle.setChecked(True);w.show_audio_axis();QTest.qWait(80)
         assert w.timeline.visibleRegion().boundingRect().height()==w.timeline.height(),(width,height,'expanded')
         assert w.quick_segment.isVisible() and w.quick_reading.isVisible() and w.calibrate_footer.isVisible()
         w.workflow_toggle.setChecked(False);QTest.qWait(50)

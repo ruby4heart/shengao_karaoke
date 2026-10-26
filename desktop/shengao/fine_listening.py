@@ -184,4 +184,4 @@ class FineListeningWorkflow:
         if self.timeline.part<0:
             target=next(((i,j) for i,u in reversed(list(enumerate(self.line.units))) for j,h in reversed(list(enumerate(u.highlights)))),None)
             if target:self.granularity.setCurrentIndex(self.granularity.findData('mora'));self.select_target(*target)
-        self.fine_listening.toggle.setChecked(True);self.refresh_fine_listening();self.show_editor_widget(self.fine_listener.context_button);return True
+        self.fine_listening.toggle.setChecked(True);self.refresh_fine_listening();self.show_editor_widget(self.fine_listener.context_button);self.show_audio_axis();return True
