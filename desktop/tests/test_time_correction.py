@@ -131,7 +131,7 @@ def test_entire_song_moves_display_windows_as_well_as_singing_and_roundtrips():
     moved=transform_project(p,range(4),TimeTransform(offset=500)).project;new=display_windows(moved)
     assert [(w.start,w.end,w.slot) for w in new]==[(w.start+500,w.end+500,w.slot) for w in old]
     assert Project.from_dict(moved.to_dict()).to_dict()==moved.to_dict()
-    assert moved.to_dict()['version']==13
+    assert moved.to_dict()['version']==14
 
 
 def test_manual_display_timing_is_independent_and_can_be_reset_for_scope(qapp,tmp_path):

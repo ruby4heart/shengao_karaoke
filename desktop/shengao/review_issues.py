@@ -169,7 +169,7 @@ def collect(project,include_layout=True,pending=None):
         ordinals={}
         for uid,message in layout:
             row=next((i for i,line in enumerate(project.lines) if line.id==uid),-1);number=ordinals.get(uid,0);ordinals[uid]=number+1
-            add('layout','warning',row,-1,-1,str(number),'排版需要检查',message,'当前字体、注音或显示设置','进入样式调整，先看预览和样片',basis={'style':asdict(project.style),'colors':project.color_styles,'song_info':project.song_info,'line':project.lines[row].to_dict() if row>=0 else None})
+            add('layout','warning',row,-1,-1,str(number),'排版需要检查',message,'当前字体、注音或显示设置','进入样式调整，先看预览和样片',basis={'style':asdict(project.style),'colors':project.color_styles,'layouts':project.layout_styles,'song_info':project.song_info,'line':project.lines[row].to_dict() if row>=0 else None})
     return found
 
 

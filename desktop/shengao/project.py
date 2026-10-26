@@ -14,7 +14,7 @@ from studio_backend.settings import atomic_json
 
 from .media_versions import MediaVersion,ROLES
 
-SCHEMA=13
+SCHEMA=14
 
 @dataclass
 class Style:
@@ -81,6 +81,7 @@ class Project:
     lines:list=field(default_factory=list)
     style:Style=field(default_factory=Style)
     color_styles:dict=field(default_factory=dict)
+    layout_styles:dict=field(default_factory=dict)
     reading_dictionary:dict=field(default_factory=dict)
     reading_preferences:dict=field(default_factory=dict)
     song_info:dict=field(default_factory=dict)
@@ -145,12 +146,18 @@ class Project:
         validate_states(self.review_states)
         from .color_states import validate_settings
         validate_settings(self.color_styles,ids)
+        from .line_layout import validate_settings as validate_layout
+        validate_layout(self.layout_styles,ids)
 
     def prune_color_overrides(self):
         if isinstance(self.color_styles,dict) and isinstance(self.color_styles.get('lines'),dict):
             ids={v.id for v in self.lines}
             self.color_styles['lines']={uid:value for uid,value in self.color_styles['lines'].items() if uid in ids}
             if self.color_styles.get('global') is None and not self.color_styles['lines']:self.color_styles={}
+
+    def prune_line_overrides(self):
+        self.prune_color_overrides();ids={v.id for v in self.lines}
+        if isinstance(self.layout_styles,dict):self.layout_styles={uid:value for uid,value in self.layout_styles.items() if uid in ids}
 
     def to_dict(self):
         value=asdict(self)
@@ -162,7 +169,8 @@ class Project:
     def from_dict(cls,data,base=None):
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
-        if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12,13): raise ValueError('工程版本较新，请使用对应版本软件')
+        if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12,13,14): raise ValueError('工程版本较新，请使用对应版本软件')
+        if version<14 and data.get('layout_styles'):raise ValueError('指定歌词排版需要第 14 版工程格式')
         if version<13 and data.get('song_info'):raise ValueError('歌名／歌手标识需要第 13 版工程格式')
         if version<13 and data.get('review_states'):raise ValueError('集中疑点处理记录需要第 13 版工程格式')
         if version<12 and (data.get('reading_dictionary') or data.get('reading_preferences')):raise ValueError('读音词典与规则需要第 12 版工程格式')
@@ -209,7 +217,7 @@ class Project:
         from studio_backend.provenance import create
         for line in values:line.timing_origin=create('estimated',line.start,line.end,method='uniform_lines')
         if append: self.lines.extend(values)
-        else: self.lines=values;self.checks={};self.prune_color_overrides()
+        else: self.lines=values;self.checks={};self.prune_line_overrides()
         self.source_ass_active=False
 
     def summary(self):
@@ -317,7 +325,7 @@ class History:
     def apply(self,label,edit,merge_key=None):
         before=self.project.to_dict();candidate=Project.from_dict(before)
         edit(candidate)
-        if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_color_overrides()
+        if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_line_overrides()
         candidate.validate()
         if candidate.to_dict()==before:return False
         now=time.monotonic()

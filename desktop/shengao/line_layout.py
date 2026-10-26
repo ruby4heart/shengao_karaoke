@@ -73,6 +73,11 @@ def effective_style(style,setting):
     return replace(style,**values)
 
 
+def resolved_layouts(project):
+    settings=getattr(project,'layout_styles',{})
+    return [(display_line(line,settings.get(line.id)),effective_style(project.style,settings.get(line.id))) for line in project.lines]
+
+
 def setting_issues(line,setting):
     if not setting:return []
     _,inactive=break_status(line,setting)

@@ -59,7 +59,7 @@ def test_project_save_and_one_undo_preserve_axis_and_locked_readings(tmp_path):
     history.apply('修改指定歌词颜色',lambda current:setattr(current,'color_styles',update_settings(current.color_styles,palette,['lyric'])))
     assert history.project.lines[0].to_dict()==before['lines'][0] and history.project.checks==before['checks']
     path=tmp_path/'颜色 工程.sgproj';save_project(history.project,path);again=load_project(path)
-    assert again.to_dict()==history.project.to_dict() and again.to_dict()['version']==13
+    assert again.to_dict()==history.project.to_dict() and again.to_dict()['version']==14
     assert history.undo() and history.project.to_dict()==before
     assert history.redo() and history.project.to_dict()==again.to_dict()
     frozen=history.project.to_dict()

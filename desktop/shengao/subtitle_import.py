@@ -144,6 +144,6 @@ def preserve_generated(project):
             fields=row.split(':',1)[1].strip().split(',',9)
             if len(fields)==10 and (milliseconds(fields[1]),milliseconds(fields[2])) in ranges:continue
         kept.append(row)
-    p=copy.deepcopy(project);p.source_ass_active=False;p.lines=[line for line in p.lines if line.id in changed];p.song_info={}
+    p=copy.deepcopy(project);p.source_ass_active=False;p.lines=[line for line in p.lines if line.id in changed];p.song_info={};p.prune_line_overrides()
     kept.extend(row for row in compose(p).splitlines() if row.startswith('Dialogue:'))
     return '\n'.join(kept)+'\n'

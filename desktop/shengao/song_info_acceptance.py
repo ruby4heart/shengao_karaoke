@@ -56,7 +56,7 @@ def exercise(app,StudioWindow,out,check,wait):
         finally:renderer.close()
         saved=out/'歌名与歌手.sgproj';ass=out/'歌名与歌手.ass';save_project(w.project,saved);export_subtitle(w.project,ass)
         a=load_project(saved);b=load_project(ass)
-        check('song_info_project_ass_and_portable_font',SCHEMA==13 and compose(a)==compose(w.project)==compose(b) and Path(a.song_info['font_file']).is_file() and Path(b.song_info['font_file']).is_file())
+        check('song_info_project_ass_and_portable_font',SCHEMA==14 and compose(a)==compose(w.project)==compose(b) and Path(a.song_info['font_file']).is_file() and Path(b.song_info['font_file']).is_file())
         output=out/'song-info-sample.mp4';encode(w.project,EncodeOptions(str(output),start=2000,duration=800))
         result=subprocess.run([ffmpeg(),'-hide_banner','-loglevel','error','-nostdin','-i',str(output),'-frames:v','1','-f','rawvideo','-pix_fmt','rgba','-'],capture_output=True,timeout=30,creationflags=subprocess.CREATE_NO_WINDOW)
         renderer=w.playback.canvas.renderer;renderer.set_text(compose(w.project));rgba=np.frombuffer(renderer.rgba(w.project.width,w.project.height,2000),np.uint8).reshape(w.project.height,w.project.width,4)
@@ -77,7 +77,8 @@ def exercise(app,StudioWindow,out,check,wait):
         module=types.ModuleType('shengao._compat_v028_project');module.__package__='shengao';sys.modules[module.__name__]=module
         try:
             exec(compile(legacy,'released-v028-project.py','exec'),module.__dict__);old=module.Project.from_dict({'version':12,'lines':[]});rejected=False
-            try:module.Project.from_dict(a.to_dict())
+            prior=a.to_dict();prior['version']=13;prior.pop('layout_styles',None)
+            try:module.Project.from_dict(prior)
             except ValueError:rejected=True
             check('schema13_actual_v028_parser_reads12_rejects13',module.SCHEMA==12 and old.to_dict()['version']==12 and rejected)
         finally:sys.modules.pop(module.__name__,None)

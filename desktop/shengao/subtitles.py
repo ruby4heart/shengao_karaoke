@@ -94,27 +94,48 @@ def styled_dialogue(rows,window,style,text,layer,settings,highlight_start=None):
         text=f'{{\\t({start},{start+100},\\3c&HFFFFFF&)}}'+text
     rows.append(dialogue(window.start,window.end,style,shape+text,layer))
 
-def lane_layout(project,window,windows):
+def lane_layout(project,window,windows,line_style=None,layouts=None):
     """Size only against neighbouring displays, never a distant bad match.
 
     Dense, provisional overlaps remain in-frame and receive a layout warning.
     They cannot move an earlier, correctly timed phrase out of the video.
     """
-    s=project.style
+    s=line_style or project.style
     if s.display_mode!='alternating':return s,1,0,1.
-    neighbours=[(line,w) for line,w in zip(project.lines,windows) if w.start<window.end and window.start<w.end]
-    count=max(2,max((w.slot+1 for line,w in neighbours),default=2))
-    row_count=max((line.text.count('\n')+1 for line,w in neighbours),default=1)
-    band=row_count*(s.size+(s.ruby_size+24 if s.show_ruby else 16))+32
-    if s.show_romaji and any(line.romaji for line,w in neighbours):band+=s.romaji_size+20
-    if s.show_translation and any(line.translation for line,w in neighbours):band+=s.translation_size+20
+    if getattr(project,'layout_styles',{}):
+        if layouts is None:
+            from .line_layout import resolved_layouts
+            layouts=resolved_layouts(project)
+        neighbours=[(line,style,w) for (line,style),w in zip(layouts,windows) if w.start<window.end and window.start<w.end]
+        count=max(2,max((w.slot+1 for line,style,w in neighbours),default=2))
+        def line_band(line,style):
+            result=(line.text.count('\n')+1)*(style.size+(style.ruby_size+24 if style.show_ruby else 16))+32
+            if style.show_romaji and line.romaji:result+=style.romaji_size+20
+            if style.show_translation and line.translation:result+=style.translation_size+20
+            return result
+        band=max((line_band(line,style) for line,style,w in neighbours),default=line_band(project.lines[0],s) if project.lines else 32)
+    else:
+        neighbours=[(line,w) for line,w in zip(project.lines,windows) if w.start<window.end and window.start<w.end]
+        count=max(2,max((w.slot+1 for line,w in neighbours),default=2))
+        row_count=max((line.text.count('\n')+1 for line,w in neighbours),default=1)
+        band=row_count*(s.size+(s.ruby_size+24 if s.show_ruby else 16))+32
+        if s.show_romaji and any(line.romaji for line,w in neighbours):band+=s.romaji_size+20
+        if s.show_translation and any(line.translation for line,w in neighbours):band+=s.translation_size+20
     scale=min(1.,944/(count*band))
     effective=replace(s,**{name:getattr(s,name)*scale for name in ('size','ruby_size','romaji_size','translation_size','outline','shadow','glow')})
     return effective,count,band*scale,scale
 
-def compose(project,embed=False):
+def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
+    """Compose the whole export, or exact visible events for private thumbnails.
+
+    Preview filtering retains full-project lane context. File exports and the
+    main player use the default complete composition.
+    """
+    if preview_time is not None and (type(preview_time) is not int or preview_time<0):raise ValueError('预览时间无效')
+    if preview_line_id is not None and (preview_time is None or not isinstance(preview_line_id,str) or not any(line.id==preview_line_id for line in project.lines)):raise ValueError('本句预览需要有效的歌词和时间')
     project.validate()
     if project.source_ass_active and project.source_ass:
+        if preview_line_id is not None:raise ValueError('保留原 ASS 时不能筛出单句；请先明确选择声稿样式')
         from .subtitle_import import preserve_ass
         text=preserve_ass(project)
         from .song_info import append_ass
@@ -135,9 +156,15 @@ def compose(project,embed=False):
           style_row('Lyrics',main_family,style.size,style,font_file=main),style_row('Ruby',ruby_family,style.ruby_size,style,font_file=ruby),
           style_row('Romaji',main_family,style.romaji_size,style,highlight=False,font_file=main),style_row('Translation',trans_family,style.translation_size,style,highlight=False,font_file=translated),'',
           '[Events]','Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text']
-    windows=display_windows(project)
-    for line,window in zip(project.lines,windows):
-        effective,slot_count,band_height,scale=lane_layout(project,window,windows)
+    from .line_layout import resolved_layouts
+    windows=display_windows(project);layouts=resolved_layouts(project)
+    for (line,line_style),window in zip(layouts,windows):
+        if preview_line_id is not None and line.id!=preview_line_id:continue
+        # ASS rounds times to centiseconds, and short colour phases last at
+        # least 10 ms. Keep a conservative boundary margin; libass decides
+        # visibility, exactly as it does for the complete composition.
+        if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
+        effective,slot_count,band_height,scale=lane_layout(project,window,windows,line_style,layouts)
         mf,rf,size,ruby_size,widths,width=layout_line(line,effective)
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
@@ -222,15 +249,15 @@ def compose(project,embed=False):
             rows.extend(box_events(palette,window,(line.start,line.end),bounds))
     text='\n'.join(rows)+'\n'
     from .song_info import append_ass
-    text=append_ass(text,project)
+    if preview_line_id is None:text=append_ass(text,project)
     if embed:
         data=base64.b64encode(json.dumps(project.to_dict(),ensure_ascii=False,separators=(',',':')).encode()).decode()
         text='; ShengaoProject: '+data+'\n'+text
     return text
 
-def layout_issues(project):
+def layout_issues(project,line_ids=None,*,include_song=True):
     from .song_info import issues as song_issues
-    result=song_issues(project,check_overlap=True);s=project.style
+    result=song_issues(project,check_overlap=True) if include_song else [];s=project.style
     if project.source_ass_active:
         from .subtitle_import import needed_fonts
         from .fonts import find_font
@@ -240,12 +267,15 @@ def layout_issues(project):
     main=resolve_font(s.font_file,s.font);ruby=resolve_font(s.ruby_font_file,s.ruby_font);trans=resolve_font(s.translation_font_file,s.translation_font)
     for value,label in [(s.font_file,'原文'),(s.ruby_font_file,'假名'),(s.translation_font_file,'译文')]:
         if value and not Path(value).is_file():result.append((None,f'{label}字体文件已丢失，目前使用备用字体；请重新添加字体'))
-    for line in project.lines:
+    from .line_layout import resolved_layouts,setting_issues
+    for original,(line,local_style) in zip(project.lines,resolved_layouts(project)):
+        if line_ids is not None and line.id not in line_ids:continue
+        result.extend((line.id,message) for message in setting_issues(original,project.layout_styles.get(line.id)))
         for path,text,label,family in [(main,line.text,'原文',s.font),(ruby,''.join(u.kana for u in line.units),'假名',s.ruby_font),(main,line.romaji,'罗马音',s.font),(trans,line.translation,'译文',s.translation_font)]:
             absent=missing(path,text,family)
             if absent:result.append((line.id,f'{label}字体缺少：{absent[:24]}'))
-        mf,rf,size,ruby_size,widths,width=layout_line(line,s)
-        if size<s.size:result.append((line.id,f'本行较长，原文已缩小为 {size}；可拆行或降低字号'))
+        mf,rf,size,ruby_size,widths,width=layout_line(line,local_style)
+        if size<local_style.size:result.append((line.id,f'本行较长，原文已缩小为 {size}；可拆行或降低字号'))
         if width>1792:result.append((line.id,'原文仍超出安全区域，请拆成两行'))
         if s.show_ruby and any(a.scale<.6 for a in ruby_layout(pieces(line),widths,rf,mf)):result.append((line.id,'相邻假名较密，已仅压缩假名宽度；可降低假名字号以改善阅读'))
         if s.show_ruby:
@@ -254,10 +284,11 @@ def layout_issues(project):
                 if unit.reading_options.get('ruby',{}).get('mode','auto')=='auto' and spans==((0,len(unit.text),0,len(unit.kana)),) and any('\u3040'<=c<='\u30ff' and not kanji(c) for c in unit.text):
                     result.append((line.id,'有假名无法与汉字唯一对应，暂用整词注音；请核对读音或拆分该词组'));break
         if any('\n' in u.text.strip('\n') and u.kana for u in line.units):result.append((line.id,'有词组跨越多行，请拆分该词组后分别核对假名'))
-        if s.show_romaji and text_width(metric_font(str(main),s.romaji_size,s.font),line.romaji)>1792:result.append((line.id,'罗马音较长，请缩小字号或拆行'))
-        if s.show_translation and text_width(metric_font(str(trans),s.translation_size,s.translation_font),line.translation)>1792:result.append((line.id,'译文较长，请缩小字号或拆行'))
+        if s.show_romaji and text_width(metric_font(str(main),local_style.romaji_size,s.font),line.romaji)>1792:result.append((line.id,'罗马音较长，请缩小字号或拆行'))
+        if s.show_translation and text_width(metric_font(str(trans),local_style.translation_size,s.translation_font),line.translation)>1792:result.append((line.id,'译文较长，请缩小字号或拆行'))
     if s.display_mode=='alternating':
         for i,(line,window) in enumerate(zip(project.lines,display_windows(project))):
+            if line_ids is not None and line.id not in line_ids:continue
             if window.slot>=2:result.append((line.id,'有三句以上字幕同时显示，已增加临时字幕行；请检查留屏时间或重复歌词匹配'))
             if i and line.start<project.lines[i-1].start:result.append((line.id,'本句演唱早于上一句，请检查重复歌词的匹配顺序'))
     return result

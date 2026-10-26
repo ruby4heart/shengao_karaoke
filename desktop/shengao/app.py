@@ -56,6 +56,7 @@ from .song_info_dialog import SongInfoWorkflow
 from .mora_editing_widget import MoraEditingWorkflow
 from .fine_listening import FineListeningWorkflow
 from .issues_workflow import IssuesWorkflow
+from .style_workflow import StyleWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -63,7 +64,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -315,6 +316,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         for i,text in zip(self.preset_indices,['日式接唱 · 特粗明朝','清晰注音 · 高可读粗黑体']):
             b=QToolButton();b.setObjectName('fontCard');b.setText(text);b.setToolTip('应用此字体和排版；下方可继续调整，支持撤销。');b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon);b.setIconSize(QSize(240,80));b.setMinimumHeight(112);b.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed);b.clicked.connect(lambda checked=False,n=i:self.apply_preset(n));self.preset_buttons.append(b);l.addWidget(b)
         self.cards_key=None;self.cards_renderer=None
+        self.build_style_workbench(l)
         l.addWidget(label('字体推荐与缺字检查'));self.font_role=QComboBox();self.font_role.addItems(['原文与罗马音','假名注音','中文译文']);l.addWidget(self.font_role)
         self.font_choice=QComboBox();self.font_choice.setMinimumContentsLength(12);self.font_choice.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         for font in bundled_fonts():self.font_choice.addItem(font.kind+' · '+font.family,font)
@@ -1494,7 +1496,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         from .render import AssRenderer
         if self.cards_renderer is None:self.cards_renderer=AssRenderer()
         for index,b in zip(self.preset_indices,self.preset_buttons):
-            p=Project.from_dict(self.project.to_dict());p.lines=[copy.deepcopy(self.line)];p.source_ass_active=False
+            p=Project.from_dict(self.project.to_dict());p.lines=[copy.deepcopy(self.line)];p.source_ass_active=False;p.prune_line_overrides()
             p.style=self.preset_style(index)
             self.cards_renderer.set_text(compose(p));when=(p.lines[0].start+p.lines[0].end)//2
             pixels=self.cards_renderer.rgba(960,540,when);array=np.frombuffer(pixels,np.uint8).reshape(540,960,4);ys,xs=np.where(array[:,:,3]>12)
@@ -1897,6 +1899,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if kind!='layout':self.calibration_tabs.setCurrentIndex(1 if kind=='reading' else 0)
             self.set_stage(3 if kind=='layout' else 2)
         else:self.set_stage(3 if kind=='layout' else 0)
+        if kind=='layout':self.pages.widget(3).ensureWidgetVisible(self.style_workbench_button)
     def export_ass(self):
         if not self.flush_edits():return
         if not self.project.lines:self.message('请先加入歌词');return

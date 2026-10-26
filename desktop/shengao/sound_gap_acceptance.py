@@ -47,7 +47,7 @@ def exercise(app,StudioWindow,out,check,wait):
         check('sound_gap_only_selected_tail_restored',fixed.end==original_end and [h.start for row in w.project.lines for u in row.units for h in u.highlights]==[h['start'] for row in before['lines'] for u in row['units'] for h in u['highlights']])
         check('sound_gap_not_human_confirmation',not w.line.reviewed and 'sound_gap' in fixed.timing_origin['operations'] and fixed.source!='manual')
         target=out/'声音空隙审核.sgproj';save_project(w.project,target)
-        check('sound_gap_current_schema_save_roundtrip',SCHEMA==13 and load_project(target).to_dict()==w.project.to_dict())
+        check('sound_gap_current_schema_save_roundtrip',SCHEMA==14 and load_project(target).to_dict()==w.project.to_dict())
         audit={'passed':True,'schema':SCHEMA,'controlled_defects':1,'restored':1,'natural_pauses':pauses,'binding':report['binding'],
                'origin':fixed.timing_origin,'result_sha256':report['result_sha256'],'new_inference':False,'new_api_calls':0,
                'interpretation':'One artificial 40ms gap inside an earlier actual PJS056 vowel. Natural interphrase boundaries preserved. Unknown training overlap; not general accuracy or human confirmation.'}

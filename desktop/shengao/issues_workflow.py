@@ -225,7 +225,11 @@ class IssuesWorkflow:
     def manual_review_issue(self,item,specific=False):
         if item.kind=='layout':
             if not self.flush_edits():return False
-            self.set_stage(3);self.pages.widget(3).ensureWidgetVisible(self.song_info_button if '歌名' in item.why or '歌手' in item.why else self.font_choice);self.message(item.why);return True
+            row=next((i for i,line in enumerate(self.project.lines) if line.id==item.line_id),None)
+            if row is not None:self.current=row;self.refresh()
+            self.set_stage(3);self.pages.widget(3).ensureWidgetVisible(self.song_info_button if '歌名' in item.why or '歌手' in item.why else self.style_workbench_button);self.message(item.why)
+            if specific and row is not None and '歌名' not in item.why and '歌手' not in item.why:return self.edit_style_workbench()
+            return True
         if not self.locate_review_issue(item):return False
         if item.kind=='missing' and not self.line.units:self.resegment_current()
         elif item.kind=='reading' or item.kind=='missing' and 0<=self.timeline.word<len(self.line.units) and not self.line.units[self.timeline.word].kana:
