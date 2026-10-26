@@ -18,6 +18,7 @@ from shengao.project import Project,History,file_stamp
 from shengao.paths import ffmpeg
 from shengao.theme import STYLE
 from shengao.proxy_video import digest
+from shengao.process_memory import sample as process_memory
 from studio_backend.model import LyricLine,Unit
 from studio_backend.japanese import add_mora
 from desktop_source_state import snapshot
@@ -33,7 +34,7 @@ def hardware():
         _fields_=[('length',ctypes.c_ulong),('load',ctypes.c_ulong),*[(name,ctypes.c_ulonglong) for name in ('physical','available_physical','page','available_page','virtual','available_virtual','extended')]]
     memory=Memory();memory.length=ctypes.sizeof(memory)
     if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(memory)):raise ctypes.WinError()
-    return {'windows':platform.platform(),'cpu':platform.processor(),'logical_processors':os.cpu_count(),'physical_bytes':memory.physical,'available_bytes':memory.available_physical,'python':sys.version,'qt_scale_factor':os.getenv('QT_SCALE_FACTOR','1'),'qt_platform':os.getenv('QT_QPA_PLATFORM'),'threads':{key:os.getenv(key) for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS')}}
+    return {'windows':platform.platform(),'cpu':platform.processor(),'logical_processors':os.cpu_count(),'physical_bytes':memory.physical,'available_bytes':memory.available_physical,'process':process_memory(),'python':sys.version,'qt_scale_factor':os.getenv('QT_SCALE_FACTOR','1'),'qt_platform':os.getenv('QT_QPA_PLATFORM'),'threads':{key:os.getenv(key) for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS')}}
 
 
 def main():
@@ -57,8 +58,12 @@ def main():
             if fn():return True
         return False
     def settled():return not w.render_timer.isActive() and not w.refreshing
-    def record(name,values,target):
-        value=stats(values);value['target_ms']=target;value['passed']=bool(values) and value['p95_ms']<=target
+    def presented(sequence,target):
+        canvas=w.playback.canvas;start=canvas.painted_frame_start_us;end=canvas.painted_frame_end_us
+        return canvas.painted_sequence>sequence and start is not None and start>=0 and start<=target*1000+50000 and max(end or start,start+50000)>=target*1000
+    def record(name,values,target,*,maximum=False,expected_count=None):
+        value=stats(values);value['target_ms']=target;value['target_statistic']='max' if maximum else 'p95'
+        value['passed']=bool(values) and value['max_ms' if maximum else 'p95_ms']<=target and (expected_count is None or len(values)==expected_count)
         report['measurements'][name]=value;report['targets'][name]=value['passed'];print(name,json.dumps({k:v for k,v in value.items() if k!='values_ms'}),flush=True)
     try:
         lines=[]
@@ -68,8 +73,9 @@ def main():
             lines.append(LyricLine('stress-'+str(index),'明日も歌う',start,start+220,units))
         p=Project(lines=lines);p.style.display_mode='alternating';p.style.show_romaji=False;p.style.show_translation=False
         w.history=History(p);w.current=0;w.refresh();source_opened=time.perf_counter();w.load_media(source,preview=True)
-        assert wait(lambda:w.analysis_job is None and not w.playback.preview_pending and not w.playback.canvas.frame.isNull() and bool(frames),90),'source was not ready'
+        assert wait(lambda:w.analysis_job is None and not w.playback.preview_pending and not w.playback.canvas.frame.isNull() and w.playback.canvas.painted_at_s is not None and bool(frames),90),'source was not ready'
         report['measurements']['first_video_frame_ms']=(frames[0]['received_s']-source_opened)*1000;report['targets']['first_video_frame']=report['measurements']['first_video_frame_ms']<=3000
+        report['measurements']['first_painted_frame_ms']=(w.playback.canvas.first_painted_at_s-source_opened)*1000;report['targets']['first_painted_frame']=report['measurements']['first_painted_frame_ms']<=3000
         w.set_stage(2);w.render_subtitles();assert wait(settled);original=w.project.to_dict()
         report['fixture']={'lines':len(lines),'words':sum(len(v.units) for v in lines),'highlights':sum(len(u.highlights) for v in lines for u in v.units),'window':[w.width(),w.height()],'device_pixel_ratio':w.devicePixelRatioF(),'source_display_size':[w.project.width,w.project.height]}
         values=[]
@@ -89,18 +95,47 @@ def main():
         record('axis_drag_move_50',values,50);assert w.project.to_dict()==original
         began=time.perf_counter();QTest.mouseRelease(axis,Qt.MouseButton.LeftButton,pos=point+QPoint(8,0));assert wait(settled,8);commit=(time.perf_counter()-began)*1000
         record('axis_commit_including_render',[commit],250);w.undo();assert wait(settled,8) and w.project.to_dict()==original
+        # Consecutive genuine commits retain their undo steps; the memory
+        # guard records a failure before this diagnostic can exhaust the host.
+        memory_before=process_memory();memory_samples=[];commits=[];steps=len(w.history.undo_stack);budget=256*1024*1024
+        for index in range(50):
+            axis.span=1000;axis.left=max(0,w.line.start-350);axis.invalidate();app.processEvents()
+            point=QPoint(round(axis.tx(w.line.start)),y);destination=point+QPoint(8 if index%2==0 else -8,0)
+            began=time.perf_counter();QTest.mousePress(axis,Qt.MouseButton.LeftButton,pos=point);QTest.mouseMove(axis,destination);QTest.mouseRelease(axis,Qt.MouseButton.LeftButton,pos=destination);assert wait(settled,8)
+            commits.append((time.perf_counter()-began)*1000);assert len(w.history.undo_stack)==steps+index+1,'gesture did not create exactly one undo step'
+            memory_samples.append(process_memory())
+            if memory_samples[-1]['private_bytes']-memory_before['private_bytes']>budget:break
+        record('axis_commit_repeat_50',commits,250,maximum=True,expected_count=50)
+        report['measurements']['history_memory']={'before':memory_before,'after_each_commit':memory_samples,'private_growth_budget_bytes':budget,'completed_commits':len(commits)}
+        report['targets']['history_private_growth_256mib']=all(v['private_bytes']-memory_before['private_bytes']<=budget for v in memory_samples)
+        changed=w.project.to_dict();undo_times=[];redo_times=[];history_memory=[]
+        for _ in commits:
+            began=time.perf_counter();w.undo();assert wait(settled,8);undo_times.append((time.perf_counter()-began)*1000);history_memory.append(process_memory())
+        assert len(w.history.undo_stack)==steps and w.project.to_dict()==original
+        for _ in commits:
+            began=time.perf_counter();w.redo();assert wait(settled,8);redo_times.append((time.perf_counter()-began)*1000);history_memory.append(process_memory())
+        assert w.project.to_dict()==changed
+        for _ in commits:w.undo();assert wait(settled,8)
+        assert w.project.to_dict()==original
+        report['measurements']['undo_repeat']=stats(undo_times);report['measurements']['redo_repeat']=stats(redo_times);report['measurements']['history_memory']['after_undo_redo']=process_memory()
+        report['measurements']['history_memory']['during_undo_redo']=history_memory
+        report['targets']['history_private_growth_256mib']=report['targets']['history_private_growth_256mib'] and all(v['private_bytes']-memory_before['private_bytes']<=budget for v in history_memory)
+        # Video checks observe actual paint completion in a visible canvas,
+        # independently of the decoder callback retained for diagnosis.
+        w.view_choice.setCurrentIndex(2);w.reveal_center_widget(w.playback)
+        assert wait(lambda:w.playback.visibleRegion().boundingRect().height()==w.playback.height(),5)
         def seeks(label):
             values=[];observations=[]
             for fraction in (.05,.75,.25,.9,.5,.15,.65,.35,.8,.45):
-                target=round((w.project.duration-1000)*fraction);count=len(frames);began=time.perf_counter();w.playback.stop();w.playback.seek(target)
-                found=wait(lambda:any(v['pts_us']<=target*1000+50000 and max(v['end_us'],v['pts_us']+50000)>=target*1000 for v in frames[count:]),4)
-                values.append((time.perf_counter()-began)*1000);observations.append({'target_ms':target,'matched_frame':found,'frames':frames[count:]})
-            record(label,values,500);report['measurements'][label]['observations']=observations;report['targets'][label]=report['targets'][label] and all(v['matched_frame'] for v in observations)
+                target=round((w.project.duration-1000)*fraction);count=len(frames);sequence=w.playback.canvas.painted_sequence;began=time.perf_counter();w.playback.stop();w.playback.seek(target)
+                found=wait(lambda:presented(sequence,target),4)
+                values.append((time.perf_counter()-began)*1000);observations.append({'target_ms':target,'matched_painted_frame':found,'painted_start_us':w.playback.canvas.painted_frame_start_us,'painted_end_us':w.playback.canvas.painted_frame_end_us,'decoder_frames':frames[count:]})
+            record(label,values,500);report['measurements'][label]['observations']=observations;report['targets'][label]=report['targets'][label] and all(v['matched_painted_frame'] for v in observations)
         seeks('original_random_seek_10')
         values=[]
         for fraction in (.1,.4,.2,.6,.3,.8,.45,.7,.15,.55):
-            start=round((w.project.duration-2000)*fraction);count=len(frames);began=time.perf_counter();assert w.playback.audition(start,start+1000)
-            advanced=wait(lambda:start+20<=w.playback.player.position()<start+1000 and any(start*1000<=v['pts_us']<(start+1000)*1000 for v in frames[count:]),4)
+            start=round((w.project.duration-2000)*fraction);sequence=w.playback.canvas.painted_sequence;began=time.perf_counter();assert w.playback.audition(start,start+1000)
+            advanced=wait(lambda:start+20<=w.playback.player.position()<start+1000 and w.playback.canvas.painted_sequence>sequence and w.playback.canvas.painted_frame_start_us is not None and start*1000<=w.playback.canvas.painted_frame_start_us<(start+1000)*1000,4)
             values.append((time.perf_counter()-began)*1000);w.playback.stop();assert advanced,'audition did not advance in the requested range'
         record('original_hot_audition_10',values,500)
         if args.with_proxy:

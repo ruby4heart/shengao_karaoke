@@ -5,6 +5,7 @@ from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFram
 from .render import AssRenderer
 from .native_slots import invoke_native_slot
 from .gui_gc import activity as gui_activity
+import time
 
 class VideoCanvas(QWidget):
     zoomRequested=Signal(int)
@@ -12,6 +13,10 @@ class VideoCanvas(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent);self.setMinimumSize(1,1)
         self.frame=QImage();self.renderer=AssRenderer();self.position=0;self.aspect=16/9;self.show_subtitles=True;self.audio_only=False
+        self.frame_sequence=0;self.frame_start_us=None;self.frame_end_us=None
+        self.painted_sequence=0;self.painted_frame_start_us=None;self.painted_frame_end_us=None
+        self.painted_at_s=None
+        self.first_painted_at_s=None
         self.setObjectName('videoPreview');self._wheel=0
         self.setToolTip('滚轮按 12.5% 缩放视频；放大后可用滚动条移动画面。双击恢复适合窗口。')
 
@@ -23,8 +28,15 @@ class VideoCanvas(QWidget):
             if frame.rotation().value:image=image.transformed(QTransform().rotate(frame.rotation().value))
             if frame.mirrored():image=image.flipped(Qt.Orientation.Horizontal)
             changed=self.frame.size()!=image.size();self.frame=image
+            self.frame_sequence+=1;self.frame_start_us=frame.startTime();self.frame_end_us=frame.endTime()
             if changed:self.frameSizeChanged.emit(image.width(),image.height())
             self.update()
+
+    def clear_frame(self):
+        self.frame=QImage();self.frame_start_us=None;self.frame_end_us=None
+        self.painted_frame_start_us=None;self.painted_frame_end_us=None;self.update()
+        self.painted_at_s=None
+        self.first_painted_at_s=None
 
     def wheelEvent(self,event):
         self._wheel+=event.angleDelta().y();steps=int(self._wheel/120);self._wheel-=steps*120
@@ -49,6 +61,10 @@ class VideoCanvas(QWidget):
             factor=min(1.,4096/max(w,h));rw=max(1,round(w*factor));rh=max(1,round(h*factor))
             p.drawImage(QRectF(x,y,w,h),self.renderer.image(rw,rh,self.position))
         p.end()
+        if not self.frame.isNull() and w>0 and h>0:
+            self.painted_sequence=self.frame_sequence;self.painted_frame_start_us=self.frame_start_us;self.painted_frame_end_us=self.frame_end_us
+            self.painted_at_s=time.perf_counter()
+            if self.first_painted_at_s is None:self.first_painted_at_s=self.painted_at_s
 
 class Playback(QWidget):
     positionChanged=Signal(int)
@@ -164,15 +180,14 @@ class Playback(QWidget):
     def open(self,path,position=0,preview=False,reference_size=None):
         self.interrupt_temporary()
         self.discard_frames()
-        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.frame=QImage();self.canvas.update();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.reference_size=reference_size;self.set_source_size(*(reference_size or (1920,1080)));self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
+        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.clear_frame();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.reference_size=reference_size;self.set_source_size(*(reference_size or (1920,1080)));self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
 
     def clear(self):
         self.interrupt_temporary()
         self.discard_frames()
         self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
         # Release displayed image resources before stopping the decoder.
-        self.canvas.frame=QImage()
-        self.canvas.update()
+        self.canvas.clear_frame()
         self.reference_size=None
         invoke_native_slot(self.player,'stop')
         self.player.setSource(QUrl())

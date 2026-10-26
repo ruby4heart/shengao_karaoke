@@ -147,9 +147,24 @@ def test_busy_gui_presents_latest_frame_once_and_clear_discards_pending_image(qa
         assert not calls
         qapp.processEvents();QTest.qWait(10)
         assert calls==[49*40000] and p.canvas.frame.pixelColor(3,3)==QColor('blue')
+        assert p.canvas.frame_sequence>0 and (p.canvas.frame_start_us,p.canvas.frame_end_us)==(49*40000,50*40000)
         p.receive_frame(frame);p.clear();qapp.processEvents();QTest.qWait(10)
         assert calls==[49*40000] and p.canvas.frame.isNull() and not p.frame_timer.isActive()
+        assert p.canvas.frame_start_us is p.canvas.frame_end_us is None
     finally:p.clear();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
+
+
+def test_frame_timestamps_only_become_painted_after_the_visible_canvas_renders(qapp):
+    p=Playback();p.audio.setMuted(True);p.resize(400,300);p.show();qapp.processEvents()
+    try:
+        frame=QVideoFrame(QImage(16,16,QImage.Format.Format_RGB32));frame.setStartTime(1200000);frame.setEndTime(1240000)
+        p.canvas.video_frame(frame)
+        assert p.canvas.frame_start_us==1200000 and p.canvas.painted_frame_start_us is None
+        qapp.processEvents();QTest.qWait(20)
+        assert p.canvas.painted_sequence==p.canvas.frame_sequence and (p.canvas.painted_frame_start_us,p.canvas.painted_frame_end_us)==(1200000,1240000)
+        p.clear();qapp.processEvents()
+        assert p.canvas.frame_start_us is p.canvas.painted_frame_start_us is None
+    finally:p.close();p.clear();p.timer.stop();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
 
 
 def test_new_seek_replaces_pending_request_before_loaded_notification(qapp,video):

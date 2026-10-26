@@ -11,6 +11,7 @@ import math
 
 from studio_backend.model import LyricLine, identifier
 from studio_backend.settings import atomic_json
+from .undo_snapshot import UndoSnapshot,restore as restore_undo
 
 from .media_versions import MediaVersion,ROLES
 
@@ -359,19 +360,21 @@ class History:
         if after==before:return False
         now=time.monotonic()
         if merge_key is None or merge_key!=self.merge_key or now-self.merge_time>1:
-            self.undo_stack.append((label,before));self.undo_stack=self.undo_stack[-150:]
+            self.undo_stack.append((label,UndoSnapshot(before)));self.undo_stack=self.undo_stack[-150:]
         self.merge_key=merge_key;self.merge_time=now;self.redo_stack.clear()
         self.project=candidate;self._applied_snapshot=after;return True
 
     def undo(self):
         self.merge_key=None
         if not self.undo_stack:return False
-        label,data=self.undo_stack.pop();self.redo_stack.append((label,self.project.to_dict()));self.project=Project.from_dict(data);return True
+        label,data=self.undo_stack[-1];candidate=Project.from_dict(restore_undo(data));current=UndoSnapshot(self.project.to_dict())
+        self.undo_stack.pop();self.redo_stack.append((label,current));self.project=candidate;return True
 
     def redo(self):
         self.merge_key=None
         if not self.redo_stack:return False
-        label,data=self.redo_stack.pop();self.undo_stack.append((label,self.project.to_dict()));self.project=Project.from_dict(data);return True
+        label,data=self.redo_stack[-1];candidate=Project.from_dict(restore_undo(data));current=UndoSnapshot(self.project.to_dict())
+        self.redo_stack.pop();self.undo_stack.append((label,current));self.project=candidate;return True
 
     def mark_saved(self): self.saved=self.project.to_dict();self.merge_key=None
 
