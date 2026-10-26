@@ -14,7 +14,7 @@ target=ROOT/'dist'/f'ShengaoKaraoke-{args.version}-evidence.zip';assert not targ
 files=[audit,base/'README.txt',base/('SHA256SUMS-'+args.version+'.txt')]
 for label in ['development','standalone-normal','standalone-dpi150']:
     folder=base/label
-    for name in ['report.json','acoustic-human-reference.json','staged-acoustic-reference.json','timing-provenance-audit.json','sound-gap-audit.json','sequence-match-audit.json','chorus-reuse-audit.json','color-state-audit.json','guided-alignment-audit.json','recalculation-audit.json','reading-candidates-audit.json','reading-workflow-audit.json','song-info-audit.json','audio-review-audit.json','vocal-ab-state.json','native-slot-audit.json']:
+    for name in ['report.json','acoustic-human-reference.json','staged-acoustic-reference.json','timing-provenance-audit.json','sound-gap-audit.json','sequence-match-audit.json','chorus-reuse-audit.json','color-state-audit.json','guided-alignment-audit.json','recalculation-audit.json','reading-candidates-audit.json','reading-workflow-audit.json','song-info-audit.json','audio-review-audit.json','style-preview-audit.json','vocal-ab-state.json','native-slot-audit.json']:
         path=folder/name
         if path.is_file():files.append(path)
 for label in ['timeline-full-pixels','timeline-full-pixels-dpi150']:

@@ -6,6 +6,20 @@ from PySide6.QtTest import QTest
 from shengao.playback import Playback
 
 
+def test_paused_and_temporary_clocks_only_repaint_when_the_visible_time_changes(qapp,monkeypatch):
+    p=Playback();p.timer.stop();calls=[];monkeypatch.setattr(p.canvas,'update',lambda:calls.append(p.canvas.position))
+    try:
+        p.on_position(1200);assert calls==[1200];calls.clear()
+        p.on_position(1200)
+        for _ in range(5):p.tick()
+        assert not calls
+        owner=object();p.begin_temporary(owner,lambda:None,1300);assert calls==[1300];calls.clear()
+        p.tick();assert not calls;p.update_temporary_position(owner,1400);assert calls==[1400]
+        calls.clear();p.canvas.video_frame(QVideoFrame(QImage(16,16,QImage.Format.Format_RGB32)));assert calls==[1400]
+        calls.clear();p.clear();assert calls
+    finally:p.clear();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
+
+
 def ready(qapp,playback):
     deadline=time.monotonic()+10
     while not playback.player.duration() and time.monotonic()<deadline:

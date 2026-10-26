@@ -1,5 +1,5 @@
 """Versioned source-of-truth document, independent of any editor toolkit."""
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
 import base64
 import copy
@@ -160,7 +160,9 @@ class Project:
         if isinstance(self.layout_styles,dict):self.layout_styles={uid:value for uid,value in self.layout_styles.items() if uid in ids}
 
     def to_dict(self):
-        value=asdict(self)
+        # The lyric serializer also removes empty legacy-only fields. Do not
+        # recursively copy every lyric once here and a second time below.
+        value=asdict(replace(self,lines=[]))
         value['lines']=[line.to_dict() for line in self.lines]
         value['version']=SCHEMA;value['application']='Shengao Independent Studio'
         return value

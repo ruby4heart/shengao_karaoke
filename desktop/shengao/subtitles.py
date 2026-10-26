@@ -36,8 +36,8 @@ def pieces(line):
             if text:result.append((unit,text,row,count==1))
     return result
 
-def layout_line(line,style):
-    main=resolve_font(style.font_file,style.font);ruby_path=resolve_font(style.ruby_font_file,style.ruby_font)
+def layout_line(line,style,font_paths=None):
+    main,ruby_path=font_paths or (resolve_font(style.font_file,style.font),resolve_font(style.ruby_font_file,style.ruby_font))
     size,ruby_size=style.size,style.ruby_size
     groups=pieces(line)
     for _ in range(12):
@@ -165,7 +165,7 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
         # visibility, exactly as it does for the complete composition.
         if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
         effective,slot_count,band_height,scale=lane_layout(project,window,windows,line_style,layouts)
-        mf,rf,size,ruby_size,widths,width=layout_line(line,effective)
+        mf,rf,size,ruby_size,widths,width=layout_line(line,effective,(main,ruby))
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
         def colored(role,text,layer,font,cx,cy,text_width,font_size,timing=None,advance=None,lines=1):
@@ -211,7 +211,7 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
                     body=f'{{\\an5\\q2\\pos({x:.2f},{y:.2f})\\fs{size}\\b{main_weight}{shape}\\1c{color(style.color)}}}'+literal(part)
                     if not colored('lyrics',body,1,mf,x,y,w,size):rows.append(dialogue(window.start,window.end,'Lyrics',body,1))
         row_widths={}
-        for (_,text,row,ruby),w in zip(segments,widths):row_widths[row]=row_widths.get(row,0)+w
+        for (_,text,row,allow_ruby),w in zip(segments,widths):row_widths[row]=row_widths.get(row,0)+w
         positions={row:row_left(w) for row,w in row_widths.items()}
         annotations=ruby_layout(segments,widths,rf,mf,positions)
         for index,((unit,text,row,can_ruby),w) in enumerate(zip(segments,widths)):
@@ -274,7 +274,7 @@ def layout_issues(project,line_ids=None,*,include_song=True):
         for path,text,label,family in [(main,line.text,'原文',s.font),(ruby,''.join(u.kana for u in line.units),'假名',s.ruby_font),(main,line.romaji,'罗马音',s.font),(trans,line.translation,'译文',s.translation_font)]:
             absent=missing(path,text,family)
             if absent:result.append((line.id,f'{label}字体缺少：{absent[:24]}'))
-        mf,rf,size,ruby_size,widths,width=layout_line(line,local_style)
+        mf,rf,size,ruby_size,widths,width=layout_line(line,local_style,(main,ruby))
         if size<local_style.size:result.append((line.id,f'本行较长，原文已缩小为 {size}；可拆行或降低字号'))
         if width>1792:result.append((line.id,'原文仍超出安全区域，请拆成两行'))
         if s.show_ruby and any(a.scale<.6 for a in ruby_layout(pieces(line),widths,rf,mf)):result.append((line.id,'相邻假名较密，已仅压缩假名宽度；可降低假名字号以改善阅读'))

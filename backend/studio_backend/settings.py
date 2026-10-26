@@ -13,13 +13,14 @@ def default_home():
     return Path(os.getenv('SHENGAO_HOME', str(Path(os.getenv('APPDATA', Path.home())) / 'ShengaoKaraoke')))
 
 
-def atomic_json(path, value):
+def atomic_json(path, value, *, compact=False):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix=path.stem + '.', suffix='.tmp', dir=path.parent)
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-            json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
+            if compact:stream.write(json.dumps(value,ensure_ascii=False,separators=(',',':'),allow_nan=False))
+            else:json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
             stream.flush()
             os.fsync(stream.fileno())
         # Windows antivirus/indexers and short-lived JSON readers can hold the

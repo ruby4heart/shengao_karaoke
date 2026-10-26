@@ -57,6 +57,7 @@ from .mora_editing_widget import MoraEditingWorkflow
 from .fine_listening import FineListeningWorkflow
 from .issues_workflow import IssuesWorkflow
 from .style_workflow import StyleWorkflow
+from .proxy_workflow import ProxyWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -64,14 +65,16 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
         self.preferences=Preferences(self.home);self.last_output='';self.next_callback=None;self._flushing=False
         self.api=ApiJob(self,self.home);self.local_job=None;self.analysis_job=None;self.extra_fonts=[];self.snapshots={}
         self.analysis_generation=0;self.closing=False
+        self.init_proxy_workflow()
         self.encoder_capabilities=None;self.capability_job=None
+        self._render_snapshot=None;self._render_font_stamp=None;self._render_text=None
         self.validation_error=None;self.preview_expanded=False
         self._selected_lyric_ids=set();self._selection_uid=None;self._retain_lyrics=False
         self.setWindowTitle('声稿 · Karaoke Studio');self.setWindowIcon(QIcon(str(ASSETS/'shengao.svg')));self.resize(1460,940);self.setMinimumSize(900,620);self.setAcceptDrops(True)
@@ -107,7 +110,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.project_label.setObjectName('projectName');self.save_state=label('尚未保存','saveState',False);row.addWidget(self.save_state)
         project_menu=QMenu(self)
         for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
-        project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide)
+        project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
         project_menu.addAction('新建作品',self.new);self.recent_menu=project_menu.addMenu('最近作品');self.refresh_recent_menu()
         project_button=QPushButton('作品');project_button.setMenu(project_menu);row.addWidget(project_button);row.addStretch()
         self.workflow_toggle=QPushButton('流程');self.workflow_toggle.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown));self.workflow_toggle.setCheckable(True);self.workflow_toggle.setToolTip('展开／收起五步制作流程；默认收起，为视频留出空间。');row.addWidget(self.workflow_toggle)
@@ -157,6 +160,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.video_zoom.currentIndexChanged.connect(lambda _:self.playback.set_zoom(self.video_zoom.currentData()))
         self.playback.zoomChanged.connect(self.update_video_zoom)
         self.large_video=button('放大视频',self.enlarge_video);preview_tools.addWidget(self.large_video);preview_tools.addWidget(self.build_source_switch());self.locate_lyric_button=button('定位唱词',self.locate_lyric_at_playhead);self.locate_lyric_button.setToolTip('按当前播放点选择对应歌词与音节；间奏选择最近句，重叠时优先保留当前句。不改字幕时间。');preview_tools.addWidget(self.locate_lyric_button);preview_tools.addStretch();vl.addWidget(self.preview_tools)
+        self.build_proxy_preview_note(vl)
         self.transport_controls=QWidget();transport=QHBoxLayout(self.transport_controls);transport.setContentsMargins(0,0,0,0)
         self.play_button=button('播放',self.playback.toggle);self.play_button.setIcon(icon('play'));transport.addWidget(self.play_button);transport.addWidget(button('试听本句',self.audition_line))
         self.loop=QCheckBox('循环');transport.addWidget(self.loop)
@@ -199,6 +203,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def build_prepare(self):
         l=self.page_layouts[0];l.addWidget(label('先添加素材，再准备歌词','heading'));l.addWidget(label('有正确原歌词时优先粘贴，每行一句。没有原歌词也能先识别，核对文字后再做注音和校轴。','muted'))
         l.addWidget(button('① 添加视频／音频',self.add_media));self.media_label=label('尚未添加媒体','muted');l.addWidget(self.media_label);l.addWidget(label('视频上方一键切换原唱／伴奏；右侧箭头可更换任一版本文件。两个版本共用歌词、注音和时间轴。','muted'))
+        self.build_proxy_controls(l)
         l.addWidget(button('② 粘贴原歌词',self.paste_lyrics));l.addWidget(label('不需要提前准备时间标签；识别多出的空格不会改变原歌词。','muted'))
         self.build_recognition_entry(l,prepare=True)
         b=button('素材准备好，生成初稿 →',lambda:self.set_stage(1));b.setObjectName('primary');l.addWidget(b)
@@ -317,6 +322,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             b=QToolButton();b.setObjectName('fontCard');b.setText(text);b.setToolTip('应用此字体和排版；下方可继续调整，支持撤销。');b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon);b.setIconSize(QSize(240,80));b.setMinimumHeight(112);b.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed);b.clicked.connect(lambda checked=False,n=i:self.apply_preset(n));self.preset_buttons.append(b);l.addWidget(b)
         self.cards_key=None;self.cards_renderer=None
         self.build_style_workbench(l)
+        self.build_proxy_controls(l)
         l.addWidget(label('字体推荐与缺字检查'));self.font_role=QComboBox();self.font_role.addItems(['原文与罗马音','假名注音','中文译文']);l.addWidget(self.font_role)
         self.font_choice=QComboBox();self.font_choice.setMinimumContentsLength(12);self.font_choice.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         for font in bundled_fonts():self.font_choice.addItem(font.kind+' · '+font.family,font)
@@ -935,9 +941,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.path and target.resolve()==self.path.resolve():self.set_stage(2);return
         self.open_path(target)
 
-    def update_workflow(self):
+    def update_workflow(self,dirty=None):
         p=self.project;summary=p.summary();media_ready=bool(p.media and Path(p.media).is_file());has_lines=bool(p.lines);pending=bool(self.pending and self.pending.get('result',{}).get('suggestions'));idle=not self.api.busy
-        self.save_state.setText('有未保存修改' if self.history.dirty else '已保存' if self.path else '新作品')
+        self.save_state.setText('有未保存修改' if (self.history.dirty if dirty is None else dirty) else '已保存' if self.path else '新作品')
         self.undo_button.setEnabled(bool(self.history.undo_stack));self.redo_button.setEnabled(bool(self.history.redo_stack))
         ready=idle and has_lines and not pending
         self.refresh_recognition()
@@ -1050,7 +1056,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         try:
             p=self.project;self.current=min(self.current,len(p.lines)-1)
             if self.current<0 and p.lines:self.current=0
-            self.project_label.setText(p.title);self.project_label.setToolTip(p.title);self.setWindowTitle(p.title+(' *' if self.history.dirty else '')+' — 声稿 Karaoke Studio')
+            snapshot=p.to_dict();dirty=snapshot!=self.history.saved;self.project_label.setText(p.title);self.project_label.setToolTip(p.title);self.setWindowTitle(p.title+(' *' if dirty else '')+' — 声稿 Karaoke Studio')
             kind='音频 · 成品使用深色背景' if p.has_video is False else f'{p.width} × {p.height}' if p.has_video else '正在读取素材'
             self.media_label.setText((ROLES[p.media_role]+' · '+Path(p.media).name+f'\n{time_text(p.duration)} · '+kind) if p.media else '尚未添加素材')
             self.output_size.setItemText(0,'默认背景 · 1920 × 1080' if p.has_video is False else '分辨率跟随原视频')
@@ -1090,15 +1096,20 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             else:
                 s=p.summary();hint=f'{s["lines"]} 句歌词 · 时间确认 {s["timing"]}/{s["lines"]} · 读音确认 {s["readings"]}/{s["lines"]}。'+('可检查样式并试压。' if s['timing']==s['lines'] else '试听当前句，校准后确认并继续。')
             self.next_hint.setText(hint);self.refresh_font_choice()
-            self.update_workflow()
+            self.update_workflow(dirty=dirty)
         finally:self.refreshing=False
         self.update_timing_scope()
         self.refresh_inline_editor()
         self.refresh_media_source()
         self.refresh_vocal_tools()
+        self.refresh_proxy_tools()
         self.display_ribbon.set_project(self.project,self.current)
         self.fit_center_layout()
-        if hasattr(self,'render_timer'):self.render_timer.start()
+        if hasattr(self,'render_timer'):
+            if p is self.project and self.render_unchanged(snapshot):
+                self.render_timer.stop()
+                if self.stage==3:self.refresh_font_cards()
+            else:self.render_timer.start()
         else:self.render_subtitles()
 
     def refresh_lyrics(self,*args):
@@ -1464,12 +1475,21 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if selected!=list(range(selected[0],selected[-1]+1)):self.message('只能合并相邻词组');return
         row=self.current;self.edit('合并词组',lambda p:p.lines.__setitem__(row,merge_words(p.lines[row],selected[0],selected[-1])))
 
+    def render_unchanged(self,snapshot):
+        if snapshot!=self._render_snapshot or self.playback.canvas.renderer.text!=self._render_text:return False
+        from .fonts import project_font_files
+        return [file_stamp(path) for path in project_font_files(self.project)]==self._render_font_stamp
+
     def render_subtitles(self):
         if self.closing:return
+        if hasattr(self,'render_timer'):self.render_timer.stop()
         try:
             from .fonts import project_font_files
-            self.playback.canvas.renderer.add_fonts(project_font_files(self.project))
-            self.playback.canvas.renderer.set_text(compose(self.project));self.playback.canvas.update()
+            fonts=project_font_files(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict();renderer=self.playback.canvas.renderer
+            renderer.add_fonts(fonts)
+            if snapshot!=self._render_snapshot or font_stamp!=self._render_font_stamp or renderer.text!=self._render_text:
+                text=compose(self.project);renderer.set_text(text);self._render_snapshot=snapshot;self._render_font_stamp=font_stamp;self._render_text=text
+                self.playback.canvas.update()
             if self.stage==3:self.refresh_font_cards()
         except (ValueError,OSError) as error:self.message(str(error))
 
@@ -1490,13 +1510,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def refresh_font_cards(self):
         if not self.line:return
-        key=json.dumps(self.line.to_dict(),ensure_ascii=False,sort_keys=True)
+        local_palette={'global':self.project.color_styles.get('global'),'lines':{self.line.id:self.project.color_styles['lines'][self.line.id]} if self.line.id in self.project.color_styles.get('lines',{}) else {}} if self.project.color_styles else {}
+        local_layout={self.line.id:self.project.layout_styles[self.line.id]} if self.line.id in self.project.layout_styles else {}
+        key=json.dumps({'line':self.line.to_dict(),'colors':local_palette,'layout':local_layout},ensure_ascii=False,sort_keys=True)
         if key==self.cards_key:return
         import numpy as np
         from .render import AssRenderer
         if self.cards_renderer is None:self.cards_renderer=AssRenderer()
         for index,b in zip(self.preset_indices,self.preset_buttons):
-            p=Project.from_dict(self.project.to_dict());p.lines=[copy.deepcopy(self.line)];p.source_ass_active=False;p.prune_line_overrides()
+            p=copy.copy(self.project);p.lines=[copy.deepcopy(self.line)];p.source_ass_active=False;p.color_styles=copy.deepcopy(local_palette);p.layout_styles=copy.deepcopy(local_layout);p.song_info={}
             p.style=self.preset_style(index)
             self.cards_renderer.set_text(compose(p));when=(p.lines[0].start+p.lines[0].end)//2
             pixels=self.cards_renderer.rgba(960,540,when);array=np.frombuffer(pixels,np.uint8).reshape(540,960,4);ys,xs=np.where(array[:,:,3]>12)
@@ -1573,6 +1595,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def clear_media(self):
         self.audition_role='original';self.original_audio=None
+        self.clear_proxy()
         self.analysis_generation+=1
         if self.analysis_job:self.analysis_job.cancel.set();self.analysis_job=None
         self.playback.clear();self.timeline.peaks=None;self.timeline.duration=0;self.timeline.keyframes=[];self.timeline.cache_key=None
@@ -1865,13 +1888,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.message(f'已采用 {len(accepted)} 行建议。'+(f'{len(skipped)} 行已修改或锁定，保留当前内容；未采用的建议仍可审核。' if skipped else '其余建议仍可继续审核。' if self.pending else '请试听并确认时间与读音。'))
 
     def busy_changed(self):
-        busy=self.api.busy or bool(self.local_job) or bool(self.source_job);self.cancel_button.setVisible(busy);self.progress.setVisible(busy)
-        if self.api.busy or self.source_job:self.progress.setRange(0,0)
+        busy=self.api.busy or bool(self.local_job) or bool(self.source_job) or bool(self.proxy_job);self.cancel_button.setVisible(busy);self.progress.setVisible(busy)
+        if self.api.busy or self.source_job or self.proxy_job:self.progress.setRange(0,0)
         else:self.progress.setRange(0,100)
-        self.update_workflow();self.refresh_media_source();self.refresh_vocal_tools()
+        self.update_workflow();self.refresh_media_source();self.refresh_vocal_tools();self.refresh_proxy_tools()
     def cancel_task(self):
         if self.api.busy:self.api.cancel()
         if self.local_job:self.local_job.cancel.set();self.message('正在取消压制任务。')
+        if self.proxy_job:self.cancel_proxy_request();self.message('正在取消轻量预览任务，当前素材与字幕保持。')
         if self.source_job:self.source_job.cancel.set();self.message('正在取消声音空隙检查，原时间保留。' if self.source_job_kind=='sound_gaps' else '正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
 
     def check_project(self):
@@ -1996,8 +2020,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def recovery_path(self):return self.home/'desktop-recovery.json'
     def save_recovery(self):
-        if self.history.dirty or self.pending:
-            try:atomic_json(self.recovery_path(),{'project':self.project.to_dict(),'path':str(self.path or ''),'pending':self.pending})
+        snapshot=self.project.to_dict()
+        if snapshot!=self.history.saved or self.pending:
+            try:atomic_json(self.recovery_path(),{'project':snapshot,'path':str(self.path or ''),'pending':self.pending},compact=True)
             except OSError:self.message('自动恢复文件无法写入，请及时保存工程')
         else:self.clear_recovery()
     def clear_recovery(self):
@@ -2026,7 +2051,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def closeEvent(self,event):
         if self.test:
             self.api.abandon();self.dispose();event.accept();return
-        if self.api.busy or self.local_job or self.source_job:
+        if self.api.busy or self.local_job or self.source_job or self.proxy_job:
             QMessageBox.information(self,'任务仍在运行','请等待任务完成，或点击“取消任务”后再关闭。');event.ignore();return
         if not self.can_replace():event.ignore();return
         if getattr(self,'_discarding',False):self.clear_recovery()
@@ -2038,6 +2063,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.closing=True;self._source_serial+=1
         if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
         self.fine_listener.dispose()
+        self.cancel_proxy_request(False)
         if self.source_job:self.source_job.cancel.set()
         self.center_reveal_timer.stop();self._center_reveal_widget=None
         QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.renderer.close()

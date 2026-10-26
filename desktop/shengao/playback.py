@@ -56,8 +56,8 @@ class Playback(QWidget):
         from PySide6.QtWidgets import QVBoxLayout
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0)
         self.viewport=QScrollArea();self.viewport.setFrameShape(QFrame.Shape.NoFrame);self.viewport.setAlignment(Qt.AlignmentFlag.AlignCenter);self.viewport.setMinimumSize(260,146);self.viewport.setWidget(self.canvas);layout.addWidget(self.viewport)
-        self.source_size=QSize(1920,1080);self.zoom=None
-        self.viewport.viewport().installEventFilter(self);self.canvas.zoomRequested.connect(self.zoom_steps);self.canvas.frameSizeChanged.connect(self.set_source_size)
+        self.source_size=QSize(1920,1080);self.zoom=None;self.reference_size=None
+        self.viewport.viewport().installEventFilter(self);self.canvas.zoomRequested.connect(self.zoom_steps);self.canvas.frameSizeChanged.connect(self.set_frame_size)
         self.player=QMediaPlayer(self);self.audio=QAudioOutput(self);self.sink=QVideoSink(self)
         self.temporary_owner=None;self.temporary_stop=None;self.temporary_position=None
         self.player.setAudioOutput(self.audio);self.player.setVideoSink(self.sink);self.audio.setVolume(.7)
@@ -139,24 +139,29 @@ class Playback(QWidget):
         if self.preview_pending and not self.preview_started and self.player.hasVideo() and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
             self.preview_started=True;self.preview_muted=self.audio.isMuted();self.audio.setMuted(True);invoke_native_slot(self.player,'play')
 
-    def open(self,path,position=0,preview=False):
+    def open(self,path,position=0,preview=False,reference_size=None):
         self.interrupt_temporary()
-        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.frame=QImage();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.set_source_size(1920,1080);self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
+        self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.frame=QImage();self.canvas.update();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.reference_size=reference_size;self.set_source_size(*(reference_size or (1920,1080)));self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
 
     def clear(self):
         self.interrupt_temporary()
         self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
         # Release displayed image resources before stopping the decoder.
         self.canvas.frame=QImage()
+        self.canvas.update()
+        self.reference_size=None
         invoke_native_slot(self.player,'stop')
         self.player.setSource(QUrl())
         self.on_position(0);self.durationChanged.emit(0)
 
-    def replace_audition_source(self,path):
+    def replace_audition_source(self,path,reference_size=None):
         position=self.canvas.position;zoom=self.zoom;playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState and not self.preview_started
         saved_range=self.range;loop=self.loop;size=self.source_size
-        self.open(path,position,preview=True);self.resume_on_load=playing;self.restore_range=(saved_range,loop);self.set_source_size(size.width(),size.height());self.set_zoom(zoom)
+        self.open(path,position,preview=True,reference_size=reference_size);self.resume_on_load=playing;self.restore_range=(saved_range,loop);self.set_source_size(*(reference_size or (size.width(),size.height())));self.set_zoom(zoom)
         self.seek(position)
+
+    def set_frame_size(self,width,height):
+        self.set_source_size(*(self.reference_size or (width,height)))
 
     def set_source_size(self,width,height):
         self.source_size=QSize(max(16,width),max(16,height));self.canvas.aspect=width/max(1,height);self.resize_canvas()
@@ -184,21 +189,24 @@ class Playback(QWidget):
         return super().eventFilter(obj,event)
 
     def on_position(self,value):
-        self.anchor=value;self.clock.restart();self.canvas.position=value;self.canvas.update();self.positionChanged.emit(value)
+        self.anchor=value;self.clock.restart();self.update_canvas_position(value);self.positionChanged.emit(value)
+
+    def update_canvas_position(self,value):
+        if value!=self.canvas.position:self.canvas.position=value;self.canvas.update()
 
     def tick(self):
         if self.temporary_position is not None:
-            self.canvas.position=self.temporary_position;self.canvas.update();return
+            self.update_canvas_position(self.temporary_position);return
         target=self.pending_seek if self.pending_seek is not None else self.preview_target if self.preview_pending else None
         if target is not None:
-            self.canvas.position=target;self.canvas.update();return
+            self.update_canvas_position(target);return
         playing=self.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState
         position=self.anchor+round(self.clock.elapsed()*self.player.playbackRate()) if playing else (self.player.position() if self.player.duration()>0 else self.anchor)
         if self.range and playing and position>=self.range[1]:
             if self.loop:self.seek(self.range[0],internal=True)
             else:invoke_native_slot(self.player,'pause');self.seek(self.range[1],internal=True);self.range=None
             return
-        self.canvas.position=max(0,min(position,self.player.duration() or position));self.canvas.update()
+        self.update_canvas_position(max(0,min(position,self.player.duration() or position)))
         if playing:self.positionChanged.emit(self.canvas.position)
 
     def seek(self,value,internal=False):

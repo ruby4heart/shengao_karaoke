@@ -46,12 +46,15 @@ class VocalWorkflow:
         # One media player contains both video and the chosen audio. Separate
         # asynchronous players cannot drift during slow playback or looping.
         left=self.timeline.left;position=self.playback.canvas.position
-        self.playback.replace_audition_source(path);self.playback.canvas.audio_only=not self.project.has_video
+        path=self.proxy_audition_path(role,path)
+        self.playback.replace_audition_source(path,reference_size=(self.project.width,self.project.height));self.playback.canvas.audio_only=not self.project.has_video
         self.timeline.set_audio(audio);self.timeline.left=left;self.timeline.position=position;self.timeline.update_scroll();self.timeline.update()
         self.audition_role=role;self._playing_vocal_hash=self.project.vocal_track.get('sha256','') if role=='vocals' else '';self.refresh_vocal_tools();self.render_subtitles()
         self.refresh_fine_listening()
+        self.proxy_after_audition()
 
     def vocal_play_error(self,message):
+        if self.proxy_play_error(message):return
         if self.audition_role=='vocals' and self.original_audio is not None:
             self.apply_audition('original',self.project.media,self.original_audio);self.message('人声预览播放失败，已恢复当前视频原声；人声缓存和字幕保留。'+message)
 
