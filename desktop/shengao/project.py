@@ -177,7 +177,9 @@ class Project:
         if version<13 and data.get('review_states'):raise ValueError('集中疑点处理记录需要第 13 版工程格式')
         if version<12 and (data.get('reading_dictionary') or data.get('reading_preferences')):raise ValueError('读音词典与规则需要第 12 版工程格式')
         if version<10 and data.get('color_styles'):raise ValueError('详细颜色设置需要第 10 版工程格式')
-        fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__}
+        # Reconstructed records below own their nested data. Copying the raw
+        # lines here was discarded, while the old reader still aliased input.
+        fields={k:copy.deepcopy(v) for k,v in data.items() if k in cls.__dataclass_fields__ and k not in ('lines','style','media_versions')}
         raw_lines=data.get('lines',[])
         if not isinstance(raw_lines,list) or any(not isinstance(x,dict) for x in raw_lines):raise ValueError('歌词列表格式无效')
         if any(not isinstance(line.get('units',[]),list) or any(not isinstance(u,dict) for u in line.get('units',[])) for line in raw_lines):raise ValueError('词组列表格式无效')

@@ -1238,6 +1238,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.update_workflow()
         self.fit_center_layout()
 
+        # Entering calibration is an explicit navigation action. Its saved
+        # view can already be selected, so no combo change will reveal audio.
+        if index==2 and self.view_choice.currentIndex()!=2:self.reveal_center_widget(self.timeline)
+
     def resizeEvent(self,event):
         super().resizeEvent(event)
         if not hasattr(self,'left_panel') or not hasattr(self,'right_panel'):return

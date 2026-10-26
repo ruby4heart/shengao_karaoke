@@ -57,3 +57,20 @@ def test_queued_center_navigation_is_stopped_on_close(qapp,tmp_path):
     w=window(qapp,tmp_path);w.reveal_center_widget(w.timeline);assert w.center_reveal_timer.isActive()
     w.close();settle(qapp)
     assert not w.center_reveal_timer.isActive() and w._center_reveal_widget is None and w.closing
+
+
+def test_returning_to_calibration_reveals_axis_when_view_choice_is_unchanged(qapp,tmp_path):
+    w=window(qapp,tmp_path);w.resize(960,620);settle(qapp);before=w.project.to_dict()
+    assert w.view_choice.currentIndex()==0
+    w.workspace_scroll.verticalScrollBar().setValue(0);settle(qapp);assert not in_center(w,w.timeline)
+    w.set_stage(2);settle(qapp)
+    assert w.view_choice.currentIndex()==0 and in_center(w,w.timeline) and w.project.to_dict()==before
+
+
+def test_returning_to_calibration_preserves_explicit_video_only_choice(qapp,tmp_path):
+    w=window(qapp,tmp_path);w.view_choice.setFocus()
+    QTest.keyClick(w.view_choice,Qt.Key.Key_Down);QTest.keyClick(w.view_choice,Qt.Key.Key_Down);settle(qapp);before=w.project.to_dict()
+    assert w.preferences.data['stage_views']['2']==2
+    w.set_stage(3);w.set_stage(2);settle(qapp)
+    assert w.view_choice.currentIndex()==2 and w.playback.isVisible() and not w.timeline.isVisible()
+    assert w._center_reveal_widget is None and w.project.to_dict()==before

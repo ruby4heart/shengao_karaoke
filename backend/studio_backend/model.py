@@ -1,5 +1,6 @@
 """Milliseconds are canonical; readings never substitute for source lyrics."""
 from dataclasses import asdict, dataclass, field
+import copy
 import math
 import re
 import uuid
@@ -22,6 +23,42 @@ def plain_ass(text):
 def literal(text):
     # User text cannot become ASS drawing or override commands.
     return text.replace('\\', '＼').replace('{', '｛').replace('}', '｝').replace('\x00', '').replace('\r\n', '\n').replace('\r', '\n').replace('\n', r'\N')
+
+
+_SNAPSHOT_ATOMIC=frozenset((str,int,float,bool,type(None)))
+
+
+def _detached(value):
+    """Copy ordinary document data, keeping uncommon Python values intact."""
+    kind=type(value)
+    if kind in _SNAPSHOT_ATOMIC:return value
+    if kind is dict:return {k if type(k) in _SNAPSHOT_ATOMIC else _detached(k):v if type(v) in _SNAPSHOT_ATOMIC else _detached(v) for k,v in value.items()}
+    if kind is list:return [v if type(v) in _SNAPSHOT_ATOMIC else _detached(v) for v in value]
+    return copy.deepcopy(value)
+
+
+@dataclass
+class _SnapshotValue:
+    value:object
+
+
+def _model_snapshot(value):
+    """asdict-compatible snapshot, with a fast path for the lyric schema.
+
+    Mutable dictionaries and lists always get new storage. The stdlib path
+    preserves named tuples, other dataclasses and unusual container semantics.
+    """
+    kind=type(value)
+    if kind in _SNAPSHOT_ATOMIC:return value
+    if kind in (LyricLine,Unit,Highlight):
+        result={}
+        for name in kind.__dataclass_fields__:
+            item=getattr(value,name);result[name]=item if type(item) in _SNAPSHOT_ATOMIC else _model_snapshot(item)
+        return result
+    if kind is dict:return {k if type(k) in _SNAPSHOT_ATOMIC else _model_snapshot(k):v if type(v) in _SNAPSHOT_ATOMIC else _model_snapshot(v) for k,v in value.items()}
+    if kind is list:return [v if type(v) in _SNAPSHOT_ATOMIC else _model_snapshot(v) for v in value]
+    if kind is tuple:return tuple(_model_snapshot(v) for v in value)
+    return asdict(_SnapshotValue(value))['value']
 
 
 @dataclass
@@ -140,14 +177,14 @@ class LyricLine:
 
     @classmethod
     def from_dict(cls, value):
-        fields = {k: v for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
-        fields['units'] = [Unit(**{k: v for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
+        fields = {k: _detached(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
+        fields['units'] = [Unit(**{k: _detached(v) for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
         line = cls(**fields)
         line.validate()
         return line
 
     def to_dict(self):
-        value=asdict(self)
+        value=_model_snapshot(self)
         # Older task signatures and immutable checkpoints predate this field.
         # Keep empty evidence out of legacy dictionaries. Real evidence is
         # always serialized and protected by project schema 7.
