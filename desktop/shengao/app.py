@@ -396,8 +396,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             row=self.current;self.edit('移动此后演唱边界',lambda p:p.lines.__setitem__(row,shift_following(p.lines[row],boundary,delta)))
 
     def toggle_workflow(self,expanded):
+        # Keep the audio region the user is already editing in view while the
+        # header changes height. Do not pull a video-focused view down to audio.
+        keep_axis=hasattr(self,'timeline') and self.stage==2 and self.timeline.isVisible() and self.timeline.visibleRegion().contains(self.timeline.rect().center())
         self.navigation_panel.setVisible(expanded);self.workflow_toggle.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp if expanded else QStyle.StandardPixmap.SP_ArrowDown));self.preferences.set('show_workflow',expanded)
         if hasattr(self,'center_split'):self.fit_center_layout()
+        if keep_axis:self.reveal_center_widget(self.timeline)
 
     def go_reading(self):
         if not self.flush_edits():return

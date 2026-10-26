@@ -56,3 +56,26 @@ def test_noop_and_merged_line_transactions_keep_one_undo_step():
     assert not history.apply_line('没有修改',0,lambda line:line) and not history.undo_stack
     for start in (110,120):assert history.apply_line('微调',0,lambda line:set_time(line,-1,start,start+400),merge_key='same-line')
     assert len(history.undo_stack)==1 and history.undo() and history.project.to_dict()==before
+
+
+def test_single_line_snapshot_matches_actual_document_with_unrelated_metadata_and_new_id():
+    from shengao.line_layout import make_setting
+    p=sample();p.layout_styles={p.lines[0].id:make_setting(p.lines[0],120,90,[])}
+    p.transcript=[{'nested':{'values':[True,1,-0.0]}}];p.note='原始记录';before=p.to_dict()
+    general=History(Project.from_dict(before));local=History(Project.from_dict(before))
+    def edit(line):line.id='replacement';return line
+    assert general.apply('更改编号',lambda q:q.lines.__setitem__(0,edit(q.lines[0])))
+    assert local.apply_line('更改编号',0,edit)
+    assert local._applied_snapshot==local.project.to_dict()==general.project.to_dict()
+    assert not local.project.layout_styles
+    assert local.undo() and local.project.to_dict()==before
+    assert local.redo() and local.project.to_dict()==general.project.to_dict()
+
+
+def test_single_line_snapshot_reuse_keeps_every_other_field_and_is_detached_from_live_data():
+    p=sample();p.transcript=[{'nested':{'values':[True,1,-0.0]}}];p.note='原始记录';history=History(p)
+    assert history.apply_line('调整',0,lambda line:set_time(line,-1,110,510))
+    expected=history.project.to_dict();assert history._applied_snapshot==expected
+    history.project.transcript[0]['nested']['values'].append('new')
+    history.project.lines[1].reading_review['notes'].append('new')
+    assert history._applied_snapshot==expected

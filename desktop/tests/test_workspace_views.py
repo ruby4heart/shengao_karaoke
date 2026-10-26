@@ -74,3 +74,25 @@ def test_returning_to_calibration_preserves_explicit_video_only_choice(qapp,tmp_
     w.set_stage(3);w.set_stage(2);settle(qapp)
     assert w.view_choice.currentIndex()==2 and w.playback.isVisible() and not w.timeline.isVisible()
     assert w._center_reveal_widget is None and w.project.to_dict()==before
+
+
+@pytest.mark.parametrize('height',[620,680])
+@pytest.mark.parametrize('view',[0,1])
+def test_workflow_toggle_keeps_current_audio_axis_wholly_visible(qapp,tmp_path,height,view):
+    w=window(qapp,tmp_path);w.resize(960,height);w.view_choice.setCurrentIndex(view);w.reveal_center_widget(w.timeline);settle(qapp)
+    before=w.project.to_dict();assert in_center(w,w.timeline)
+    for _ in range(4):
+        w.workflow_toggle.click();settle(qapp)
+        assert in_center(w,w.timeline) and w.view_choice.currentIndex()==view and w.project.to_dict()==before
+    assert not w.workflow_toggle.isChecked()
+
+
+@pytest.mark.parametrize('view',[0,2])
+def test_workflow_toggle_respects_video_focus_and_video_only_choice(qapp,tmp_path,view):
+    w=window(qapp,tmp_path);w.resize(960,680);w.view_choice.setCurrentIndex(view);settle(qapp)
+    w.workspace_scroll.verticalScrollBar().setValue(0);settle(qapp);before=w.project.to_dict()
+    assert not w.timeline.visibleRegion().contains(w.timeline.rect().center())
+    for _ in range(2):
+        w.workflow_toggle.click();settle(qapp)
+        assert w.workspace_scroll.verticalScrollBar().value()==0 and w.view_choice.currentIndex()==view
+        assert w._center_reveal_widget is None and w.project.to_dict()==before

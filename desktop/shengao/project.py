@@ -11,7 +11,7 @@ import math
 
 from studio_backend.model import LyricLine, identifier
 from studio_backend.settings import atomic_json
-from .undo_snapshot import UndoSnapshot,restore as restore_undo
+from .undo_snapshot import SnapshotStore,controller_view as undo_view
 
 from .media_versions import MediaVersion,ROLES
 
@@ -197,11 +197,11 @@ class Project:
         # project.validate below checks every reconstructed line. Standalone
         # LyricLine.from_dict remains fully validating for its other callers.
         fields['lines']=[LyricLine._from_dict_record({**x,'id':str(x['id'])} if version==1 and 'id' in x else x) for x in raw_lines if x.get('text')]
-        fields['style']=Style(**{k:v for k,v in data.get('style',{}).items() if k in Style.__dataclass_fields__})
-        fields['media']=data.get('video') or data.get('media','')
+        fields['style']=Style(**{k:copy.deepcopy(v) for k,v in data.get('style',{}).items() if k in Style.__dataclass_fields__})
+        fields['media']=copy.deepcopy(data.get('video') or data.get('media',''))
         raw_versions=data.get('media_versions',{})
         if not isinstance(raw_versions,dict) or any(not isinstance(value,dict) for value in raw_versions.values()):raise ValueError('视频版本列表无效')
-        try:fields['media_versions']={key:MediaVersion(**value) for key,value in raw_versions.items()}
+        try:fields['media_versions']={key:MediaVersion(**copy.deepcopy(value)) for key,value in raw_versions.items()}
         except TypeError as error:raise ValueError('视频版本记录无效') from error
         project=cls(**fields)
         from .song_info import validate as validate_song_info
@@ -329,6 +329,10 @@ class History:
     def __init__(self,project):
         self.project=project;self.undo_stack=[];self.redo_stack=[];self.saved=project.to_dict()
         self._applied_snapshot=None
+        self._snapshots=SnapshotStore()
+        # Prepare the first private baseline when opening the document, rather
+        # than paying for a whole-document deep copy on its first drag release.
+        self._snapshots.capture(self.saved)
         self.merge_key=None;self.merge_time=0
 
     @property
@@ -351,30 +355,39 @@ class History:
         if type(row) is not int or not 0<=row<len(self.project.lines):raise IndexError('歌词行不存在')
         before=self.project.to_dict();candidate=Project._from_dict_record(before)
         previous=candidate.lines[row];previous.validate();candidate.lines[row]=edit_line(previous)
-        if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_line_overrides()
+        renamed=candidate.lines[row].id!=before['lines'][row]['id']
+        if renamed:candidate.prune_line_overrides()
         candidate.validate()
-        return self._commit(label,before,candidate,merge_key)
+        # The callback can only access the detached selected line. Other
+        # records already have the canonical serialization used to construct
+        # this candidate; reuse them within this synchronous transaction.
+        # An ID change can prune document-wide overrides and needs a full copy.
+        after=None
+        if not renamed:
+            after={**before,'lines':list(before['lines'])}
+            after['lines'][row]=candidate.lines[row].to_dict()
+        return self._commit(label,before,candidate,merge_key,_after=after)
 
-    def _commit(self,label,before,candidate,merge_key):
-        after=candidate.to_dict()
+    def _commit(self,label,before,candidate,merge_key,*,_after=None):
+        after=candidate.to_dict() if _after is None else _after
         if after==before:return False
         now=time.monotonic()
         if merge_key is None or merge_key!=self.merge_key or now-self.merge_time>1:
-            self.undo_stack.append((label,UndoSnapshot(before)));self.undo_stack=self.undo_stack[-150:]
+            self.undo_stack.append((label,self._snapshots.capture(before)));self.undo_stack=self.undo_stack[-150:]
         self.merge_key=merge_key;self.merge_time=now;self.redo_stack.clear()
         self.project=candidate;self._applied_snapshot=after;return True
 
     def undo(self):
         self.merge_key=None
         if not self.undo_stack:return False
-        label,data=self.undo_stack[-1];candidate=Project.from_dict(restore_undo(data));current=UndoSnapshot(self.project.to_dict())
-        self.undo_stack.pop();self.redo_stack.append((label,current));self.project=candidate;return True
+        label,data=self.undo_stack[-1];candidate=Project.from_dict(undo_view(data));current=self._snapshots.capture(self.project.to_dict())
+        self.undo_stack.pop();self.redo_stack.append((label,current));self.project=candidate;self._snapshots.adopt(data);return True
 
     def redo(self):
         self.merge_key=None
         if not self.redo_stack:return False
-        label,data=self.redo_stack[-1];candidate=Project.from_dict(restore_undo(data));current=UndoSnapshot(self.project.to_dict())
-        self.redo_stack.pop();self.undo_stack.append((label,current));self.project=candidate;return True
+        label,data=self.redo_stack[-1];candidate=Project.from_dict(undo_view(data));current=self._snapshots.capture(self.project.to_dict())
+        self.redo_stack.pop();self.undo_stack.append((label,current));self.project=candidate;self._snapshots.adopt(data);return True
 
     def mark_saved(self): self.saved=self.project.to_dict();self.merge_key=None
 
