@@ -2,7 +2,7 @@ import copy,random
 import pytest
 from studio_backend.model import LyricLine
 from shengao.presentation import WindowIndex,DisplayWindow,display_windows
-from shengao.subtitles import compose,CompositionCache,lane_layout
+from shengao.subtitles import compose,CompositionCache,lane_layout,_LaneLayoutIndex
 from shengao.render import AssRenderer
 from shengao.color_states import update_settings,preset_profile
 from shengao.line_layout import make_setting
@@ -26,6 +26,42 @@ def test_indexed_lane_layout_matches_original_scan_including_local_layout_and_ma
     layouts=resolved_layouts(p)
     for (_,style),window in zip(layouts,windows):
         assert lane_layout(p,window,windows,style,layouts,index.overlapping(window))==lane_layout(p,window,windows,style,layouts)
+
+
+@pytest.mark.parametrize('count',[0,1,2,35,350])
+def test_overlap_statistics_match_strict_brute_force_for_empty_equal_and_unordered_edges(count):
+    rng=random.Random(781);windows=[];metrics=[]
+    for i in range(count):
+        start=rng.randrange(-10,100)*10;windows.append(DisplayWindow(start,start+rng.randrange(0,80)*10));metrics.append((rng.randrange(10),rng.randrange(500),bool(i%2)))
+    index=WindowIndex(windows,metrics)
+    for query in [*windows,DisplayWindow(0,0),DisplayWindow(500,500),DisplayWindow(-1000,3000)]:
+        values=[metrics[i] for i,w in enumerate(windows) if w.start<query.end and query.start<w.end]
+        expected=tuple(max(parts) for parts in zip(*values)) if values else None
+        assert index.maximum(query)==expected
+
+
+@pytest.mark.parametrize('local',[False,True])
+def test_geometry_summaries_match_original_scan_and_actual_ass_pixels(monkeypatch,local):
+    p=sample();p.style.display_mode='alternating'
+    if not local:p.layout_styles={}
+    from shengao.line_layout import resolved_layouts
+    for n in range(35):
+        line=LyricLine('extra-'+str(n),'長い\n歌詞' if n%3==0 else '短い',100+n*220,800+n*220,romaji='roman' if n%4==0 else '',translation='译文' if n%5==0 else '')
+        if n%6==0:line.display_start=0;line.display_end=10000
+        p.lines.append(line)
+        if local and n%4==0:p.layout_styles[line.id]=make_setting(line,60+n,90,[])
+    windows=display_windows(p);layouts=resolved_layouts(p);index=_LaneLayoutIndex(p,windows,layouts)
+    for (_,style),window in zip(layouts,windows):assert index.get(window,style)==lane_layout(p,window,windows,style,layouts)
+    fast=compose(p)
+    def scan(self,window,style):return lane_layout(p,window,windows,style,layouts)
+    monkeypatch.setattr(_LaneLayoutIndex,'get',scan);reference=compose(p)
+    assert fast==reference
+    renderer=AssRenderer()
+    try:
+        for when in (0,101,1000,5001,9999):
+            renderer.set_text(reference);expected=renderer.rgba(320,180,when)
+            renderer.set_text(fast);assert renderer.rgba(320,180,when)==expected
+    finally:renderer.close()
 
 
 def compare(p,cache):

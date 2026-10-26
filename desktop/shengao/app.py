@@ -14,8 +14,9 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QFrame,QVBoxLayo
 from studio_backend.model import LyricLine
 from studio_backend.settings import default_home,atomic_json
 from .project import Project,Style,History,load_project,save_project,file_stamp
+from .recovery import RecoveryWriter
 from .fonts import bundled_fonts,register_qt_fonts,missing,font_weight,family_name
-from .subtitles import compose,layout_issues
+from .subtitles import compose,layout_issues,_compose_after_edit
 from .presentation import display_windows
 from .display_ribbon import DisplayTimingRibbon
 from .display_timing import change_display
@@ -83,7 +84,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         register_qt_fonts();self.build()
         from .action_help import explain_buttons
         explain_buttons(self);self.connect_signals();self.shortcuts();self.refresh()
-        self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.save_recovery);self.autosave.start()
+        from .fast_snapshot import enable as enable_fast_snapshot
+        self.snapshot_accelerator=enable_fast_snapshot()
+        self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed)
+        self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
         if not test:QTimer.singleShot(250,self.offer_recovery)
         saved=self.preferences.data
@@ -1061,10 +1065,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def finish_history_edit(self,focus=False,render_now=False):
         snapshot=self.history._applied_snapshot
-        windows=self.refresh(focus,_snapshot=snapshot)
-        if render_now:self.render_subtitles(_snapshot=snapshot,_windows=windows)
+        # The new History candidate is detached and fully validated. Compose
+        # before refresh binds it to editable widgets; never retain validation
+        # across event-loop turns or reuse it for independent rendering.
+        windows=display_windows(self.project) if render_now else None
+        error=self.render_subtitles(_snapshot=snapshot,_windows=windows,_after_edit=True) if render_now else None
+        self.refresh(focus,_snapshot=snapshot,_windows=windows)
+        if error:self.message(error)
 
-    def refresh(self,focus=False,*,_snapshot=None):
+    def refresh(self,focus=False,*,_snapshot=None,_windows=None):
         from .gui_gc import activity
         activity()
         self.refreshing=True
@@ -1099,7 +1108,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.position_choice.setCurrentIndex(max(0,self.position_choice.findData(p.style.position)))
             self.display_mode.setCurrentIndex(max(0,self.display_mode.findData(p.style.display_mode)))
             for name,(spin,factor) in self.presentation_spins.items():spin.setValue(getattr(p.style,name)/factor)
-            windows=display_windows(p)
+            windows=display_windows(p) if _windows is None else _windows
             if line:
                 self.display_begin.setValue(windows[self.current].start);self.display_end.setValue(windows[self.current].end)
             self.display_apply.setEnabled(bool(line and not line.locked and not p.source_ass_active))
@@ -1132,22 +1141,38 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def refresh_lyrics(self,*args):
         if self._retain_lyrics:return
-        if self._selection_uid!=self.project.uid:
+        new_document=self._selection_uid!=self.project.uid
+        if new_document:
             self._selected_lyric_ids=set();self._selection_uid=self.project.uid
         if args and not self.refreshing:self._selected_lyric_ids=set()
         valid={line.id for line in self.project.lines};self._selected_lyric_ids.intersection_update(valid)
         if not self._selected_lyric_ids and self.line:self._selected_lyric_ids={self.line.id}
         selected=self.line.id if self.line else None;text=self.search.text().casefold();kind=self.filter.currentIndex()
-        blocker=QSignalBlocker(self.lyrics);self.lyrics.clear();chosen=-1
+        blocker=QSignalBlocker(self.lyrics);chosen=-1;visible=[]
         for index,line in enumerate(self.project.lines):
             if text and text not in (line.text+line.kana+line.romaji).casefold():continue
             if kind==1 and line.reviewed:continue
             if kind==2 and self.project.checks.get(line.id,{}).get('reading'):continue
+            visible.append((index,line))
+        id_role=int(Qt.ItemDataRole.UserRole)+1
+        existing=[self.lyrics.item(row).data(id_role) for row in range(self.lyrics.count())]
+        reuse=not new_document and existing==[line.id for index,line in visible]
+        if not reuse:self.lyrics.clear()
+        for row,(index,line) in enumerate(visible):
             state='✓ 时间已确认' if line.reviewed else '○ 待校准'
-            item=QListWidgetItem(f'{index+1:02}  {stamp(line.start)}   {state}\n{line.text}');item.setData(Qt.ItemDataRole.UserRole,index);item.setToolTip(line.text);self.lyrics.addItem(item)
-            item.setSelected(line.id in self._selected_lyric_ids)
-            if line.id==selected:chosen=self.lyrics.count()-1
-        if chosen>=0:self.lyrics.setCurrentRow(chosen,QItemSelectionModel.SelectionFlag.NoUpdate)
+            display=f'{index+1:02}  {stamp(line.start)}   {state}\n{line.text}'
+            if reuse:item=self.lyrics.item(row)
+            else:
+                item=QListWidgetItem();item.setData(id_role,line.id);self.lyrics.addItem(item)
+            # Read actual values, rather than caching model identities. This
+            # also repairs direct text/metadata changes without a full reset.
+            if item.text()!=display:item.setText(display)
+            if item.data(Qt.ItemDataRole.UserRole)!=index:item.setData(Qt.ItemDataRole.UserRole,index)
+            if item.toolTip()!=line.text:item.setToolTip(line.text)
+            marked=line.id in self._selected_lyric_ids
+            if item.isSelected()!=marked:item.setSelected(marked)
+            if line.id==selected:chosen=row
+        if self.lyrics.currentRow()!=chosen:self.lyrics.setCurrentRow(chosen,QItemSelectionModel.SelectionFlag.NoUpdate)
         self._selected_lyric_ids={self.project.lines[item.data(Qt.ItemDataRole.UserRole)].id for item in self.lyrics.selectedItems() if type(item.data(Qt.ItemDataRole.UserRole)) is int}
         if not self.project.lines:self.lyrics.addItem('这里将显示核对后的歌词。\n\n可以粘贴原歌词，或先识别并核对初稿。')
         self.count.setText(f'共 {len(self.project.lines)} 句 · 显示 {self.lyrics.count() if self.project.lines else 0} 句')
@@ -1503,7 +1528,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         from .fonts import project_font_files
         return [file_stamp(path) for path in project_font_files(self.project)]==self._render_font_stamp
 
-    def render_subtitles(self,*,_snapshot=None,_windows=None):
+    def render_subtitles(self,*,_snapshot=None,_windows=None,_after_edit=False):
         if self.closing:return
         if hasattr(self,'render_timer'):self.render_timer.stop()
         try:
@@ -1511,10 +1536,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             fonts=project_font_files(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict() if _snapshot is None else _snapshot;renderer=self.playback.canvas.renderer
             renderer.add_fonts(fonts)
             if snapshot!=self._render_snapshot or font_stamp!=self._render_font_stamp or renderer.text!=self._render_text:
-                text=compose(self.project,cache=self._composition_cache,_snapshot=snapshot,_windows=_windows,_font_stamp=font_stamp);renderer.set_text(text);self._render_snapshot=snapshot;self._render_font_stamp=font_stamp;self._render_text=text
+                composer=_compose_after_edit if _after_edit else compose
+                text=composer(self.project,cache=self._composition_cache,_snapshot=snapshot,_windows=_windows,_font_stamp=font_stamp);renderer.set_text(text);self._render_snapshot=snapshot;self._render_font_stamp=font_stamp;self._render_text=text
                 self.playback.canvas.update()
-            if self.stage==3:self.refresh_font_cards()
-        except (ValueError,OSError) as error:self.message(str(error))
+            if self.stage==3 and not _after_edit:self.refresh_font_cards()
+        except (ValueError,OSError) as error:self.message(str(error));return str(error)
 
     def refresh_font_choice(self,*args):
         role=self.font_role.currentIndex();s=self.project.style;name=['font','ruby_font','translation_font'][role]
@@ -2042,14 +2068,24 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         l.addWidget(button('恢复所选建议并审核',restore));l.addWidget(button('继续所选处理流程…',resume_workflow));l.addWidget(button('播放所选压制成品',open_output));l.addWidget(button('关闭',dialog.accept));dialog.exec()
 
     def recovery_path(self):return self.home/'desktop-recovery.json'
+    def recovery_failed(self,error):
+        if not self.closing:self.message('自动恢复文件无法写入，请及时保存工程：'+str(error))
+    def recovery_record(self,snapshot):
+        # Workers never read the live project or a mutable pending API result.
+        return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending)}
+    def queue_recovery(self):
+        if self.closing:return
+        snapshot=self.project.to_dict()
+        if snapshot!=self.history.saved or self.pending:self.recovery_writer.queue_owned(self.recovery_record(snapshot))
+        else:self.clear_recovery()
     def save_recovery(self):
         snapshot=self.project.to_dict()
         if snapshot!=self.history.saved or self.pending:
-            try:atomic_json(self.recovery_path(),{'project':snapshot,'path':str(self.path or ''),'pending':self.pending},compact=True)
-            except OSError:self.message('自动恢复文件无法写入，请及时保存工程')
+            try:self.recovery_writer.write_now(self.recovery_record(snapshot))
+            except (OSError,ValueError) as error:self.recovery_failed(error)
         else:self.clear_recovery()
     def clear_recovery(self):
-        try:self.recovery_path().unlink(missing_ok=True)
+        try:self.recovery_writer.clear()
         except OSError:pass
     def offer_recovery(self):
         path=self.recovery_path()
@@ -2084,6 +2120,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def dispose(self):
         if self.closing:return
         self.closing=True;self._source_serial+=1
+        self.recovery_writer.close()
         if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
         self.fine_listener.dispose()
         self.cancel_proxy_request(False)

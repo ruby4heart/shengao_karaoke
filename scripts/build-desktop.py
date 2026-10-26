@@ -12,8 +12,13 @@ from desktop_package_support import finalize
 from desktop_source_state import snapshot
 from vocal_source_state import state as vocal_state
 from python_tls_resources import pyinstaller_arguments
+from json_runtime_sources import verify as verify_json_runtime
 
 root=Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(root/'desktop'),str(root/'backend')]
+from shengao.fast_snapshot import verify as verify_snapshot
+verify_snapshot(root/'build/desktop',root/'desktop/native/snapshot.c')
+verify_json_runtime(root)
 before=snapshot(root)
 vocal=root/'build/vocal-dist/shengao-vocals'
 assert vocal_state(root)==json.loads((vocal/'engine-sources.json').read_text()),'Rebuild the local vocal engine before packaging'
@@ -41,6 +46,9 @@ with zipfile.ZipFile(wheel) as archive:
         (notices/Path(name).name).write_bytes(archive.read(name))
     shutil.copy2(root/'vendor/tbb-runtime/SOURCE.json',notices/'SOURCE.json')
 for name in ['shengao-audio.dll','shengao-render.dll','shengao-view.dll']:shutil.copy2(root/'build'/'desktop'/name,package/name)
+for name in ('_shengao_snapshot.pyd','snapshot-native.json'):shutil.copy2(root/'build/desktop'/name,package/name)
+shutil.copytree(root/'vendor/orjson/licenses',package/'licenses/orjson',dirs_exist_ok=True)
+shutil.copy2(root/'vendor/orjson/SOURCES.json',package/'licenses/orjson/SOURCES.json')
 baseline=root/'vendor'/'desktop-runtime'
 if not (baseline/'ffmpeg.exe').exists():baseline=root/'dist'/'ShengaoKaraoke-0.7.0-final-win64'
 shutil.copy2(baseline/'ffmpeg.exe',package/'ffmpeg.exe')

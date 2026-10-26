@@ -27,6 +27,16 @@ def literal(text):
 
 
 _SNAPSHOT_ATOMIC=frozenset((str,int,float,bool,type(None)))
+_SNAPSHOT_ACCELERATOR=None
+_LEGACY_EMPTY_KEYS=('timing_origin','fixed_edges','reading_options')
+
+
+def _set_snapshot_accelerator(module):
+    """Desktop-only verified module; other callers keep the Python implementation."""
+    global _SNAPSHOT_ACCELERATOR
+    _SNAPSHOT_ACCELERATOR=None if module is None else (module,
+        {kind:tuple(kind.__dataclass_fields__) for kind in (LyricLine,Unit,Highlight)},
+        lambda value:module.detach(value,copy.deepcopy))
 
 
 def _detached(value):
@@ -183,16 +193,19 @@ class LyricLine:
     @classmethod
     def _from_dict_record(cls,value):
         """Detach a record for a containing document's complete validation."""
-        fields = {k: _detached(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
-        fields['units'] = [Unit(**{k: _detached(v) for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
+        detach=_detached if _SNAPSHOT_ACCELERATOR is None else _SNAPSHOT_ACCELERATOR[2]
+        fields = {k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
+        fields['units'] = [Unit(**{k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
         return cls(**fields)
 
     def to_dict(self):
-        value=_model_snapshot(self)
+        accelerator=_SNAPSHOT_ACCELERATOR
+        value=_model_snapshot(self) if accelerator is None else accelerator[0].snapshot(self,accelerator[1],_model_snapshot)
         # Older task signatures and immutable checkpoints predate this field.
         # Keep empty evidence out of legacy dictionaries. Real evidence is
         # always serialized and protected by project schema 7.
         if not self.timing_evidence:value.pop('timing_evidence')
+        if accelerator is not None and accelerator[0].clean_lyric(value,_LEGACY_EMPTY_KEYS):return value
         for item in [value,*value['units'],*(h for u in value['units'] for h in u['highlights'])]:
             if not item.get('timing_origin'):item.pop('timing_origin',None)
             if 'fixed_edges' in item and not item['fixed_edges']:item.pop('fixed_edges')

@@ -1,6 +1,6 @@
 # 独立 Qt 工作台构建
 
-本文对应 0.28.0 独立工作台，验收见 `V028-ACCEPTANCE.md`。每版合并一个完整工作阶段的多个关联目标；旧包保留，不可把旧包的测试作为新程序通过的证据。原生渲染 ABI 未改动。
+本文对应0.30.0开发树，尚未发布，验收进度见 `V030-ACCEPTANCE.md`；当前稳定版为0.29.0。每版合并一个完整工作阶段的多个关联目标；旧包保留，不可把旧包的测试作为新程序通过的证据。原版音频／字幕／时间轴绘图ABI未改动，0.30另增CPython 3.12数据复制模块。
 
 若构建 Python 的 `ssl.py` 引用 `codex-rejected-cas.pem`，两种构建脚本会核对运行时原件与 `vendor/python-tls` 的固定指纹，并打包至 SSL 模块同目录；普通 CPython 不需要该附属文件。不要通过关闭证书验证绕过缺失依赖。构建环境的证书策略变化后，应先核对来源、更新资源和验收。
 
@@ -14,9 +14,12 @@
 在 `karaoke-studio` 目录依次执行：
 
 ```powershell
+.\.venv-desktop\Scripts\python.exe scripts\fetch-json-runtime.py
+.\.venv-desktop\Scripts\python.exe -m pip install --no-index vendor\orjson\orjson-3.13.0-cp312-cp312-win_amd64.whl
 .\.venv-desktop\Scripts\python.exe scripts\extract-audio-core.py
 .\.venv-desktop\Scripts\python.exe scripts\extract-timeline-view.py
 cmd /c scripts\build-desktop-engine.cmd
+.\.venv-desktop\Scripts\python.exe scripts\build-snapshot-native.py
 .\.venv-desktop\Scripts\python.exe -m venv .venv-align
 .\.venv-align\Scripts\python.exe -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 .\.venv-align\Scripts\python.exe -m pip install -r desktop\vocal-requirements.lock --extra-index-url https://download.pytorch.org/whl/cpu
@@ -24,6 +27,10 @@ cmd /c scripts\build-desktop-engine.cmd
 .\.venv-align\Scripts\python.exe scripts\build-vocal-engine.py
 .\.venv-desktop\Scripts\python.exe scripts\build-desktop.py
 ```
+
+快照模块使用同一桌面Python的头文件和MSVC生成 `_shengao_snapshot.pyd`，并记录源码、二进制指纹与CPython ABI。修改 `desktop/native/snapshot.c` 后先重建该模块，再运行源码回归和应用构建；`build-desktop.py`拒绝来源不匹配的模块，并将其与记录复制到运行包。实际应用只从自身运行目录加载核验后的模块；缺失或不匹配时保留Python实现，发行自检仍会报告未达到构建要求。两种实现均保留完整工程验证、原文、元数据与撤销语义，不更改原版绘图。
+
+定时恢复的常见JSON数据使用固定的orjson 3.13.0；原生检查先排除非有限数、自定义类型和非字符串键，不兼容的大整数或特殊文本继续使用原标准库路径。手动工程保存和显式恢复检查点保持原编码。`fetch-json-runtime.py`仅从记录的官方地址取得固定wheel、源码归档及随附许可，校验完整SHA256；完整源码ZIP包含这些文件，已齐全时不再下载。构建还逐文件核对已安装模块与官方wheel，运行包保留许可及来源记录；不要只安装同名版本便跳过来源校验。
 
 本地引擎构建会先逐项核对 `desktop/vocal-requirements.lock` 的全部固定版本。旧 `.venv-vocals` 只有人声分离依赖，不能用于当前歌声对齐引擎；缺少 `g2pflow`、`librosa`、`numba` 或版本不符时必须在 PyInstaller 前失败。成功的引擎附 `engine-environment.json` 与 `engine-sources.json`，依赖校验通过也仍须实际推理与运行包验收，不能仅凭打包工具返回成功交付。
 

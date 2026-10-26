@@ -35,6 +35,9 @@ def main():
         return False
     try:
         app.processEvents();check('independent_qt_window',window.metaObject().className()=='StudioWindow')
+        check('snapshot_accelerator_verified',window.snapshot_accelerator.get('enabled') and window.snapshot_accelerator.get('python_abi')=='cp312')
+        from .checkpoint_encoding import available as fast_checkpoint
+        check('checkpoint_encoder_verified',fast_checkpoint())
         from .native_slot_acceptance import exercise as native_control
         native_control(app,out,check)
         check('initial_guidance','添加' in window.next_hint.text());window.grab().save(str(out/'first-use.png'))

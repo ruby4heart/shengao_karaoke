@@ -77,7 +77,7 @@ def main():
         report['measurements']['first_video_frame_ms']=(frames[0]['received_s']-source_opened)*1000;report['targets']['first_video_frame']=report['measurements']['first_video_frame_ms']<=3000
         report['measurements']['first_painted_frame_ms']=(w.playback.canvas.first_painted_at_s-source_opened)*1000;report['targets']['first_painted_frame']=report['measurements']['first_painted_frame_ms']<=3000
         w.set_stage(2);w.render_subtitles();assert wait(settled);original=w.project.to_dict()
-        report['fixture']={'lines':len(lines),'words':sum(len(v.units) for v in lines),'highlights':sum(len(u.highlights) for v in lines for u in v.units),'window':[w.width(),w.height()],'device_pixel_ratio':w.devicePixelRatioF(),'source_display_size':[w.project.width,w.project.height]}
+        report['fixture']={'lines':len(lines),'words':sum(len(v.units) for v in lines),'highlights':sum(len(u.highlights) for v in lines for u in v.units),'window':[w.width(),w.height()],'device_pixel_ratio':w.devicePixelRatioF(),'source_display_size':[w.project.width,w.project.height],'snapshot_accelerator':w.snapshot_accelerator}
         values=[]
         for _ in range(50):
             row=w.current+1;began=time.perf_counter();w.move_line(1);assert wait(lambda:w.current==row and w.timeline.line is w.line and settled(),5);values.append((time.perf_counter()-began)*1000)
@@ -160,6 +160,8 @@ def main():
         report['error']=traceback.format_exc();raise
     finally:
         report['gui_gc']=gc_policy.report() if gc_policy is not None else None
+        from shengao.checkpoint_encoding import status as checkpoint_status
+        report['checkpoint_encoder']=checkpoint_status()
         report['hardware_after']=hardware();report['source_unchanged']=file_stamp(source)==report['source_stamp'] and digest(source)==report['source_sha256']
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');w.close();app.processEvents()
         if gc_policy is not None:gc_policy.close()

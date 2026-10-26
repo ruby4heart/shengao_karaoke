@@ -136,15 +136,66 @@ def lane_layout(project,window,windows,line_style=None,layouts=None,overlaps=Non
     effective=replace(s,**{name:getattr(s,name)*scale for name in ('size','ruby_size','romaji_size','translation_size','outline','shadow','glow')})
     return effective,count,band*scale,scale
 
+
+class _LaneLayoutIndex:
+    """Fresh geometry summaries for one complete composition, never revisions."""
+    def __init__(self,project,windows,layouts):
+        self.project=project;self.local=bool(project.layout_styles);self.scaled={};self.index=None
+        if project.style.display_mode=='alternating':
+            if self.local:metrics=[(window.slot+1,self.band(line,style)) for (line,style),window in zip(layouts,windows)]
+            else:metrics=[(window.slot+1,line.text.count('\n')+1,bool(line.romaji),bool(line.translation)) for line,window in zip(project.lines,windows)]
+            self.index=WindowIndex(windows,metrics)
+
+    @staticmethod
+    def band(line,style):
+        value=(line.text.count('\n')+1)*(style.size+(style.ruby_size+24 if style.show_ruby else 16))+32
+        if style.show_romaji and line.romaji:value+=style.romaji_size+20
+        if style.show_translation and line.translation:value+=style.translation_size+20
+        return value
+
+    def get(self,window,style):
+        if style.display_mode!='alternating':return style,1,0,1.
+        maxima=self.index.maximum(window)
+        count=max(2,maxima[0] if maxima is not None else 2)
+        if self.local:band=maxima[1] if maxima is not None else self.band(self.project.lines[0],style) if self.project.lines else 32
+        else:
+            rows=maxima[1] if maxima is not None else 1
+            band=rows*(style.size+(style.ruby_size+24 if style.show_ruby else 16))+32
+            if style.show_romaji and maxima is not None and maxima[2]:band+=style.romaji_size+20
+            if style.show_translation and maxima is not None and maxima[3]:band+=style.translation_size+20
+        values=tuple(getattr(style,name) for name in style.__dataclass_fields__)
+        kinds=tuple(map(type,values));plain=all(kind in (str,int,float,bool,type(None)) for kind in kinds)
+        key=(kinds,values,count,band) if plain else None
+        if key is not None and key in self.scaled:return self.scaled[key]
+        scale=min(1.,944/(count*band))
+        effective=replace(style,**{name:getattr(style,name)*scale for name in ('size','ruby_size','romaji_size','translation_size','outline','shadow','glow')})
+        result=(effective,count,band*scale,scale)
+        if key is not None:self.scaled[key]=result
+        return result
+
 def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=None,_snapshot=None,_windows=None,_font_stamp=None):
     """Compose the whole export, or exact visible events for private thumbnails.
 
     Preview filtering retains full-project lane context. File exports and the
     main player use the default complete composition.
     """
+    return _compose(project,embed,preview_time=preview_time,preview_line_id=preview_line_id,cache=cache,_snapshot=_snapshot,_windows=_windows,_font_stamp=_font_stamp)
+
+
+def _compose_after_edit(project,*,cache,_snapshot,_windows,_font_stamp):
+    """Only for a successful synchronous History transaction, before UI binding.
+
+    History has fully validated this detached candidate. No event processing or
+    live-widget binding may occur between that transaction and this call.
+    Independent previews and exports must continue to use compose().
+    """
+    return _compose(project,cache=cache,_snapshot=_snapshot,_windows=_windows,_font_stamp=_font_stamp,_validated=True)
+
+
+def _compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=None,_snapshot=None,_windows=None,_font_stamp=None,_validated=False):
     if preview_time is not None and (type(preview_time) is not int or preview_time<0):raise ValueError('预览时间无效')
     if preview_line_id is not None and (preview_time is None or not isinstance(preview_line_id,str) or not any(line.id==preview_line_id for line in project.lines)):raise ValueError('本句预览需要有效的歌词和时间')
-    project.validate()
+    if not _validated:project.validate()
     if project.source_ass_active and project.source_ass:
         if preview_line_id is not None:raise ValueError('保留原 ASS 时不能筛出单句；请先明确选择声稿样式')
         from .subtitle_import import preserve_ass
@@ -168,7 +219,7 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=N
           style_row('Romaji',main_family,style.romaji_size,style,highlight=False,font_file=main),style_row('Translation',trans_family,style.translation_size,style,highlight=False,font_file=translated),'',
           '[Events]','Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text']
     from .line_layout import resolved_layouts
-    windows=display_windows(project) if _windows is None else _windows;layouts=resolved_layouts(project);overlap_index=WindowIndex(windows)
+    windows=display_windows(project) if _windows is None else _windows;layouts=resolved_layouts(project);lane_index=_LaneLayoutIndex(project,windows,layouts)
     next_entries=cache.begin((main,ruby,translated),_font_stamp) if cache is not None else None
     line_snapshots={line['id']:line for line in _snapshot['lines']} if cache is not None and _snapshot is not None else {}
     layout_snapshots=_snapshot['layout_styles'] if _snapshot is not None else None
@@ -179,7 +230,7 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=N
         # least 10 ms. Keep a conservative boundary margin; libass decides
         # visibility, exactly as it does for the complete composition.
         if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
-        effective,slot_count,band_height,scale=lane_layout(project,window,windows,line_style,layouts,overlap_index.overlapping(window))
+        effective,slot_count,band_height,scale=lane_index.get(window,line_style)
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
         if cache is not None:

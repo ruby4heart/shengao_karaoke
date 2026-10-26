@@ -11,13 +11,40 @@ class DisplayWindow:
 
 class WindowIndex:
     """Overlap queries preserve the exact strict boundary comparisons."""
-    def __init__(self,windows):
+    def __init__(self,windows,metrics=None):
         self.order=sorted(range(len(windows)),key=lambda i:windows[i].start)
         self.starts=[windows[i].start for i in self.order];self.size=1
         while self.size<len(self.order):self.size*=2
         self.ends=[-1]*(2*self.size)
         for n,i in enumerate(self.order):self.ends[self.size+n]=windows[i].end
         for n in range(self.size-1,0,-1):self.ends[n]=max(self.ends[n*2],self.ends[n*2+1])
+        self.metrics=None
+        if metrics is not None:
+            if len(metrics)!=len(windows) or metrics and any(len(value)!=len(metrics[0]) for value in metrics):raise ValueError('显示区间统计维度不一致')
+            self.minimum_ends=[float('inf')]*(2*self.size);self.metrics=[None]*(2*self.size)
+            for n,i in enumerate(self.order):self.minimum_ends[self.size+n]=windows[i].end;self.metrics[self.size+n]=tuple(metrics[i])
+            for n in range(self.size-1,0,-1):
+                self.minimum_ends[n]=min(self.minimum_ends[n*2],self.minimum_ends[n*2+1])
+                self.metrics[n]=self._merge(self.metrics[n*2],self.metrics[n*2+1])
+
+    @staticmethod
+    def _merge(a,b):
+        if a is None:return b
+        if b is None:return a
+        return tuple(max(x,y) for x,y in zip(a,b))
+
+    def maximum(self,window):
+        if self.metrics is None:raise ValueError('显示区间未提供统计值')
+        limit=bisect_left(self.starts,window.end);stack=[(1,0,self.size)];result=None
+        while stack:
+            node,a,b=stack.pop()
+            if a>=limit or self.ends[node]<=window.start:continue
+            # All starts precede the query end, and all ends follow its start.
+            # Thus this whole subtree has exactly the original overlap rule.
+            if b<=limit and self.minimum_ends[node]>window.start:
+                result=self._merge(result,self.metrics[node]);continue
+            middle=(a+b)//2;stack.append((node*2+1,middle,b));stack.append((node*2,a,middle))
+        return result
 
     def overlapping(self,window):
         limit=bisect_left(self.starts,window.end);stack=[(1,0,self.size)];result=[]

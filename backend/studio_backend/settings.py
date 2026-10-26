@@ -13,13 +13,14 @@ def default_home():
     return Path(os.getenv('SHENGAO_HOME', str(Path(os.getenv('APPDATA', Path.home())) / 'ShengaoKaraoke')))
 
 
-def atomic_json(path, value, *, compact=False):
+def atomic_json(path, value, *, compact=False, dumps=None):
+    if dumps is not None and not compact:raise ValueError('自定义JSON编码仅用于紧凑输出')
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix=path.stem + '.', suffix='.tmp', dir=path.parent)
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-            if compact:stream.write(json.dumps(value,ensure_ascii=False,separators=(',',':'),allow_nan=False))
+            if compact:stream.write(dumps(value) if dumps is not None else json.dumps(value,ensure_ascii=False,separators=(',',':'),allow_nan=False))
             else:json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
             stream.flush()
             os.fsync(stream.fileno())
