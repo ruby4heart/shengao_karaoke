@@ -169,6 +169,11 @@ class Project:
 
     @classmethod
     def from_dict(cls,data,base=None):
+        project=cls._from_dict_record(data,base);project.validate();return project
+
+    @classmethod
+    def _from_dict_record(cls,data,base=None):
+        """Build detached records; public readers validate the whole document."""
         if not isinstance(data,dict): raise ValueError('工程格式无效')
         version=data.get('version',1)
         if type(version) is not int or version not in (1,2,3,4,5,6,7,8,9,10,11,12,13,14): raise ValueError('工程版本较新，请使用对应版本软件')
@@ -188,7 +193,9 @@ class Project:
         if version<11 and any(h.get('fixed_edges') for line in raw_lines for unit in line.get('units',[]) if isinstance(unit,dict) for h in unit.get('highlights',[]) if isinstance(h,dict)):
             raise ValueError('人工固定起止点需要第 11 版工程格式')
         if version>=2 and any(not x.get('text') for x in raw_lines):raise ValueError('工程包含缺失或空白的歌词记录')
-        fields['lines']=[LyricLine.from_dict({**x,'id':str(x['id'])} if version==1 and 'id' in x else x) for x in raw_lines if x.get('text')]
+        # project.validate below checks every reconstructed line. Standalone
+        # LyricLine.from_dict remains fully validating for its other callers.
+        fields['lines']=[LyricLine._from_dict_record({**x,'id':str(x['id'])} if version==1 and 'id' in x else x) for x in raw_lines if x.get('text')]
         fields['style']=Style(**{k:v for k,v in data.get('style',{}).items() if k in Style.__dataclass_fields__})
         fields['media']=data.get('video') or data.get('media','')
         raw_versions=data.get('media_versions',{})
@@ -208,7 +215,6 @@ class Project:
                 if project.vocal_track.get(name) and not Path(project.vocal_track[name]).is_absolute():project.vocal_track[name]=str((Path(base)/project.vocal_track[name]).resolve())
             project.font_assets={family:str((Path(base)/path).resolve()) if not Path(path).is_absolute() else path for family,path in project.font_assets.items()}
             if project.song_info.get('font_file') and not Path(project.song_info['font_file']).is_absolute():project.song_info['font_file']=str((Path(base)/project.song_info['font_file']).resolve())
-        project.validate()
         return project
 
     def replace_lyrics(self,text,append=False):
@@ -321,6 +327,7 @@ class History:
     """One user action is one undo step, including batch operations."""
     def __init__(self,project):
         self.project=project;self.undo_stack=[];self.redo_stack=[];self.saved=project.to_dict()
+        self._applied_snapshot=None
         self.merge_key=None;self.merge_time=0
 
     @property
@@ -331,12 +338,30 @@ class History:
         edit(candidate)
         if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_line_overrides()
         candidate.validate()
-        if candidate.to_dict()==before:return False
+        return self._commit(label,before,candidate,merge_key)
+
+    def apply_line(self,label,row,edit_line,merge_key=None):
+        """Only the detached chosen line is writable by this operation.
+
+        The old chosen line is checked before editing, then the full resulting
+        document is checked. Other records are unchanged detached copies, so
+        both sides of the undo step receive complete validation.
+        """
+        if type(row) is not int or not 0<=row<len(self.project.lines):raise IndexError('歌词行不存在')
+        before=self.project.to_dict();candidate=Project._from_dict_record(before)
+        previous=candidate.lines[row];previous.validate();candidate.lines[row]=edit_line(previous)
+        if {line.id for line in candidate.lines}!={line['id'] for line in before['lines']}:candidate.prune_line_overrides()
+        candidate.validate()
+        return self._commit(label,before,candidate,merge_key)
+
+    def _commit(self,label,before,candidate,merge_key):
+        after=candidate.to_dict()
+        if after==before:return False
         now=time.monotonic()
         if merge_key is None or merge_key!=self.merge_key or now-self.merge_time>1:
             self.undo_stack.append((label,before));self.undo_stack=self.undo_stack[-150:]
         self.merge_key=merge_key;self.merge_time=now;self.redo_stack.clear()
-        self.project=candidate;return True
+        self.project=candidate;self._applied_snapshot=after;return True
 
     def undo(self):
         self.merge_key=None

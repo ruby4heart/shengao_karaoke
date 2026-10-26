@@ -33,13 +33,13 @@ def test_frame_delivery_exits_emitter_and_runs_on_gui_thread(qapp,video,monkeypa
     frame=QVideoFrame(QImage(16,16,QImage.Format.Format_RGB32))
     p.sink.videoFrameChanged.emit(frame)
     assert calls==[], 'Decoder signals must not map images or pause the player inline'
-    qapp.processEvents();assert calls and all(thread==qapp.thread() for thread in calls)
+    qapp.processEvents();QTest.qWait(10);assert calls and all(thread==qapp.thread() for thread in calls)
     calls.clear()
     class EmitFromDecoder(QThread):
         def run(self):p.sink.videoFrameChanged.emit(frame)
     worker=EmitFromDecoder();worker.start();assert worker.wait(3000)
     assert calls==[]
-    qapp.processEvents();assert calls and all(thread==qapp.thread() for thread in calls)
+    qapp.processEvents();QTest.qWait(10);assert calls and all(thread==qapp.thread() for thread in calls)
     p.clear();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
 
 
@@ -130,8 +130,26 @@ def test_preview_waits_for_target_frame_and_keeps_exact_seek(qapp,video,monkeypa
     p.seek(2400);frame.setStartTime(2000000);frame.setEndTime(2040000);p.receive_frame(frame)
     assert p.preview_target==2400 and pauses==[]
     frame.setStartTime(2400000);frame.setEndTime(2440000);p.receive_frame(frame)
+    assert pauses==[]
+    qapp.processEvents();QTest.qWait(10)
     assert pauses==[True] and not p.preview_pending and p.preview_target is None and p.canvas.position==p.player.position()==2400
     p.clear();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
+
+
+def test_busy_gui_presents_latest_frame_once_and_clear_discards_pending_image(qapp,video,monkeypatch):
+    p=Playback();p.audio.setMuted(True);p.open(video);ready(qapp,p);calls=[];original=p.canvas.video_frame
+    def present(frame):calls.append(frame.startTime());original(frame)
+    monkeypatch.setattr(p.canvas,'video_frame',present)
+    try:
+        for index in range(50):
+            image=QImage(16,16,QImage.Format.Format_RGB32);image.fill(QColor('blue' if index==49 else 'red'))
+            frame=QVideoFrame(image);frame.setStartTime(index*40000);frame.setEndTime((index+1)*40000);p.receive_frame(frame)
+        assert not calls
+        qapp.processEvents();QTest.qWait(10)
+        assert calls==[49*40000] and p.canvas.frame.pixelColor(3,3)==QColor('blue')
+        p.receive_frame(frame);p.clear();qapp.processEvents();QTest.qWait(10)
+        assert calls==[49*40000] and p.canvas.frame.isNull() and not p.frame_timer.isActive()
+    finally:p.clear();p.canvas.renderer.close();p.deleteLater();qapp.processEvents()
 
 
 def test_new_seek_replaces_pending_request_before_loaded_notification(qapp,video):

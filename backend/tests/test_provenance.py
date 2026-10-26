@@ -172,7 +172,9 @@ def test_confirmed_timing_does_not_become_confirmed_reading():
 @pytest.mark.parametrize('mutation',[
     lambda v:v.update(version=True),lambda v:v.update(reference=[20,10]),lambda v:v.update(current=[False,100]),
     lambda v:v.update(provider='https://untrusted.example/key'),lambda v:v.update(operations=['shift','shift']),
-    lambda v:v.update(parent_kinds=['invented']),lambda v:v.update(extra='unsupported')])
+    lambda v:v.update(parent_kinds=['invented']),lambda v:v.update(extra='unsupported'),
+    lambda v:v.update(operations=None),lambda v:v.update(parent_kinds=None),
+    lambda v:v.update(reference=(0,100)),lambda v:v.update(current=[0,True])])
 def test_invalid_origin_records_are_rejected(mutation):
     value=create('word',0,100,'elevenlabs','transcription');mutation(value)
     with pytest.raises(ValueError):validate(value)

@@ -9,22 +9,24 @@ import copy
 KINDS={'character','word','estimated','acoustic','manual','imported','reference','unknown'}
 PROVIDERS={'local','elevenlabs','microsoft','tifa','ass','srt','lrc','mixed','unknown'}
 OPERATIONS={'shift','stretch','manual_boundary','automatic_gap','sound_gap','regroup','clamp'}
+_FIELDS=frozenset(('version','kind','provider','method','reference','current','reading','parent_kinds','operations'))
+_CHANGES=(('parent_kinds',KINDS),('operations',OPERATIONS))
 
 
 def validate(value):
     if not isinstance(value,dict):raise ValueError('时间来源记录无效')
     if not value:return
-    allowed={'version','kind','provider','method','reference','current','reading','parent_kinds','operations'}
-    if set(value)-allowed or type(value.get('version')) is not int or value.get('version')!=1 or not isinstance(value.get('kind'),str) or value['kind'] not in KINDS or not isinstance(value.get('provider'),str) or value['provider'] not in PROVIDERS:
+    if not value.keys()<=_FIELDS or type(value.get('version')) is not int or value.get('version')!=1 or not isinstance(value.get('kind'),str) or value['kind'] not in KINDS or not isinstance(value.get('provider'),str) or value['provider'] not in PROVIDERS:
         raise ValueError('时间来源类型无效')
     if not isinstance(value.get('method'),str) or len(value['method'])>80:raise ValueError('时间来源说明无效')
     for name in ('reference','current'):
         pair=value.get(name)
-        if not isinstance(pair,list) or len(pair)!=2 or any(type(t) is not int for t in pair) or not 0<=pair[0]<=pair[1]:raise ValueError('时间来源范围无效')
+        if not isinstance(pair,list) or len(pair)!=2 or type(pair[0]) is not int or type(pair[1]) is not int or not 0<=pair[0]<=pair[1]:raise ValueError('时间来源范围无效')
     if 'reading' in value and (not isinstance(value['reading'],str) or len(value['reading'])>20000):raise ValueError('时间来源读音无效')
-    for name,choices in [('parent_kinds',KINDS),('operations',OPERATIONS)]:
-        values=value.get(name,[])
-        if not isinstance(values,list) or len(values)>len(choices) or any(not isinstance(v,str) or v not in choices for v in values) or len(values)!=len(set(values)):
+    for name,choices in _CHANGES:
+        if name not in value:continue
+        values=value[name]
+        if not isinstance(values,list) or len(values)>len(choices) or any(not isinstance(v,str) or v not in choices for v in values) or (len(values)>1 and len(values)!=len(set(values))):
             raise ValueError('时间来源变更记录无效')
 
 

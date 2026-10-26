@@ -20,6 +20,8 @@ def main():
     from .paths import ROOT
     from .timing import set_time
     app=QApplication([]);app.setStyle('Fusion');app.setStyleSheet(STYLE)
+    from .gui_gc import install
+    install(app)
     window=StudioWindow(home=out/'home',test=True);window.playback.audio.setMuted(True);window.show()
     checks=[]
     def check(name,condition):

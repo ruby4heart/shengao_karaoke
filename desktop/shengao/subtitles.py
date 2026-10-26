@@ -7,7 +7,18 @@ from .fonts import resolve_font,metric_font,missing,family_name,traits,font_weig
 from studio_backend.model import literal
 from studio_backend.export import ass_time
 from .furigana import ruby_spans,unit_ruby_spans,reading_fragments,kanji
-from .presentation import display_windows
+from .presentation import display_windows,WindowIndex
+
+
+class CompositionCache:
+    """Private line event reuse; completed output is still the full ASS."""
+    def __init__(self):self.entries={};self.font_stamp=None
+
+    def begin(self,paths,stamp=None):
+        from .project import file_stamp
+        if stamp is None:stamp=[file_stamp(path) for path in paths]
+        if stamp!=self.font_stamp:self.entries={};self.font_stamp=stamp
+        return {}
 
 def color(value):
     return '&H00'+value[5:7]+value[3:5]+value[1:3]
@@ -94,7 +105,7 @@ def styled_dialogue(rows,window,style,text,layer,settings,highlight_start=None):
         text=f'{{\\t({start},{start+100},\\3c&HFFFFFF&)}}'+text
     rows.append(dialogue(window.start,window.end,style,shape+text,layer))
 
-def lane_layout(project,window,windows,line_style=None,layouts=None):
+def lane_layout(project,window,windows,line_style=None,layouts=None,overlaps=None):
     """Size only against neighbouring displays, never a distant bad match.
 
     Dense, provisional overlaps remain in-frame and receive a layout warning.
@@ -106,7 +117,7 @@ def lane_layout(project,window,windows,line_style=None,layouts=None):
         if layouts is None:
             from .line_layout import resolved_layouts
             layouts=resolved_layouts(project)
-        neighbours=[(line,style,w) for (line,style),w in zip(layouts,windows) if w.start<window.end and window.start<w.end]
+        neighbours=[(*layouts[i],windows[i]) for i in overlaps] if overlaps is not None else [(line,style,w) for (line,style),w in zip(layouts,windows) if w.start<window.end and window.start<w.end]
         count=max(2,max((w.slot+1 for line,style,w in neighbours),default=2))
         def line_band(line,style):
             result=(line.text.count('\n')+1)*(style.size+(style.ruby_size+24 if style.show_ruby else 16))+32
@@ -115,7 +126,7 @@ def lane_layout(project,window,windows,line_style=None,layouts=None):
             return result
         band=max((line_band(line,style) for line,style,w in neighbours),default=line_band(project.lines[0],s) if project.lines else 32)
     else:
-        neighbours=[(line,w) for line,w in zip(project.lines,windows) if w.start<window.end and window.start<w.end]
+        neighbours=[(project.lines[i],windows[i]) for i in overlaps] if overlaps is not None else [(line,w) for line,w in zip(project.lines,windows) if w.start<window.end and window.start<w.end]
         count=max(2,max((w.slot+1 for line,w in neighbours),default=2))
         row_count=max((line.text.count('\n')+1 for line,w in neighbours),default=1)
         band=row_count*(s.size+(s.ruby_size+24 if s.show_ruby else 16))+32
@@ -125,7 +136,7 @@ def lane_layout(project,window,windows,line_style=None,layouts=None):
     effective=replace(s,**{name:getattr(s,name)*scale for name in ('size','ruby_size','romaji_size','translation_size','outline','shadow','glow')})
     return effective,count,band*scale,scale
 
-def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
+def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=None,_snapshot=None,_windows=None,_font_stamp=None):
     """Compose the whole export, or exact visible events for private thumbnails.
 
     Preview filtering retains full-project lane context. File exports and the
@@ -157,17 +168,29 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
           style_row('Romaji',main_family,style.romaji_size,style,highlight=False,font_file=main),style_row('Translation',trans_family,style.translation_size,style,highlight=False,font_file=translated),'',
           '[Events]','Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text']
     from .line_layout import resolved_layouts
-    windows=display_windows(project);layouts=resolved_layouts(project)
-    for (line,line_style),window in zip(layouts,windows):
+    windows=display_windows(project) if _windows is None else _windows;layouts=resolved_layouts(project);overlap_index=WindowIndex(windows)
+    next_entries=cache.begin((main,ruby,translated),_font_stamp) if cache is not None else None
+    line_snapshots={line['id']:line for line in _snapshot['lines']} if cache is not None and _snapshot is not None else {}
+    layout_snapshots=_snapshot['layout_styles'] if _snapshot is not None else None
+    style_key=tuple(getattr(style,name) for name in style.__dataclass_fields__)
+    for original,(line,line_style),window in zip(project.lines,layouts,windows):
         if preview_line_id is not None and line.id!=preview_line_id:continue
         # ASS rounds times to centiseconds, and short colour phases last at
         # least 10 ms. Keep a conservative boundary margin; libass decides
         # visibility, exactly as it does for the complete composition.
         if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
-        effective,slot_count,band_height,scale=lane_layout(project,window,windows,line_style,layouts)
-        mf,rf,size,ruby_size,widths,width=layout_line(line,effective,(main,ruby))
+        effective,slot_count,band_height,scale=lane_layout(project,window,windows,line_style,layouts,overlap_index.overlapping(window))
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
+        if cache is not None:
+            import copy
+            source=line_snapshots[original.id] if line_snapshots else original.to_dict()
+            setting=layout_snapshots.get(line.id) if layout_snapshots is not None else copy.deepcopy(project.layout_styles.get(line.id))
+            key=(source,setting,style_key,tuple(getattr(effective,name) for name in effective.__dataclass_fields__),window.start,window.end,window.slot,slot_count,band_height,scale,palette)
+            previous=cache.entries.get(line.id)
+            if previous is not None and previous[0]==key:rows.extend(previous[1]);next_entries[line.id]=previous;continue
+            row_begin=len(rows)
+        mf,rf,size,ruby_size,widths,width=layout_line(line,effective,(main,ruby))
         def colored(role,text,layer,font,cx,cy,text_width,font_size,timing=None,advance=None,lines=1):
             if palette is None:return False
             from .color_ass import component_events
@@ -247,6 +270,8 @@ def compose(project,embed=False,*,preview_time=None,preview_line_id=None):
             from .color_ass import box_events
             bounds=(min(v[0] for v in color_bounds),min(v[1] for v in color_bounds),max(v[2] for v in color_bounds),max(v[3] for v in color_bounds))
             rows.extend(box_events(palette,window,(line.start,line.end),bounds))
+        if cache is not None:next_entries[line.id]=(key,tuple(rows[row_begin:]))
+    if cache is not None:cache.entries=next_entries
     text='\n'.join(rows)+'\n'
     from .song_info import append_ass
     if preview_line_id is None:text=append_ass(text,project)

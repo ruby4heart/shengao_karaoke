@@ -9,6 +9,26 @@ class DisplayWindow:
     slot:int=0
 
 
+class WindowIndex:
+    """Overlap queries preserve the exact strict boundary comparisons."""
+    def __init__(self,windows):
+        self.order=sorted(range(len(windows)),key=lambda i:windows[i].start)
+        self.starts=[windows[i].start for i in self.order];self.size=1
+        while self.size<len(self.order):self.size*=2
+        self.ends=[-1]*(2*self.size)
+        for n,i in enumerate(self.order):self.ends[self.size+n]=windows[i].end
+        for n in range(self.size-1,0,-1):self.ends[n]=max(self.ends[n*2],self.ends[n*2+1])
+
+    def overlapping(self,window):
+        limit=bisect_left(self.starts,window.end);stack=[(1,0,self.size)];result=[]
+        while stack:
+            node,a,b=stack.pop()
+            if a>=limit or self.ends[node]<=window.start:continue
+            if b-a==1:result.append(self.order[a]);continue
+            middle=(a+b)//2;stack.append((node*2+1,middle,b));stack.append((node*2,a,middle))
+        return sorted(result)
+
+
 def display_windows(project):
     lines=project.lines;s=project.style;alternating=s.display_mode=='alternating';starts=[]
     for i,line in enumerate(lines):

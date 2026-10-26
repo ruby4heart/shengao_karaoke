@@ -43,7 +43,10 @@ def main():
     out.mkdir(parents=True,exist_ok=False)
     before_sources=snapshot(ROOT)
     report={'completed':False,'passed_measured_targets':False,'scope':'Source checkout, controlled 1000-line lyrics with actual local media; excludes standalone cold/warm startup, human accuracy and acoustic A/V measurement.','spec':'docs/V030-PROXY-PERFORMANCE-SPEC.md','hardware_before':hardware(),'cache_label':args.cache_label,'system_cache_flushed':False,'source_stamp':file_stamp(source),'source_sha256':digest(source),'ffmpeg_sha256':digest(ffmpeg()),'source_snapshot':before_sources,'computer_use':False,'paid_api_calls':0,'measurements':{},'targets':{},'pending':['Standalone cold and warm startup, three fresh processes each','Packaged normal and 150% reproduction','Human finished-song accuracy and acoustic A/V judgement']}
-    app=QApplication([]);app.setStyle('Fusion');app.setStyleSheet(STYLE);w=StudioWindow(out/'home',test=True);w.playback.audio.setMuted(True);w.resize(1280,800);w.show();frames=[];source_opened=None
+    app=QApplication([]);app.setStyle('Fusion');app.setStyleSheet(STYLE)
+    from shengao.gui_gc import install
+    gc_policy=install(app)
+    w=StudioWindow(out/'home',test=True);w.playback.audio.setMuted(True);w.resize(1280,800);w.show();frames=[];source_opened=None
     def frame_ready(frame):
         if frame.isValid():frames.append({'received_s':time.perf_counter(),'pts_us':frame.startTime(),'end_us':frame.endTime(),'player_ms':w.playback.player.position()})
     w.playback.sink.videoFrameChanged.connect(frame_ready,Qt.ConnectionType.QueuedConnection)
@@ -121,8 +124,10 @@ def main():
     except Exception:
         report['error']=traceback.format_exc();raise
     finally:
+        report['gui_gc']=gc_policy.report() if gc_policy is not None else None
         report['hardware_after']=hardware();report['source_unchanged']=file_stamp(source)==report['source_stamp'] and digest(source)==report['source_sha256']
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');w.close();app.processEvents()
+        if gc_policy is not None:gc_policy.close()
     return 0 if report['passed_measured_targets'] and report['source_unchanged'] else 1
 
 

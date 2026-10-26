@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QWidget,QScrollArea,QFrame
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFrame
 from .render import AssRenderer
 from .native_slots import invoke_native_slot
+from .gui_gc import activity as gui_activity
 
 class VideoCanvas(QWidget):
     zoomRequested=Signal(int)
@@ -63,6 +64,7 @@ class Playback(QWidget):
         self.source_size=QSize(1920,1080);self.zoom=None;self.reference_size=None
         self.viewport.viewport().installEventFilter(self);self.canvas.zoomRequested.connect(self.zoom_steps);self.canvas.frameSizeChanged.connect(self.set_frame_size)
         self.player=QMediaPlayer(self);self.audio=QAudioOutput(self);self.sink=QVideoSink(self)
+        self._pending_frame=None;self.frame_timer=QTimer(self);self.frame_timer.setSingleShot(True);self.frame_timer.timeout.connect(self.present_frame)
         self.temporary_owner=None;self.temporary_stop=None;self.temporary_position=None
         self.player.setAudioOutput(self.audio);self.player.setVideoSink(self.sink);self.audio.setVolume(.7)
         if hasattr(self.player,'setPitchCompensation'):self.player.setPitchCompensation(True)
@@ -112,7 +114,23 @@ class Playback(QWidget):
 
     @Slot(QVideoFrame)
     def receive_frame(self,frame):
-        if self.player.source().isEmpty():return
+        if self.player.source().isEmpty() or not frame.isValid():return
+        if self.preview_started:
+            target=self.preview_target
+            end=frame.endTime() if frame.endTime()>frame.startTime() else frame.startTime()+40000
+            if target is not None and frame.startTime()>=0 and end<target*1000:return
+            # Keep the first matching warm-up frame; ordinary playback only
+            # needs the latest queued image when the GUI was busy editing.
+            if self._pending_frame is not None:return
+        self._pending_frame=QVideoFrame(frame)
+        if not self.frame_timer.isActive():self.frame_timer.start(0)
+
+    def discard_frames(self):
+        self.frame_timer.stop();self._pending_frame=None
+
+    def present_frame(self):
+        frame=self._pending_frame;self._pending_frame=None
+        if frame is None or self.player.source().isEmpty():return
         self.canvas.video_frame(frame)
         if self.preview_started and frame.isValid():
             target=self.preview_target
@@ -145,10 +163,12 @@ class Playback(QWidget):
 
     def open(self,path,position=0,preview=False,reference_size=None):
         self.interrupt_temporary()
+        self.discard_frames()
         self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.frame=QImage();self.canvas.update();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.reference_size=reference_size;self.set_source_size(*(reference_size or (1920,1080)));self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
 
     def clear(self):
         self.interrupt_temporary()
+        self.discard_frames()
         self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
         # Release displayed image resources before stopping the decoder.
         self.canvas.frame=QImage()
@@ -217,6 +237,8 @@ class Playback(QWidget):
         if playing:self.positionChanged.emit(self.canvas.position)
 
     def seek(self,value,internal=False):
+        gui_activity()
+        self.discard_frames()
         if not internal:self.interrupt_temporary()
         value=max(0,int(value));duration=self.player.duration()
         if duration>0:value=min(value,duration)

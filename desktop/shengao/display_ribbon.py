@@ -20,12 +20,12 @@ class DisplayTimingRibbon(QWidget):
         self.setToolTip('字幕留屏条：拖两端改出现／消失，拖中间平移留屏；演唱和音节不动。左右键微调10ms，Shift为100ms，Esc取消。双击查看出现或消失。滚轮沿用音频视野操作。')
         timeline.viewChanged.connect(self.update)
 
-    def set_project(self,project,current):
+    def set_project(self,project,current,windows=None):
         if self.drag:
             try:unchanged=edit_context(project,self.drag['row'])==self.drag['context'] and current==self.current
             except ValueError:unchanged=False
             if not unchanged:self.cancel('内容已变化，本次留屏拖动已取消')
-        self.project=project;self.current=current;self.windows=display_windows(project)
+        self.project=project;self.current=current;self.windows=display_windows(project) if windows is None else windows
         self.rows=list(range(max(0,current-1),min(len(project.lines),current+2))) if 0<=current<len(project.lines) else []
         self.update()
 

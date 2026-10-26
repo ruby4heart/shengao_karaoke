@@ -4,6 +4,7 @@ import copy
 import math
 import re
 import uuid
+from . import provenance
 
 
 def identifier():
@@ -89,18 +90,19 @@ class Unit:
         self.highlights=[Highlight(**h) if isinstance(h,dict) else h for h in self.highlights]
 
     def validate(self):
-        from .provenance import validate
-        validate(self.timing_origin)
-        from .reading_options import validate as validate_reading_options
-        validate_reading_options(self.reading_options,self.text,self.kana,self.romaji)
+        provenance.validate(self.timing_origin)
+        if type(self.reading_options) is not dict or self.reading_options:
+            from .reading_options import validate as validate_reading_options
+            validate_reading_options(self.reading_options,self.text,self.kana,self.romaji)
         if not isinstance(self.text, str) or len(self.text) > 20000:
             raise ValueError('音节文字无效')
         if type(self.start) is not int or type(self.end) is not int or self.start < 0 or self.end < self.start:
             raise ValueError('音节时间无效')
         previous=self.start
         for highlight in self.highlights:
-            validate(highlight.timing_origin)
-            if not isinstance(highlight.fixed_edges,list) or any(e not in ('start','end') for e in highlight.fixed_edges) or len(set(highlight.fixed_edges))!=len(highlight.fixed_edges):
+            provenance.validate(highlight.timing_origin)
+            edges=highlight.fixed_edges
+            if not isinstance(edges,list) or len(edges)>2 or (edges and (any(e not in ('start','end') for e in edges) or (len(edges)==2 and edges[0]==edges[1]))):
                 raise ValueError('人工固定边界无效')
             if not isinstance(highlight.kana,str) or not highlight.kana:
                 raise ValueError('演唱音节读音为空')
@@ -131,8 +133,7 @@ class LyricLine:
     timing_origin: dict = field(default_factory=dict)
 
     def validate(self):
-        from .provenance import validate
-        validate(self.timing_origin)
+        provenance.validate(self.timing_origin)
         if type(self.start) is not int or type(self.end) is not int or not 0 <= self.start < self.end:
             raise ValueError('歌词开始时间须小于结束时间')
         if not self.text or len(self.text) > 20000:
@@ -177,11 +178,14 @@ class LyricLine:
 
     @classmethod
     def from_dict(cls, value):
+        line=cls._from_dict_record(value);line.validate();return line
+
+    @classmethod
+    def _from_dict_record(cls,value):
+        """Detach a record for a containing document's complete validation."""
         fields = {k: _detached(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
         fields['units'] = [Unit(**{k: _detached(v) for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
-        line = cls(**fields)
-        line.validate()
-        return line
+        return cls(**fields)
 
     def to_dict(self):
         value=_model_snapshot(self)

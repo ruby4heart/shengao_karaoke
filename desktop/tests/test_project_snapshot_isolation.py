@@ -1,4 +1,5 @@
 import copy
+import pytest
 from dataclasses import asdict,dataclass
 from collections import namedtuple
 from shengao.project import Project,History
@@ -55,3 +56,16 @@ def test_lyric_serializer_matches_legacy_deep_dataclass_and_container_semantics(
     actual['reading_review']['extra'][0]['values'][0]['numbers'].append('new')
     actual['units'][0]['highlights'][0]['fixed_edges'].clear()
     assert line.to_dict()==expected
+
+
+@pytest.mark.parametrize('change',[
+    lambda line:line.update(display_start=101),
+    lambda line:line['units'][0].update(end=501),
+    lambda line:line['units'][0]['highlights'][0].update(kana='wrong'),
+    lambda line:line['units'][0]['highlights'][0].update(fixed_edges=['start','start']),
+    lambda line:line.update(timing_origin={'bad':'record'}),
+])
+def test_document_and_standalone_readers_both_validate_all_nested_constraints(change):
+    data=project().to_dict();change(data['lines'][0])
+    with pytest.raises(ValueError):Project.from_dict(data)
+    with pytest.raises(ValueError):LyricLine.from_dict(data['lines'][0])

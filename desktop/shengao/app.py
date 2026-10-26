@@ -75,6 +75,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.init_proxy_workflow()
         self.encoder_capabilities=None;self.capability_job=None
         self._render_snapshot=None;self._render_font_stamp=None;self._render_text=None
+        from .subtitles import CompositionCache
+        self._composition_cache=CompositionCache()
         self.validation_error=None;self.preview_expanded=False
         self._selected_lyric_ids=set();self._selection_uid=None;self._retain_lyrics=False
         self.setWindowTitle('声稿 · Karaoke Studio');self.setWindowIcon(QIcon(str(ASSETS/'shengao.svg')));self.resize(1460,940);self.setMinimumSize(900,620);self.setAcceptDrops(True)
@@ -1045,18 +1047,29 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def message(self,text):self.status.setText(text);self.status.setToolTip(text)
 
-    def edit(self,title,fn,focus=False,merge_key=None):
+    def edit(self,title,fn,focus=False,merge_key=None,render_now=False):
         try:
-            if self.history.apply(title,fn,merge_key):self.refresh(focus);return True
+            if self.history.apply(title,fn,merge_key):
+                self.finish_history_edit(focus,render_now)
+                return True
         except (ValueError,IndexError,KeyError) as error:self.validation_error=str(error);self.message(str(error));return False
         return False
 
-    def refresh(self,focus=False):
+    def finish_history_edit(self,focus=False,render_now=False):
+        snapshot=self.history._applied_snapshot
+        windows=self.refresh(focus,_snapshot=snapshot)
+        if render_now:self.render_subtitles(_snapshot=snapshot,_windows=windows)
+
+    def refresh(self,focus=False,*,_snapshot=None):
+        from .gui_gc import activity
+        activity()
         self.refreshing=True
         try:
             p=self.project;self.current=min(self.current,len(p.lines)-1)
             if self.current<0 and p.lines:self.current=0
-            snapshot=p.to_dict();dirty=snapshot!=self.history.saved;self.project_label.setText(p.title);self.project_label.setToolTip(p.title);self.setWindowTitle(p.title+(' *' if dirty else '')+' — 声稿 Karaoke Studio')
+            # Only edit() supplies its just-created immutable snapshot. Other
+            # callers still observe direct data changes with a fresh snapshot.
+            snapshot=p.to_dict() if _snapshot is None else _snapshot;dirty=snapshot!=self.history.saved;self.project_label.setText(p.title);self.project_label.setToolTip(p.title);self.setWindowTitle(p.title+(' *' if dirty else '')+' — 声稿 Karaoke Studio')
             kind='音频 · 成品使用深色背景' if p.has_video is False else f'{p.width} × {p.height}' if p.has_video else '正在读取素材'
             self.media_label.setText((ROLES[p.media_role]+' · '+Path(p.media).name+f'\n{time_text(p.duration)} · '+kind) if p.media else '尚未添加素材')
             self.output_size.setItemText(0,'默认背景 · 1920 × 1080' if p.has_video is False else '分辨率跟随原视频')
@@ -1103,7 +1116,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.refresh_media_source()
         self.refresh_vocal_tools()
         self.refresh_proxy_tools()
-        self.display_ribbon.set_project(self.project,self.current)
+        self.display_ribbon.set_project(self.project,self.current,windows)
         self.fit_center_layout()
         if hasattr(self,'render_timer'):
             if p is self.project and self.render_unchanged(snapshot):
@@ -1111,6 +1124,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 if self.stage==3:self.refresh_font_cards()
             else:self.render_timer.start()
         else:self.render_subtitles()
+        return windows
 
     def refresh_lyrics(self,*args):
         if self._retain_lyrics:return
@@ -1384,8 +1398,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def change_boundary(self,index,part,start,end):
         if not self.flush_edits():return
         if self.line:
-            row=self.current
-            self.edit('调整演唱时间',lambda p:p.lines.__setitem__(row,set_time(p.lines[row],index,start,end,None if part<0 else part)))
+            try:
+                if self.history.apply_line('调整演唱时间',self.current,lambda line:set_time(line,index,start,end,None if part<0 else part)):self.finish_history_edit(render_now=True)
+            except (ValueError,IndexError,KeyError) as error:self.validation_error=str(error);self.message(str(error))
 
     def apply_spins(self):self.change_boundary(self.timeline.word,self.timeline.part,self.begin.value(),self.end.value())
     def nudge(self,delta):
@@ -1484,15 +1499,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         from .fonts import project_font_files
         return [file_stamp(path) for path in project_font_files(self.project)]==self._render_font_stamp
 
-    def render_subtitles(self):
+    def render_subtitles(self,*,_snapshot=None,_windows=None):
         if self.closing:return
         if hasattr(self,'render_timer'):self.render_timer.stop()
         try:
             from .fonts import project_font_files
-            fonts=project_font_files(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict();renderer=self.playback.canvas.renderer
+            fonts=project_font_files(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict() if _snapshot is None else _snapshot;renderer=self.playback.canvas.renderer
             renderer.add_fonts(fonts)
             if snapshot!=self._render_snapshot or font_stamp!=self._render_font_stamp or renderer.text!=self._render_text:
-                text=compose(self.project);renderer.set_text(text);self._render_snapshot=snapshot;self._render_font_stamp=font_stamp;self._render_text=text
+                text=compose(self.project,cache=self._composition_cache,_snapshot=snapshot,_windows=_windows,_font_stamp=font_stamp);renderer.set_text(text);self._render_snapshot=snapshot;self._render_font_stamp=font_stamp;self._render_text=text
                 self.playback.canvas.update()
             if self.stage==3:self.refresh_font_cards()
         except (ValueError,OSError) as error:self.message(str(error))
@@ -2075,6 +2090,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
 def main():
     app=QApplication(sys.argv);app.setApplicationName('Shengao Independent Studio');app.setOrganizationName('Shengao');app.setStyle('Fusion');app.setStyleSheet(STYLE)
+    from .gui_gc import install
+    install(app)
     window=StudioWindow()
     if len(sys.argv)>1 and Path(sys.argv[1]).is_file():window.open_path(sys.argv[1],False)
     screen=app.primaryScreen().availableGeometry()
