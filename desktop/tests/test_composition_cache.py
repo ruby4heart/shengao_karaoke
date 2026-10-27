@@ -121,3 +121,68 @@ def test_filtered_and_embedded_composition_never_reuses_an_incompatible_event_su
 def test_cached_render_still_validates_direct_invalid_mutations():
     p=sample();cache=CompositionCache();compose(p,cache=cache);p.lines[0].end=0
     with pytest.raises(ValueError):compose(p,cache=cache)
+
+
+@pytest.mark.parametrize('position',['top','center','bottom'])
+@pytest.mark.parametrize('additional',['plain','romaji','translation'])
+def test_uniform_two_lane_composition_matches_full_scan_text_and_native_pixels(monkeypatch,position,additional):
+    from shengao.project import Project
+    from shengao.line_layout import resolved_layouts
+    from studio_backend.model import Unit
+    from studio_backend.japanese import add_mora
+    lines=[]
+    for index in range(18):
+        start=index*400+50
+        units=[Unit('明日',start,start+200,'あした'),Unit('へ',start+200,start+300,'へ')]
+        for unit in units:add_mora(unit)
+        lines.append(LyricLine('uniform-'+str(index),'明日へ',start,start+300,units,
+            romaji='ashita e' if additional=='romaji' else '',translation='明天' if additional=='translation' else ''))
+    p=Project(lines=lines);p.duration=11000;p.style.display_mode='alternating';p.style.position=position
+    before=p.to_dict();cache=CompositionCache()
+    actual=compose(p,cache=cache)
+    assert compose(p,cache=cache)==actual and p.to_dict()==before
+    windows=display_windows(p);layouts=resolved_layouts(p)
+    monkeypatch.setattr(_LaneLayoutIndex,'uniform',lambda *args,**kwargs:None)
+    monkeypatch.setattr(_LaneLayoutIndex,'get',lambda self,window,style,**kwargs:lane_layout(p,window,windows,style,layouts))
+    reference=compose(p)
+    assert actual==reference and p.to_dict()==before
+    renderer=AssRenderer()
+    try:
+        for when in (0,200,1500,6500):
+            renderer.set_text(reference);expected=renderer.rgba(320,180,when)
+            renderer.set_text(actual);assert renderer.rgba(320,180,when)==expected
+    finally:renderer.close()
+
+
+def test_shared_text_measurements_keep_full_ass_and_native_pixels_exact(monkeypatch):
+    import shengao.subtitles as subtitles
+    p=sample();p.style.display_mode='alternating'
+    for index in range(8):
+        line=copy.deepcopy(p.lines[0]);line.id='repeated-'+str(index)
+        p.lines.append(line)
+    actual=compose(p)
+    monkeypatch.setattr(subtitles,'_measurement_font',lambda metrics,measurements:metrics)
+    reference=compose(p)
+    assert actual==reference
+    renderer=AssRenderer()
+    try:
+        for when in (0,1001,2500,5001,11001):
+            renderer.set_text(reference);expected=renderer.rgba(320,180,when)
+            renderer.set_text(actual);assert renderer.rgba(320,180,when)==expected
+    finally:renderer.close()
+
+
+def test_measurement_cache_is_bounded_and_keeps_custom_metrics_uncached():
+    from shengao.subtitles import _Measurements,_measurement_font
+    from shengao.fonts import AssMetrics,metric_font,resolve_font
+    from dataclasses import replace
+    metrics=metric_font(str(resolve_font()),48);cache=_Measurements();measured=_measurement_font(metrics,cache)
+    for text in ('明日へ','歌う','あした','A V', 'あ'*513):assert measured.getlength(text)==metrics.getlength(text)
+    scaled=replace(metrics,scale=metrics.scale*.7);assert _measurement_font(scaled,cache).getlength('歌う')==scaled.getlength('歌う')
+    for index in range(4200):measured.getlength('歌'+str(index))
+    assert len(cache.widths)<=4096 and len(cache.fonts)<=48
+    class Custom:
+        def getlength(self,text):return len(text)
+    custom=AssMetrics(Custom(),1.)
+    assert _measurement_font(custom,cache) is custom
+    assert _measurement_font(metrics,_Measurements()).getlength('歌う')==metrics.getlength('歌う')

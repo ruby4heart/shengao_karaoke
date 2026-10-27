@@ -3,7 +3,7 @@ import base64
 import json
 from dataclasses import dataclass,replace
 from pathlib import Path
-from .fonts import resolve_font,metric_font,missing,family_name,traits,font_weight
+from .fonts import resolve_font,metric_font,missing,family_name,traits,font_weight,AssMetrics
 from studio_backend.model import literal
 from studio_backend.export import ass_time
 from .furigana import ruby_spans,unit_ruby_spans,reading_fragments,kanji
@@ -47,12 +47,41 @@ def pieces(line):
             if text:result.append((unit,text,row,count==1))
     return result
 
-def layout_line(line,style,font_paths=None):
+class _Measurements:
+    """Bounded exact advances for this composition only, never across edits."""
+    def __init__(self):self.fonts=set();self.widths={}
+
+
+class _MeasuredFont:
+    def __init__(self,metrics,measurements):self.metrics=metrics;self.measurements=measurements
+    def getmetrics(self):return self.metrics.getmetrics()
+    def getlength(self,text):
+        font=self.metrics.font;cache=self.measurements
+        if type(text) is not str or len(text)>512:return self.metrics.getlength(text)
+        if font not in cache.fonts:
+            if len(cache.fonts)>=48:return self.metrics.getlength(text)
+            cache.fonts.add(font)
+        key=(font,text)
+        if key not in cache.widths:
+            if len(cache.widths)>=4096:return self.metrics.getlength(text)
+            cache.widths[key]=font.getlength(text)
+        return cache.widths[key]*self.metrics.scale
+
+
+def _measurement_font(metrics,measurements):
+    if measurements is not None and type(metrics) is AssMetrics:
+        from PIL import ImageFont
+        if type(metrics.font) is ImageFont.FreeTypeFont:return _MeasuredFont(metrics,measurements)
+    return metrics
+
+
+def layout_line(line,style,font_paths=None,*,_measurements=None):
     main,ruby_path=font_paths or (resolve_font(style.font_file,style.font),resolve_font(style.ruby_font_file,style.ruby_font))
     size,ruby_size=style.size,style.ruby_size
     groups=pieces(line)
     for _ in range(12):
-        mf,rf=metric_font(str(main),size,style.font),metric_font(str(ruby_path),ruby_size,style.ruby_font)
+        mf=_measurement_font(metric_font(str(main),size,style.font),_measurements)
+        rf=_measurement_font(metric_font(str(ruby_path),ruby_size,style.ruby_font),_measurements)
         # Ruby must never insert spacing into the original lyric baseline.
         widths=[mf.getlength(text) for u,text,row,allow_ruby in groups]
         row_widths={}
@@ -140,7 +169,7 @@ def lane_layout(project,window,windows,line_style=None,layouts=None,overlaps=Non
 class _LaneLayoutIndex:
     """Fresh geometry summaries for one complete composition, never revisions."""
     def __init__(self,project,windows,layouts):
-        self.project=project;self.local=bool(project.layout_styles);self.scaled={};self.index=None;self.common_features=None;self.signatures={}
+        self.project=project;self.windows=windows;self.local=bool(project.layout_styles);self.scaled={};self.index=None;self.common_features=None;self.signatures={}
         if project.style.display_mode=='alternating':
             if self.local:metrics=[(window.slot+1,self.band(line,style)) for (line,style),window in zip(layouts,windows)]
             else:
@@ -182,6 +211,19 @@ class _LaneLayoutIndex:
     def signature(self,style):
         record=self.signatures.get(id(style))
         return record[1] if record is not None and record[0] is style else tuple(getattr(style,name) for name in style.__dataclass_fields__)
+
+    def uniform(self,style,*,_token=None):
+        """One geometry for known, nonempty windows in ordinary two lanes.
+
+        Every window overlaps itself. With identical line features and no
+        slot above one, every overlap maximum therefore has count two and
+        the same band. Arbitrary queries still use get(), including gaps.
+        This is derived afresh for this composition, never from a revision.
+        """
+        if (_token is None or self.common_features is None or self.index is None or
+            self.index.scalar_metrics is None or self.index.scalar_metrics[1]>2 or
+            not all(window.start<window.end for window in self.windows)):return None
+        return self.get(self.windows[0],style,_token=_token)
 
 def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=None,_snapshot=None,_windows=None,_font_stamp=None):
     """Compose the whole export, or exact visible events for private thumbnails.
@@ -236,13 +278,15 @@ def _compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=
     style_key=tuple(getattr(style,name) for name in style.__dataclass_fields__)
     from .project import Style
     kinds=tuple(map(type,style_key));style_token=(kinds,style_key) if type(style) is Style and all(kind in (str,int,float,bool,type(None)) for kind in kinds) else None
+    uniform_geometry=lane_index.uniform(style,_token=style_token)
+    measurements=_Measurements()
     for original,(line,line_style),window in zip(project.lines,layouts,windows):
         if preview_line_id is not None and line.id!=preview_line_id:continue
         # ASS rounds times to centiseconds, and short colour phases last at
         # least 10 ms. Keep a conservative boundary margin; libass decides
         # visibility, exactly as it does for the complete composition.
         if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
-        effective,slot_count,band_height,scale=lane_index.get(window,line_style,_token=style_token if line_style is style else None)
+        effective,slot_count,band_height,scale=uniform_geometry if uniform_geometry is not None else lane_index.get(window,line_style,_token=style_token if line_style is style else None)
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
         if cache is not None:
@@ -253,7 +297,7 @@ def _compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=
             previous=cache.entries.get(line.id)
             if previous is not None and previous[0]==key:rows.extend(previous[1]);next_entries[line.id]=previous;continue
             row_begin=len(rows)
-        mf,rf,size,ruby_size,widths,width=layout_line(line,effective,(main,ruby))
+        mf,rf,size,ruby_size,widths,width=layout_line(line,effective,(main,ruby),_measurements=measurements)
         def colored(role,text,layer,font,cx,cy,text_width,font_size,timing=None,advance=None,lines=1):
             if palette is None:return False
             from .color_ass import component_events

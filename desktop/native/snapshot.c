@@ -298,6 +298,106 @@ static PyObject *origin_valid(PyObject *self,PyObject *args) {
     return PyBool_FromLong(result);
 }
 
+/* The ordinary Unit structural rules, not a revision-based validation cache.
+ * No Python getter/hook is executed. Every value and every highlight is read
+ * again; unsupported/invalid data keeps the original Python error path.
+ * Types are weakly held so this context cannot hide a module reference cycle. */
+#define UNIT_CAPSULE "shengao.unit.structure.v1"
+typedef struct {PyObject *unit,*highlight,*keys,*zero;} UnitContext;
+static void unit_context_free(PyObject *capsule) {
+    UnitContext *c=PyCapsule_GetPointer(capsule,UNIT_CAPSULE);
+    if (!c) {PyErr_Clear();return;}
+    Py_XDECREF(c->unit);Py_XDECREF(c->highlight);Py_XDECREF(c->keys);Py_XDECREF(c->zero);PyMem_Free(c);
+}
+static PyObject *unit_context(PyObject *self,PyObject *args) {
+    PyObject *unit,*highlight;
+    if (!PyArg_ParseTuple(args,"OO:unit_context",&unit,&highlight)) return NULL;
+    if (!PyType_Check(unit)||!PyType_Check(highlight)) {PyErr_SetString(PyExc_TypeError,"unit model types required");return NULL;}
+    UnitContext *c=PyMem_Calloc(1,sizeof(UnitContext));
+    if (!c) return PyErr_NoMemory();
+    c->unit=PyWeakref_NewRef(unit,NULL);c->highlight=PyWeakref_NewRef(highlight,NULL);
+    c->keys=Py_BuildValue("(sssssss)","text","start","end","highlights","kana","timing_origin","fixed_edges");
+    c->zero=PyLong_FromLong(0);
+    if (!c->unit||!c->highlight||!c->keys||!c->zero) {
+        Py_XDECREF(c->unit);Py_XDECREF(c->highlight);Py_XDECREF(c->keys);Py_XDECREF(c->zero);PyMem_Free(c);return NULL;
+    }
+    PyObject *capsule=PyCapsule_New(c,UNIT_CAPSULE,unit_context_free);
+    if (!capsule) {Py_DECREF(c->unit);Py_DECREF(c->highlight);Py_DECREF(c->keys);Py_DECREF(c->zero);PyMem_Free(c);}
+    return capsule;
+}
+static int unit_plain_type(PyObject *value,PyObject *keys) {
+    if (!PyType_Check(value)) return 0;
+    PyTypeObject *kind=(PyTypeObject *)value;
+    if (Py_TYPE(value)!=&PyType_Type||kind->tp_getattro!=PyObject_GenericGetAttr||!kind->tp_dictoffset||
+        !kind->tp_mro||PyTuple_GET_SIZE(kind->tp_mro)!=2||PyTuple_GET_ITEM(kind->tp_mro,1)!=(PyObject *)&PyBaseObject_Type) return 0;
+    for (Py_ssize_t i=0;i<PyTuple_GET_SIZE(keys);i++) {
+        PyObject *descriptor=PyDict_GetItemWithError(kind->tp_dict,PyTuple_GET_ITEM(keys,i));
+        if (descriptor&&Py_TYPE(descriptor)->tp_descr_get) return 0;
+    }
+    return !PyErr_Occurred();
+}
+static PyObject *unit_field(PyObject *dict,UnitContext *c,Py_ssize_t index) {
+    return PyDict_GetItemWithError(dict,PyTuple_GET_ITEM(c->keys,index));
+}
+static int unit_edge(PyObject *value) {
+    return PyUnicode_CheckExact(value)&&
+        (PyUnicode_CompareWithASCIIString(value,"start")==0||PyUnicode_CompareWithASCIIString(value,"end")==0);
+}
+static int certify_unit(UnitContext *c,OriginContext *origin,PyObject *value) {
+    PyObject *unit=PyWeakref_GetObject(c->unit),*highlight=PyWeakref_GetObject(c->highlight);
+    if ((PyObject *)Py_TYPE(value)!=unit||!unit_plain_type(unit,c->keys)) return 0;
+    PyObject *record=PyObject_GenericGetDict(value,NULL);
+    if (!record) return 0;
+    int valid=0;
+    if (!PyDict_CheckExact(record)) goto done;
+    PyObject *text=unit_field(record,c,0),*start=unit_field(record,c,1),*end=unit_field(record,c,2),*parts=unit_field(record,c,3);
+    if (!text||!PyUnicode_CheckExact(text)||PyUnicode_GET_LENGTH(text)>20000||
+        !start||!end||!PyLong_CheckExact(start)||!PyLong_CheckExact(end)||
+        PyObject_RichCompareBool(c->zero,start,Py_LE)!=1||PyObject_RichCompareBool(start,end,Py_LE)!=1||
+        !parts||!PyList_CheckExact(parts)) goto done;
+    Py_ssize_t count=PyList_GET_SIZE(parts);
+    if (!count) {valid=1;goto done;}
+    PyObject *reading=unit_field(record,c,4);
+    if (!reading||!PyUnicode_CheckExact(reading)||!unit_plain_type(highlight,c->keys)) goto done;
+    Py_ssize_t offset=0,total=PyUnicode_GET_LENGTH(reading);PyObject *previous=start;
+    for (Py_ssize_t i=0;i<count;i++) {
+        PyObject *part=PyList_GET_ITEM(parts,i);
+        if ((PyObject *)Py_TYPE(part)!=highlight) goto done;
+        PyObject *data=PyObject_GenericGetDict(part,NULL);
+        if (!data) goto done;
+        if (!PyDict_CheckExact(data)) {Py_DECREF(data);goto done;}
+        PyObject *basis=unit_field(data,c,5),*edges=unit_field(data,c,6),*kana=unit_field(data,c,4),
+            *a=unit_field(data,c,1),*b=unit_field(data,c,2);
+        int ok=basis&&certify_origin(origin,basis)&&edges&&PyList_CheckExact(edges)&&PyList_GET_SIZE(edges)<=2;
+        for (Py_ssize_t j=0;ok&&j<PyList_GET_SIZE(edges);j++) ok=unit_edge(PyList_GET_ITEM(edges,j));
+        if (ok&&PyList_GET_SIZE(edges)==2) ok=PyObject_RichCompareBool(PyList_GET_ITEM(edges,0),PyList_GET_ITEM(edges,1),Py_NE)==1;
+        if (ok) ok=kana&&PyUnicode_CheckExact(kana)&&PyUnicode_GET_LENGTH(kana)>0&&a&&b&&
+            PyLong_CheckExact(a)&&PyLong_CheckExact(b)&&PyObject_RichCompareBool(previous,a,Py_LE)==1&&
+            PyObject_RichCompareBool(a,b,Py_LE)==1&&PyObject_RichCompareBool(b,end,Py_LE)==1;
+        if (ok) {
+            Py_ssize_t length=PyUnicode_GET_LENGTH(kana);
+            ok=length<=total-offset&&PyUnicode_Tailmatch(reading,kana,offset,offset+length,1)==1;
+            if (ok) {offset+=length;previous=b;}
+        }
+        Py_DECREF(data);
+        if (!ok) goto done;
+    }
+    valid=offset==total;
+done:
+    Py_DECREF(record);return valid;
+}
+static PyObject *unit_structure_valid(PyObject *self,PyObject *args) {
+    PyObject *capsule,*basis,*value;
+    if (!PyArg_ParseTuple(args,"OOO:unit_structure_valid",&capsule,&basis,&value)) return NULL;
+    UnitContext *c=PyCapsule_GetPointer(capsule,UNIT_CAPSULE);
+    if (!c) return NULL;
+    OriginContext *origin=PyCapsule_GetPointer(basis,ORIGIN_CAPSULE);
+    if (!origin) return NULL;
+    int result=certify_unit(c,origin,value);
+    if (PyErr_Occurred()) return NULL;
+    return PyBool_FromLong(result);
+}
+
 /* Compare a live model with a private canonical record without allocating a
  * second tree. Scalars must retain their exact objects, not merely Python ==;
  * this conservatively preserves type, signed-zero and immutable alias keys.
@@ -458,6 +558,8 @@ static PyMethodDef methods[]={
     {"json_tree",json_tree,METH_O,"Admit only finite plain JSON data, without executing hooks."},
     {"origin_context",origin_context,METH_VARARGS,"Prepare an immutable provenance schema contract."},
     {"origin_valid",origin_valid,METH_VARARGS,"Certify exact built-ins; unsupported records keep Python validation."},
+    {"unit_context",unit_context,METH_VARARGS,"Prepare weakly held ordinary unit model types."},
+    {"unit_structure_valid",unit_structure_valid,METH_VARARGS,"Check every ordinary unit boundary, reading, origin and fixed edge."},
     {"same_record",same_record,METH_VARARGS,"Compare all canonical values before reusing a private read-only record."},
     {NULL,NULL,0,NULL}
 };

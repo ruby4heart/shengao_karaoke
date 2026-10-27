@@ -28,16 +28,34 @@ def literal(text):
 
 _SNAPSHOT_ATOMIC=frozenset((str,int,float,bool,type(None)))
 _SNAPSHOT_ACCELERATOR=None
+_UNIT_STRUCTURE_ACCELERATOR=None
+_PROVENANCE_VALIDATOR=provenance.validate
+_PROVENANCE_VALIDATOR_CODE=provenance.validate.__code__
 _LEGACY_EMPTY_KEYS=('timing_origin','fixed_edges','reading_options')
 
 
 def _set_snapshot_accelerator(module):
     """Desktop-only verified module; other callers keep the Python implementation."""
-    global _SNAPSHOT_ACCELERATOR
+    global _SNAPSHOT_ACCELERATOR,_UNIT_STRUCTURE_ACCELERATOR
+    _UNIT_STRUCTURE_ACCELERATOR=None
     _SNAPSHOT_ACCELERATOR=None if module is None else (module,
         {kind:tuple(kind.__dataclass_fields__) for kind in (LyricLine,Unit,Highlight)},
         lambda value:module.detach(value,copy.deepcopy))
     provenance._set_accelerator(module)
+    if module is not None and provenance._ACCELERATOR is not None:
+        try:_UNIT_STRUCTURE_ACCELERATOR=(module.unit_structure_valid,module.unit_context(Unit,Highlight),provenance._ACCELERATOR)
+        except (AttributeError,TypeError,ValueError):pass
+
+
+def _certified_unit_structure(value):
+    native=_UNIT_STRUCTURE_ACCELERATOR
+    if native is None:return False
+    origin=provenance._ACCELERATOR
+    return (origin is native[2] and provenance.validate is _PROVENANCE_VALIDATOR and
+        provenance.validate.__code__ is _PROVENANCE_VALIDATOR_CODE and
+        provenance.KINDS is origin[2] and provenance.PROVIDERS is origin[3] and
+        provenance.OPERATIONS is origin[4] and provenance._FIELDS is origin[5] and
+        provenance._CHANGES is origin[6] and native[0](native[1],origin[1],value))
 
 
 def _detached(value):
@@ -105,6 +123,7 @@ class Unit:
         if type(self.reading_options) is not dict or self.reading_options:
             from .reading_options import validate as validate_reading_options
             validate_reading_options(self.reading_options,self.text,self.kana,self.romaji)
+        if _certified_unit_structure(self):return
         if not isinstance(self.text, str) or len(self.text) > 20000:
             raise ValueError('音节文字无效')
         if type(self.start) is not int or type(self.end) is not int or self.start < 0 or self.end < self.start:
