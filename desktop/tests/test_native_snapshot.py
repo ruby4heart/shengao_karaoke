@@ -80,6 +80,43 @@ def test_container_mutation_during_uncommon_copy_keeps_python_iterator_semantics
     assert native.snapshot(sequence(),fields,model._model_snapshot)==model._model_snapshot(sequence())==['copied']
 
 
+def test_plain_prefix_fallback_never_calls_uncommon_copy_hooks_twice(acceleration):
+    native,fields,detach=acceleration;calls=[]
+    class Detail:
+        def __deepcopy__(self,memo):calls.append('detail');return ['copied']
+    value={'prefix':{'rows':[[str(i),{'value':i}] for i in range(100)]},
+           'later':(NotImplemented,Detail())}
+    expected=model._model_snapshot(value);assert calls==['detail'];calls.clear()
+    actual=native.snapshot(value,fields,model._model_snapshot)
+    assert actual==expected and calls==['detail']
+    actual['prefix']['rows'][0][1]['value']='external'
+    assert value['prefix']['rows'][0][1]['value']==0
+    calls.clear();assert detach(value)==model._detached(value) and calls==['detail','detail']
+
+
+def test_gc_pressure_keeps_plain_copy_complete_and_detached(acceleration):
+    native,fields,detach=acceleration
+    value={'prefix':[{'values':[i,i+1]} for i in range(100)],'branch':{'old':[]}}
+    before=model._model_snapshot(value)
+    enabled=gc.isenabled();threshold=gc.get_threshold();armed=False;fired=False
+    def mutate(phase,info):
+        nonlocal fired
+        if armed and not fired and phase=='start':
+            fired=True;value['branch']={'new':['current']}
+    gc.disable();gc.collect();gc.callbacks.append(mutate)
+    try:
+        gc.set_threshold(1,100000,100000);gc.enable();armed=True
+        actual=native.snapshot(value,fields,model._model_snapshot)
+    finally:
+        armed=False;gc.disable();gc.callbacks.remove(mutate);gc.set_threshold(*threshold)
+        if enabled:gc.enable()
+    # CPython may service pending GC immediately after the native return.
+    # Either complete state is valid; neither may expose a mutable alias.
+    assert fired and actual in (before,model._model_snapshot(value))
+    next(iter(actual['branch'].values())).append('external')
+    assert value['branch']=={'new':['current']}
+
+
 def test_legacy_omission_collects_original_nodes_before_uncommon_truth_callbacks(acceleration):
     native=acceleration[0];events=[]
     class Empty:

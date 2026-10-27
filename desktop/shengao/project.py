@@ -168,6 +168,29 @@ class Project:
         value['version']=SCHEMA;value['application']='Shengao Independent Studio'
         return value
 
+    def _capture_for_edit(self,previous):
+        """Internal read-only records; public to_dict always detaches anew.
+
+        Each reuse requires a fresh complete native comparison of the live
+        row. No active model/container is shared with the cached record.
+        """
+        from studio_backend import model
+        if (type(self) is not Project or vars(Project).get('to_dict') is not _PROJECT_SERIALIZER or
+            _PROJECT_SERIALIZER.__code__ is not _PROJECT_SERIALIZER_CODE or 'to_dict' in vars(self) or
+            type(previous) is not dict or type(previous.get('lines')) is not list):return self.to_dict()
+        state=model._snapshot_compare_state()
+        if state is None:return self.to_dict()
+        compare,fields,omissions,serializer,code=state
+        value=asdict(replace(self,lines=[]));old=previous['lines'];rows=[]
+        # Unusual header hooks retain the original per-row copy path. They
+        # have already been copied exactly once, as in public to_dict.
+        reusable=model._SNAPSHOT_ACCELERATOR[0].json_tree(value)
+        for index,line in enumerate(self.lines):
+            cached=old[index] if reusable and index<len(old) else None
+            rows.append(cached if cached is not None and compare(line,cached,fields,omissions,serializer,code) else line.to_dict())
+        value['lines']=rows;value['version']=SCHEMA;value['application']='Shengao Independent Studio'
+        return value
+
     @classmethod
     def from_dict(cls,data,base=None):
         project=cls._from_dict_record(data,base);project.validate();return project
@@ -324,6 +347,10 @@ def save_project(project,path,portable_fonts=True):
         except ValueError:pass
     atomic_json(path,value)
 
+_PROJECT_SERIALIZER=Project.to_dict
+_PROJECT_SERIALIZER_CODE=_PROJECT_SERIALIZER.__code__
+
+
 class History:
     """One user action is one undo step, including batch operations."""
     def __init__(self,project):
@@ -353,7 +380,7 @@ class History:
         both sides of the undo step receive complete validation.
         """
         if type(row) is not int or not 0<=row<len(self.project.lines):raise IndexError('歌词行不存在')
-        before=self.project.to_dict();candidate=Project._from_dict_record(before)
+        before=self.project._capture_for_edit(self._applied_snapshot);candidate=Project._from_dict_record(before)
         previous=candidate.lines[row];previous.validate();candidate.lines[row]=edit_line(previous)
         renamed=candidate.lines[row].id!=before['lines'][row]['id']
         if renamed:candidate.prune_line_overrides()

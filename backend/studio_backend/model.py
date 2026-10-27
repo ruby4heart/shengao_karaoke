@@ -276,3 +276,24 @@ def align_characters(text, characters, start_offset=0):
     if not units:
         raise ValueError('API 没有返回可用的字符时间戳')
     return units
+
+
+_LYRIC_SERIALIZER=LyricLine.to_dict
+_LYRIC_SERIALIZER_CODE=_LYRIC_SERIALIZER.__code__
+_ORIGINAL_LEGACY_KEYS=_LEGACY_EMPTY_KEYS
+_SERIALIZER_MODEL_FIELDS={kind:tuple(kind.__dataclass_fields__) for kind in (LyricLine,Unit,Highlight)}
+
+
+def _snapshot_compare_state():
+    """Only the original serializer may supply reusable private records."""
+    state=_SNAPSHOT_ACCELERATOR
+    if state is None or _LEGACY_EMPTY_KEYS is not _ORIGINAL_LEGACY_KEYS:return None
+    compare=getattr(state[0],'same_record',None)
+    if compare is None:return None
+    if type(state[1]) is not dict:return None
+    for kind,expected in _SERIALIZER_MODEL_FIELDS.items():
+        names=state[1].get(kind)
+        if type(names) is not tuple or len(names)!=len(expected) or any(a is not b for a,b in zip(names,expected)):return None
+    omissions={LyricLine:('timing_evidence',*_LEGACY_EMPTY_KEYS),
+               Unit:_LEGACY_EMPTY_KEYS,Highlight:_LEGACY_EMPTY_KEYS}
+    return compare,state[1],omissions,_LYRIC_SERIALIZER,_LYRIC_SERIALIZER_CODE
