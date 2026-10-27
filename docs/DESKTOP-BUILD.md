@@ -61,7 +61,7 @@ Remove-Item Env:\QT_SCALE_FACTOR
 
 人声引擎与 Qt 环境分离，固定 CPU PyTorch，`build-vocal-engine.py` 收集依赖许可证并绑定源码、依赖锁及官方模型指纹。模型与许可已随源码放在 `vendor/vocal-model`；下载脚本校验官方短指纹，运行时还验证固定的完整 SHA256。主程序不会联网下载模型。重建需要约数 GB 的依赖和构建空间；不要把隔离开发环境打进源码归档。
 
-构建脚本在开始与结束对源码及原生模块求哈希；构建期间文件变化会使包失效。完整回归、完整时间轴图像对照和运行包隔离验收都通过后，执行 `scripts/prepare-desktop-release.py --version 0.22.0` 生成便携 ZIP、对应源码 ZIP 和 SHA256。该脚本拒绝过期证据，并拒绝覆盖已有发行包。全部依赖检查使用 `scripts/check-desktop-dependencies.py`；一小时音频可见区压力测试使用 `scripts/stress-desktop-audio.py --output tmp/desktop-audio-stress`。
+构建脚本在开始与结束对源码及原生模块求哈希；构建期间文件变化会使包失效。完整回归、完整时间轴图像对照和运行包隔离验收都通过后，执行 `scripts/prepare-desktop-release.py --version 0.30.0` 生成便携 ZIP、对应源码 ZIP 和 SHA256。该脚本拒绝过期证据，并拒绝覆盖已有发行包。全部依赖检查使用 `scripts/check-desktop-dependencies.py`；一小时音频可见区压力测试使用 `scripts/stress-desktop-audio.py --output tmp/desktop-audio-stress`。
 
 0.19.0 的共享 CPU 引擎同时封装 Demucs 与 TIFA，依赖由 `desktop/vocal-requirements.lock` 固定。`vendor/tifa` 保留固定提交的未改写上游源码及 MIT 许可；`vendor/tifa-model` 保留官方配置、日语字典、词表和非商业模型许可、完整指纹。无需重新下载即可从源包构建。构建前会把 TIFA 入口和动态 backbone 纳入模块，构建后复制实际上游源码供 Numba 定位／缓存；缓存仅写入测试／用户数据目录。不要把模型的非商业许可与代码 MIT 混淆。
 
@@ -83,3 +83,14 @@ Numba 的可选 TBB 扩展依赖 `tbb12.dll`。主运行包收集时从 `vendor/
 ```
 
 入口仅创建自有隐藏Windows Qt窗口，正常启用恢复和回收，不调用外部API。原片与已核验代理各完整播放一遍；五处帧图像和详细报告留在指定目录，私人MV输出不得装进公开验收附件。`progress.json`用于读取阶段；以最终`report.json`为准，不因暂时没有控制台输出推断死锁。受限设备接口可能引发Qt原生异常，须保留旧版对照和异常记录，再在有本机设备访问的环境复核。
+
+同一份完整编辑压力测量也可直接从新冻结程序执行：
+
+```powershell
+shengao-karaoke.exe --preview-performance-test --source "本机视频" --output "新的本机目录" --cache-label "实际缓存条件" --with-proxy --native-hidden
+.venv-desktop/Scripts/python.exe scripts/measure-desktop-startup.py --package build/desktop-dist/shengao-karaoke --output tmp/startup-new-run --scale 1
+```
+
+压力入口与源码脚本共用1000句、50次操作、完整撤销／重做及后台恢复检查；冻结包前后逐文件核验。启动工具运行三个空应用目录和三个复用目录的新进程，记录外部启动至窗口实际绘制和交互就绪，另存完整审计。哈希读取会温热文件，系统缓存未清理；系统冷缓存和干净Windows结果须独立记录。所有窗口属于测试进程并保持隐藏，不使用Computer Use，不调用付费API。两档缩放分别建立新输出目录；同一报告不能被改写后冒充另一档结果。
+
+Windows上固定Qt 6.12时，播放器默认跳过`av1_mf,h264_mf,hevc_mf`三个未使用的Qt内部编码器探测；已有`QT_FFMPEG_EXCLUDE_ENCODERS`配置保持。解码器与独立FFmpeg压制不受此设置控制。该变量属于Qt私有实现，升级Qt小版本须重新审计；实际源码／冻结压力报告记录采用的配置，并继续验证原片解码、GPU颜色与压制输出。

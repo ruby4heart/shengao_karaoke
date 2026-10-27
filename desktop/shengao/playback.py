@@ -1,4 +1,13 @@
-from PySide6.QtCore import Qt,Signal,Slot,QTimer,QElapsedTimer,QUrl,QEvent,QSize,QRectF
+from PySide6.QtCore import Qt,Signal,Slot,QTimer,QElapsedTimer,QUrl,QEvent,QSize,QRectF,qVersion
+import os,sys
+
+# Qt 6.12 enumerates MF encoders even for a player. All application encoding
+# uses the separate FFmpeg executable, so avoid those unused startup probes.
+# Keep decoder selection and explicit user overrides. Audit this private Qt
+# setting again when upgrading the pinned Qt minor version.
+# https://github.com/qt/qtmultimedia/blob/6.12/src/plugins/multimedia/ffmpeg/qffmpegcodecstorage.cpp
+if sys.platform=='win32' and qVersion().split('.')[:2]==['6','12']:
+    os.environ.setdefault('QT_FFMPEG_EXCLUDE_ENCODERS','av1_mf,h264_mf,hevc_mf')
 from PySide6.QtGui import QPainter,QColor,QImage,QLinearGradient,QTransform
 from PySide6.QtWidgets import QWidget,QScrollArea,QFrame
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput,QVideoSink,QVideoFrame

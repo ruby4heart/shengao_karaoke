@@ -116,6 +116,12 @@ def exercise(app,StudioWindow,out,check,wait):
         check('proxy_play_error_preserves_human_audition',wait(lambda:not w.playback.preview_pending) and not w.proxy_active and w.audition_role=='vocals' and Path(w.playback.player.source().toLocalFile())==Path(voice_source) and w.project.to_dict()==before_mix)
         w.prepare_proxy();work=w.proxy_job;w.cancel_task();check('proxy_cancel_controls_keep_existing_audition',work.cancel.is_set() and w.proxy_job is None and not w.proxy_active and w.project.to_dict()==before_mix)
         check('proxy_cancel_worker_releases_process',wait(lambda:QThreadPool.globalInstance().activeThreadCount()==0,15000))
+        from .workspace_acceptance import exercise_stable_timing
+        def unconfirmed(project):
+            project.checks={}
+            for line in project.lines:line.reviewed=False
+        w.edit('受控待校对状态',unconfirmed)
+        metrics['stable_timing_workspace']=exercise_stable_timing(app,w,check)
         passed=True
     finally:
         (out/'style-preview-audit.json').write_text(json.dumps({'passed':passed,'metrics':metrics,'scope':'Actual controls, synthetic 1080p media, display-only layout, native pixels, schema14 source-parser compatibility, verified proxy and controlled audition artifact; no human reference or clean Windows certification.','computer_use':False,'paid_api_calls':0},ensure_ascii=False,indent=2),encoding='utf-8')

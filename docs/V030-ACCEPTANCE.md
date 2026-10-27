@@ -326,3 +326,29 @@ C模块已按新源码指纹重建（`build/v030-native-origin-build.log`）：�
 完整来源与1192项回归来源一致，原片及源码指纹前后保持；实际GPU64帧、无错误。回读为`build/v030-preview-stable-banner-readback.json`，报告SHA256为`2d8adf0a2f192c0b6c883a32a27209a303c2c542883d0478e7a7f881e2703106`。此前351.9ms提交、698.0ms心跳及各旧负记录继续保留，不从不同轮次拼接通过项目。这只证明同机源码态此整轮；新独立包、两档缩放、完整持续播放、冷热各三次启动及最终发行仍须匹配验证，七条目标及41条主待办尚不整体勾选。
 
 另存`tmp/v030-stable-banner-thread-cpu-diagnostic`为墙钟／线程CPU插桩，刻意在50次提交后停止，不作验收。Windows线程CPU采样呈约15.625ms量化，不能据小样本给出精确占比；部分恢复写入的墙钟约95–146ms、线程CPU约15.6ms，不证明全程占用解释器锁或已定位主要等待原因。产品没有覆盖Qt事件分发，也未改变原版绘图算法。
+
+## 2026-10-27：源码与冻结程序共用完整测量
+
+完整测量主体移到`shengao.performance_acceptance`，源码脚本仅作入口，冻结程序支持`--preview-performance-test`。原1000句、50次切换／点击／拖动／连续提交、完整撤销重做及后台代理的85条测量语句与`a27f36b`版本的AST逐项相同（`build/v030-shared-pressure-body-readback.json`）；这证明没有缩短工作量，不代替实际运行。门槛保持，窗口版无标准输出时仍生成本机JSON报告。
+
+新增运行包完整性核验：测量前后逐文件检查大小、SHA256、完整文件集合与清单内容，拒绝越界路径、重复记录和多余私有文件。源码结果保留来源快照，冻结结果使用已核验清单指纹，源码检查不适用时为null。新核验器已完整读取此前620项来源的5012文件、1482162308字节，匹配原清单`47f29acb99d93d94460c38a942d2de25c53039f01f43304670f169c0c25087e9`；这是旧包验证器检查，不是新包交付（`build/v030-portable-prior-runtime-integrity.json`）。
+
+稳定工作区检查由源码与冻结自检共用，每种尺寸分别检查隐藏状态、12次真实修改的几何与可见事件、完整撤销和步骤动作恢复，新增8项。共享样式／代理／工作区在正常及150%各37项通过，实际DPR记录在本机审计；日志为`build/v030-shared-style-portable-normal.log`和`build/v030-shared-style-portable-dpi150.log`。最初26通过、2项失败，原因为记录列表被后续合法步骤切换继续改写；改为当场独立快照后，文件完整性及工作区联合28项通过（`build/v030-portable-runtime-targeted-fixed.log`），负日志保留。
+
+新启动入口`--startup-readiness-test`由外部进程计时，到实际完整窗口绘制、处理两次可还原鼠标操作，记录DPI、硬件及工程保持；进程退出时间另记，核验读取放在就绪点后。源码新进程实测约3340.0ms，窗口交互与前后来源保持（`tmp/v030-source-startup-portable/report.json`），不是冻结包成绩。`measure-desktop-startup.py`预设三个空应用目录和三个复用目录、20秒／10秒门槛；系统缓存未清理且文件审计会温热缓存，系统冷缓存与干净Windows仍独立待验收。
+
+迁移后的628项来源通过1200项完整源码回归，无失败、错误或跳过，369.91秒（`build/v030-source-full-portable-acceptance.log`；回读`build/v030-source-full-portable-acceptance-readback.json`）。随后整轮源码压力已完成但未整体通过：首次解码3016.0ms、首次绘制3341.1ms超过3秒；连续提交最长172.5ms、代理心跳最长305.9ms，其余11个目标通过。原片与628项来源前后保持，回读`build/v030-preview-portable-source-readback.json`，保留完整原始记录，不以此前622项来源的整轮通过替代。
+
+之后接入Qt播放器启动策略：仅Windows、固定Qt 6.12且用户未设置覆盖变量时，默认排除`av1_mf,h264_mf,hevc_mf`三个Qt内部编码器探测；解码后端不改，产品压制仍由独立FFmpeg执行。这与前述外部环境实验分开；当前策略用于普通应用和验收入口，尚需新全量、实际播放／编码及压力复验。后续正式代码升级Qt小版本时重新审计，依据为[Qt 6.12源码](https://github.com/qt/qtmultimedia/blob/6.12/src/plugins/multimedia/ffmpeg/qffmpegcodecstorage.cpp)。628项数量相同不代表指纹相同，之前1200项结果不能提前宣称覆盖本策略。
+
+## 2026-10-27：播放器策略完整回归与内部候选包准备
+
+接入上述实际产品策略后，628项当前来源重新完成**1200项完整源码回归**，无失败、错误或跳过，357.28秒（`build/v030-source-full-player-policy.log`）。完整来源另存`build/v030-source-full-player-policy-sources.json`，回读`build/v030-source-full-player-policy-readback.json`；日志SHA256为`ec63be1bd7a986febf61615c2e4a233e4dd3a69e6fddcf390dd8a877be4f42e6`。实际8秒代理仍经独立FFmpeg的h264_mf编码，解码／编码检查包含在此整轮，没有将Qt内部探测设置用于禁止产品压制。
+
+同一来源的源码完整压力已完成但总体false（`tmp/v030-preview-measurement-player-policy/report.json`）：首解码2650.7ms通过，首绘制3171.3ms超过3000ms；连续50次提交p95为170.5ms，最长268.2ms，第12次超过250ms。后台心跳p95为91.0ms／最长314.6ms通过；切句／列表p95为78.0／108.4ms，拖动12.9ms，单次提交149.2ms，原片定位373.8ms、试听243.2ms，代理定位62.3ms。其余11个目标通过，完整撤销／重做、原片与628项来源前后保持。回读`build/v030-preview-player-policy-readback.json`，报告SHA256为`f67453e45d85dff8599f9f8ba8be03f08d7c260a11e6094ccd9aee4def65a925`；不混合不同轮次的最佳值，也不将Qt策略称为已解决全部首次出画问题。
+
+主教程新增三张从实际源码工作台取得的字体比较、同刻度留屏和轻量预览截图，使用8秒受控练习素材及“明日も歌おう／光の中へ”，不是私人MV或完整歌曲验收图。截图捕获范围保留在忽略的`tmp/v030-guide-captures`及`tmp/v030-guide-captures-audio`。字体面板、完整波谱及代理画面均实际查看；包内教程应与源码及三张引用图片逐字节核对。
+
+打包预检已核对所有清理目标仅在本工作区、628项来源与本次完整回归相同、128项歌声引擎来源相同，旧QA包清单另存`build/v030-pre-portable-runtime-manifest.json`（`build/v030-portable-package-preflight.json`）。现在构建的是内部候选，不是正式发行；当前两项源码压力失败保留，新包仍须完整工作流、两档缩放、实际整首、启动和依赖验收。0.30七条及正式版41条保持未整体勾选。
+
+首次新构建在PyInstaller写入EXE的PE校验和时，20次重试均因PermissionError失败（`build/v030-desktop-portable-build.log`），没有生成可记为有效的新包。随后检查生成文件无只读属性、无同名运行进程，非截断读写打开已成功；具体占用来源尚未确定，不归因为已证实的杀毒软件问题。保持源码不变重试标准构建，仅保留分析缓存而不传`--clean`；不跳过PE校验、不改变安全设置，方法记录于`build/v030-portable-build-resume-method.json`，新日志单独为`build/v030-desktop-portable-build-resume.log`。

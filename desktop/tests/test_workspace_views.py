@@ -100,32 +100,10 @@ def test_workflow_toggle_respects_video_focus_and_video_only_choice(qapp,tmp_pat
 
 @pytest.mark.parametrize('size',[(1280,800),(960,680)])
 def test_timing_edits_do_not_resize_the_workbench_through_transient_next_action(qapp,tmp_path,video,size):
-    from PySide6.QtCore import QObject,QEvent
-    w=window(qapp,tmp_path);w.resize(*size);w.project.media=str(video)
+    from shengao.workspace_acceptance import exercise_stable_timing
+    w=window(qapp,tmp_path);w.project.media=str(video)
     w.project.checks={}
     for line in w.project.lines:line.reviewed=False
-    w.refresh();settle(qapp);w.render_subtitles();settle(qapp)
-    assert w.next_button.isHidden()
-    watched=(w.workflow_banner,w.workspace_scroll.viewport(),w.timeline)
-    class Sizes(QObject):
-        def __init__(self):super().__init__();self.events=[]
-        def eventFilter(self,obj,event):
-            if event.type()==QEvent.Type.Resize:self.events.append((obj,event.oldSize(),event.size()))
-            if obj is w.next_button and event.type() in (QEvent.Type.Show,QEvent.Type.Hide):self.events.append((obj,event.type()))
-            return False
-    observer=Sizes()
-    for widget in (*watched,w.next_button):widget.installEventFilter(observer)
-    initial=[widget.size() for widget in watched];before=w.project.to_dict()
-    try:
-        for index in range(12):
-            start=w.line.start+(10 if index%2==0 else -10)
-            w.change_boundary(-1,-1,start,w.line.end+(10 if index%2==0 else -10));settle(qapp)
-            assert w.next_button.isHidden()
-        assert observer.events==[] and [widget.size() for widget in watched]==initial
-        assert len(w.history.undo_stack)==12
-        for _ in range(12):w.undo();settle(qapp)
-        assert w.project.to_dict()==before
-        w.set_stage(3);settle(qapp);assert not w.next_button.isHidden()
-        w.set_stage(2);settle(qapp);assert w.next_button.isHidden()
-    finally:
-        for widget in (*watched,w.next_button):widget.removeEventFilter(observer)
+    def check(name,ok):assert ok,name
+    metrics=exercise_stable_timing(qapp,w,check,sizes=(size,))
+    assert metrics[0]['events']==[] and metrics[0]['stable']

@@ -29,6 +29,12 @@ if __name__=='__main__':
             sys.stdin=io.TextIOWrapper(os.fdopen(fd,'rb'),encoding='utf-8')
         from worker_entry import main
         raise SystemExit(main())
+    elif '--preview-performance-test' in sys.argv:
+        from shengao.performance_acceptance import main
+        raise SystemExit(main())
+    elif '--startup-readiness-test' in sys.argv:
+        from shengao.startup_acceptance import main
+        raise SystemExit(main())
     elif '--playback-continuity-test' in sys.argv:
         from shengao.playback_acceptance import main
         raise SystemExit(main())
