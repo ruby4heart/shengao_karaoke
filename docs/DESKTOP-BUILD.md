@@ -72,3 +72,14 @@ Numba 的可选 TBB 扩展依赖 `tbb12.dll`。主运行包收集时从 `vendor/
 0.20.0 音频引擎使用 `audio_contract.py` 的第 2 版事件协议，每个完整推理区间独立返回并立即核验、保存。修改该合同、推理入口、进程管理或依赖后应先重建音频引擎，再构建主程序。后台任务通过私有具名 Windows Job 管理；实际解释器在读取请求或加载模型前自行加入，避免虚拟环境启动器提前派生子进程造成的清理缺口。取消等待音频进程全部退出、句柄释放和检查点保存。独立包自检同时执行单句和多句真实歌声推理、重开复用、审核及人工交接。
 
 0.21.0 的 `studio_backend/provenance.py` 不导入模型库或 Qt，将原始依据、当前范围、后续变更与确认状态分开。第 8 版工程读 1–8，空的新字段在序列化时缺省，避免改变真实 0.18／0.20 检查点的原签名。来源界面只读恢复有原始音素区间可对应的旧 TIFA 资料，不静默迁移旧任务。开发版和独立包自检会从本轮实际歌声候选打开来源页，验证查看、移动、手调、保存及撤销，输出 `timing-provenance-audit.json`。
+
+0.30的私有GPU缩放只使用五个QML模块。`scripts/qt_qml_runtime.py`在构建前运行安装环境的`qmlimportscanner.exe`，实际导入集合与允许集合不一致时停止，先审计再修改集合。应用专用QtQml hook保留PyInstaller的Qt插件依赖扫描，并逐文件按最近的qmldir过滤数据；不能将整个QtQuick父目录复制进去。新包保留`qml-runtime-imports.json`，还须运行实际GPU检查及PE依赖检查。
+
+持续播放的独立入口（源码／冻结包均支持）：
+
+```powershell
+.venv-desktop/Scripts/python.exe desktop/main.py --playback-continuity-test --source <本机视频> --output <不存在的本机结果目录> --proxy-cache <本机代理缓存目录>
+# 冻结包使用 shengao-karaoke.exe 替代 Python 与 desktop/main.py。
+```
+
+入口仅创建自有隐藏Windows Qt窗口，正常启用恢复和回收，不调用外部API。原片与已核验代理各完整播放一遍；五处帧图像和详细报告留在指定目录，私人MV输出不得装进公开验收附件。`progress.json`用于读取阶段；以最终`report.json`为准，不因暂时没有控制台输出推断死锁。受限设备接口可能引发Qt原生异常，须保留旧版对照和异常记录，再在有本机设备访问的环境复核。

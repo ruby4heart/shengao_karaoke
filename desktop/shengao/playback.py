@@ -17,6 +17,7 @@ class VideoCanvas(QWidget):
         self.painted_sequence=0;self.painted_frame_start_us=None;self.painted_frame_end_us=None
         self.painted_at_s=None
         self.first_painted_at_s=None
+        self.new_frame_painted_at_s=None
         self._source_frame=None;self._source_frame_size=None;self._gpu_scaler=None;self._converting_frame=False;self._frame_accelerated=False
         self.frame_resize_timer=QTimer(self);self.frame_resize_timer.setSingleShot(True);self.frame_resize_timer.timeout.connect(self.resize_frame)
         self.setObjectName('videoPreview');self._wheel=0
@@ -73,6 +74,7 @@ class VideoCanvas(QWidget):
         self.painted_frame_start_us=None;self.painted_frame_end_us=None;self.update()
         self.painted_at_s=None
         self.first_painted_at_s=None
+        self.new_frame_painted_at_s=None
 
     def wheelEvent(self,event):
         self._wheel+=event.angleDelta().y();steps=int(self._wheel/120);self._wheel-=steps*120
@@ -98,6 +100,7 @@ class VideoCanvas(QWidget):
             p.drawImage(QRectF(x,y,w,h),self.renderer.image(rw,rh,self.position))
         p.end()
         if not self.frame.isNull() and w>0 and h>0:
+            if self.painted_sequence!=self.frame_sequence:self.new_frame_painted_at_s=time.perf_counter()
             self.painted_sequence=self.frame_sequence;self.painted_frame_start_us=self.frame_start_us;self.painted_frame_end_us=self.frame_end_us
             self.painted_at_s=time.perf_counter()
             if self.first_painted_at_s is None:self.first_painted_at_s=self.painted_at_s
@@ -129,14 +132,17 @@ class Playback(QWidget):
         self.player.positionChanged.connect(self.receive_position,queued);self.player.durationChanged.connect(self.receive_duration,queued)
         self.player.errorOccurred.connect(self.play_error,queued)
         self.preview_pending=False;self.preview_started=False;self.preview_muted=False;self.preview_target=None
+        self._paused_preview_target=None
         self.resume_on_load=False;self.restore_range=None
         self.pending_seek=None;self.player.mediaStatusChanged.connect(self.loaded,queued)
+        self.load_timer=QTimer(self);self.load_timer.setSingleShot(True);self.load_timer.timeout.connect(self.refresh_loaded_state)
         self.range=None;self.loop=False;self.anchor=0;self.clock=QElapsedTimer();self.clock.start()
         self.timer=QTimer(self);self.timer.setInterval(25);self.timer.timeout.connect(self.tick);self.timer.start()
         self.player.playbackStateChanged.connect(self.receive_state,queued)
         self.player.playbackRateChanged.connect(self.receive_rate,queued)
 
     def cancel_preview(self):
+        self._paused_preview_target=None
         if self.preview_started:self.audio.setMuted(self.preview_muted)
         self.preview_started=False;self.preview_pending=False;self.preview_target=None
 
@@ -167,10 +173,14 @@ class Playback(QWidget):
     @Slot(QVideoFrame)
     def receive_frame(self,frame):
         if self.player.source().isEmpty() or not frame.isValid():return
-        if self.preview_started:
+        held=self._paused_preview_target
+        if held is not None and not self.preview_started and self.player.playbackState()!=QMediaPlayer.PlaybackState.PlayingState and frame.startTime()>=0:
+            end=frame.endTime() if frame.endTime()>frame.startTime() else frame.startTime()+40000
+            if not frame.startTime()<=held*1000<end:return
+        if self.preview_pending:
             target=self.preview_target
             end=frame.endTime() if frame.endTime()>frame.startTime() else frame.startTime()+40000
-            if target is not None and frame.startTime()>=0 and end<target*1000:return
+            if target is not None and frame.startTime()>=0 and (end<=target*1000 or frame.startTime()>target*1000+50000):return
             # Keep the first matching warm-up frame; ordinary playback only
             # needs the latest queued image when the GUI was busy editing.
             if self._pending_frame is not None:return
@@ -190,9 +200,9 @@ class Playback(QWidget):
             # Warm silently through it, then keep the exact audition position.
             if target is not None and frame.startTime()>=0:
                 end=frame.endTime() if frame.endTime()>frame.startTime() else frame.startTime()+40000
-                if end<target*1000:return
+                if end<=target*1000 or frame.startTime()>target*1000+50000:return
             invoke_native_slot(self.player,'pause');self.cancel_preview()
-            if target is not None:self.seek(target,internal=True)
+            if target is not None:self.seek(target,internal=True);self._paused_preview_target=target
             if self.resume_on_load:self.resume_on_load=False;invoke_native_slot(self.player,'play')
 
     @Slot(QMediaPlayer.MediaStatus)
@@ -213,12 +223,22 @@ class Playback(QWidget):
         if self.preview_pending and not self.preview_started and self.player.hasVideo() and status in (QMediaPlayer.MediaStatus.LoadedMedia,QMediaPlayer.MediaStatus.BufferedMedia):
             self.preview_started=True;self.preview_muted=self.audio.isMuted();self.audio.setMuted(True);invoke_native_slot(self.player,'play')
 
+    @Slot()
+    def refresh_loaded_state(self):self.loaded(self.player.mediaStatus())
+
     def open(self,path,position=0,preview=False,reference_size=None):
+        self._paused_preview_target=None
+        self.load_timer.stop();same_source=self.player.source()==QUrl.fromLocalFile(str(path))
         self.interrupt_temporary()
         self.discard_frames()
         self.cancel_preview();self.resume_on_load=False;self.restore_range=None;invoke_native_slot(self.player,'stop');self.preview_pending=bool(preview);self.preview_target=max(0,int(position)) if preview else None;self.range=None;self.canvas.clear_frame();self.canvas.aspect=16/9;self.canvas.audio_only=False;self.zoom=None;self.reference_size=reference_size;self.set_source_size(*(reference_size or (1920,1080)));self.pending_seek=max(0,int(position)) or None;self.player.setSource(QUrl.fromLocalFile(str(path)))
+        # setSource is a no-op for an already loaded URL. Reopening the same
+        # source still needs warm-up/seek after the caller restores its state.
+        if same_source:self.load_timer.start(0)
 
     def clear(self):
+        self._paused_preview_target=None
+        self.load_timer.stop()
         self.interrupt_temporary()
         self.discard_frames()
         self.cancel_preview();self.pending_seek=None;self.resume_on_load=False;self.restore_range=None;self.range=None
@@ -290,7 +310,7 @@ class Playback(QWidget):
     def seek(self,value,internal=False):
         gui_activity()
         self.discard_frames()
-        if not internal:self.interrupt_temporary()
+        if not internal:self._paused_preview_target=None;self.interrupt_temporary()
         value=max(0,int(value));duration=self.player.duration()
         if duration>0:value=min(value,duration)
         if self.pending_seek is not None or self.player.mediaStatus() in (QMediaPlayer.MediaStatus.NoMedia,QMediaPlayer.MediaStatus.LoadingMedia):self.pending_seek=value

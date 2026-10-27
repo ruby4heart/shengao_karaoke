@@ -13,6 +13,7 @@ from desktop_source_state import snapshot
 from vocal_source_state import state as vocal_state
 from python_tls_resources import pyinstaller_arguments
 from json_runtime_sources import verify as verify_json_runtime
+from qt_qml_runtime import scan as scan_qml
 
 root=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(root/'desktop'),str(root/'backend')]
@@ -20,6 +21,8 @@ from shengao.fast_snapshot import verify as verify_snapshot
 verify_snapshot(root/'build/desktop',root/'desktop/native/snapshot.c')
 verify_json_runtime(root)
 before=snapshot(root)
+qt=Path(importlib.util.find_spec('PySide6').origin).parent
+qml_audit=scan_qml(root,qt)
 vocal=root/'build/vocal-dist/shengao-vocals'
 assert vocal_state(root)==json.loads((vocal/'engine-sources.json').read_text()),'Rebuild the local vocal engine before packaging'
 for name in ['shengao-audio.dll','shengao-render.dll','shengao-view.dll']:
@@ -27,7 +30,8 @@ for name in ['shengao-audio.dll','shengao-render.dll','shengao-view.dll']:
 command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
  '--name','shengao-karaoke','--distpath','build/desktop-dist','--workpath','build/desktop-pyinstaller',
  '--specpath','build','--paths','desktop','--paths','backend','--collect-all','janome','--icon',str(root/'desktop'/'assets'/'shengao.ico'),
- '--add-data',str(root/'desktop'/'assets')+';assets']
+ '--add-data',str(root/'desktop'/'assets')+';assets',
+ '--additional-hooks-dir',str(root/'scripts/pyinstaller-hooks')]
 for module in ['PySide6.QtWebEngineCore','PySide6.QtWebEngineWidgets','PySide6.QtWebEngineQuick','PySide6.QtPdf','tkinter','torch','torchaudio','demucs']:
     command+=['--exclude-module',module]
 command+=pyinstaller_arguments(root)+['desktop/main.py']
@@ -55,7 +59,7 @@ shutil.copy2(baseline/'ffmpeg.exe',package/'ffmpeg.exe')
 for path in baseline.glob('*.dll'):shutil.copy2(path,package/path.name)
 shutil.copytree(baseline/'licenses',package/'licenses',dirs_exist_ok=True)
 if (root/'desktop'/'assets'/'licenses').exists():shutil.copytree(root/'desktop'/'assets'/'licenses',package/'licenses'/'Independent-Qt',dirs_exist_ok=True)
-qt=Path(importlib.util.find_spec('PySide6').origin).parent
+(package/'qml-runtime-imports.json').write_text(json.dumps(qml_audit,ensure_ascii=False,indent=2),encoding='utf-8')
 for folder in [qt/'licenses',qt/'Qt'/'licenses']:
     if folder.is_dir():shutil.copytree(folder,package/'licenses'/'Qt',dirs_exist_ok=True)
 for name in ['NotoSans-LICENSE.txt','NotoSerif-LICENSE.txt','NotoSerif-Black-LICENSE.txt','BIZUD-LICENSE.txt','SOURCES.json']:

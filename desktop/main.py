@@ -29,6 +29,9 @@ if __name__=='__main__':
             sys.stdin=io.TextIOWrapper(os.fdopen(fd,'rb'),encoding='utf-8')
         from worker_entry import main
         raise SystemExit(main())
+    elif '--playback-continuity-test' in sys.argv:
+        from shengao.playback_acceptance import main
+        raise SystemExit(main())
     elif '--gpu-preview-test' in sys.argv:
         from shengao.gpu_preview_acceptance import main
         main()
