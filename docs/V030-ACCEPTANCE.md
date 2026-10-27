@@ -266,3 +266,15 @@ FFmpeg 同时输出视频与音频过滤日志时会在行中交错，首轮严�
 原始完整数组与私人帧仅在`tmp/v030-continuity-emerald-native-66dbe2d`；回读摘要为`build/v030-continuity-emerald-native-readback.json`。实际DPR1.0，Direct3D11缩放6449帧、无加速器错误，代理缓存经重新核验后复用。正常回收最长235.1ms也计入间隔，没有从数据中移除。五对完整Canvas图片另作本地描述性比较（没有测后新设通过阈值）；中间位置两图已实际查看。代理播放中有轻量本地帧图比较，打包与压力重任务均串行。
 
 此结果证明同机源码态的完整播放连续性与恢复，不是正式歌词准确率、物理声画验收或新独立包证据。最近完整编辑压力测量的296.3ms提交及3230.7／3580.5ms首帧仍保留未通过；冷／热启动、当前新包与整版发行仍待验收。41条主待办及七条目标不提前勾选。
+
+## 2026-10-27：当前运行包、两档缩放与原版绘图
+
+当前620项来源与1174项完整回归一致，新运行包成功构建（`build/v030-desktop-gpu-build.log`）：5012文件、1482162308字节；所有文件重新校验大小和SHA256，主教程开发稿与源码文档逐字节相同。实际仅含五个已审核QML模块，来源回读为`build/v030-desktop-gpu-source-readback.json`。当前包清单SHA256为`47f29acb99d93d94460c38a942d2de25c53039f01f43304670f169c0c25087e9`。
+
+隔离PATH及开发插件路径，冻结程序在原生隐藏Windows Qt下两档各27项GPU检查通过；实际DPR1.0／1.5，Direct3D11，控制帧颜色、PTS、完整4K放大细节、字幕核心像素与原Qt回退均通过（`build/v030-packaged-gpu-acceptance.json`）。冻结包的5秒受控视频及1000句未保存工程另通过15个目标，后台恢复文件实际落盘并重新加载逐字段相同（`build/v030-packaged-continuity-fixture.json`）；这不是冻结包的270秒整首性能结论。
+
+同一清单的正常及150%完整工作流各435项通过，分别保留`build/v030-package-gpu-normal-acceptance.json`和`build/v030-package-gpu-dpi150-acceptance.json`。全部509个PE模块导入／导出依赖通过、无缺失（`build/v030-package-gpu-dependencies.json`）。不将重叠的源码、分项和工作流数量相加成一套测试。
+
+当前时间轴两档实际DPR1.0／1.5共12场景与原版音频及绘图参考逐像素零差异（`build/v030-original-scenes-gpu-readback.json`）。参考采用共享的普通场景适配器，此项不宣称覆盖所有Aegisub交互或新增真实音乐场景。
+
+当前汇总为`build/v030-current-runtime-acceptance.json`。这些组件通过不等于正式发行：当前完整编辑压力及首帧尚须重测，独立包整首性能、冷／热启动、最终文档／归档及GitHub四份发行资产仍待完成。主教程目前明确为开发使用稿，正式发行前须核对最终文案与包内副本。41条主待办保持。
