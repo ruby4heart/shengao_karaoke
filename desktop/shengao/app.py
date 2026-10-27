@@ -1004,7 +1004,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         elif summary['readings']<summary['lines']:text,callback='检查待确认读音',lambda:self.show_pending_readings()
         elif self.stage<3:text,callback='选择字幕样式',lambda:self.set_stage(3)
         else:text,callback='试压与导出',lambda:self.set_stage(4)
-        self.next_button.setVisible(True)
+        show_next=True
         if media_ready and has_lines and not pending:
             if self.stage==0:text,callback='下一步：生成字幕',lambda:self.set_stage(1)
             elif self.stage==1 and all(x.units for x in p.lines):text,callback='下一步：检查假名',self.go_reading
@@ -1013,11 +1013,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 elif summary['timing']==summary['lines'] and summary['readings']==summary['lines']:text,callback='下一步：调整样式',lambda:self.set_stage(3)
                 elif summary['timing']==summary['lines'] and self.calibration_tabs.currentIndex()==0:text,callback='下一步：检查假名',self.go_reading
                 elif summary['readings']==summary['lines'] and self.calibration_tabs.currentIndex()==1:text,callback='下一步：校准时间',self.go_audio_timing
-                else:self.next_button.hide()
+                else:show_next=False
             elif self.stage==3:text,callback='下一步：先看样片',lambda:self.set_stage(4)
             elif self.stage==4 and self.last_output:text,callback='播放成品',lambda:self.open_last_output(False)
+        # Resolve visibility before touching the layout. Showing then hiding
+        # this button makes the wrapped banner resize the entire workbench on
+        # every timing edit, even when the final state is unchanged.
         self.next_button.setText(text+' →');self.next_callback=callback
         self.refresh_inline_editor()
+        self.next_button.setVisible(show_next and not self.inline_segment.pending)
 
     def go_missing_segmentation(self):
         if not self.flush_edits():return

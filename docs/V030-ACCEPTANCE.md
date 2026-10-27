@@ -308,3 +308,21 @@ C模块已按新源码指纹重建（`build/v030-native-origin-build.log`）：�
 同一622项来源的完整性能测量为`tmp/v030-preview-measurement-private-record-plain/report.json`，已完成但总体false。首解码／绘制2504.9／2625.4ms，本轮均达标；连续50次提交p95为185.2ms，最长351.9ms，第9次超过250ms，其余49次均在门槛内。单次提交174.3ms，原片定位318.6ms、试听255.6ms；后台代理约115.2秒，20ms心跳p95为103.5ms／最长698.0ms，最大值门槛未通过；代理定位62.4ms，其余目标通过。来源和原片指纹前后相同，回读为`build/v030-preview-private-record-plain-readback.json`。不剔除这一次慢提交或后台最大值，也不以本次首帧达标替代冷／热启动三次实测。
 
 首次出画插桩另保留`tmp/v030-private-plain-startup-diagnostic`，不作验收。Qt 6.12的[官方源码](https://github.com/qt/qtmultimedia/blob/6.12/src/plugins/multimedia/ffmpeg/qffmpegcodecstorage.cpp)在统一枚举中实际打开Media Foundation编码器，并支持`QT_FFMPEG_EXCLUDE_ENCODERS`。仅外部环境变量排除三个MF编码器的候选实验保留在`tmp/v030-exclude-mf-startup-diagnostic`，首解码／绘制约2125.1／2370.0ms；它带插桩，缓存／系统负载有差异，不能直接称为加速比例，配置尚未接入生产。后续验证须保持播放器解码、原片导出和实际压制能力。
+
+## 2026-10-27：编辑期间工作区尺寸稳定
+
+原生布局事件记录定位到“下一步”按钮在每次刷新中先显示后隐藏：提示栏在34px与47px间往返，使视频、波谱、歌词库和工具区反复缩放。现在先决定最终动作与当前编辑预览状态，再一次设置可见性；正常步骤切换仍显示对应操作，不以固定高度或裁掉提示内容遮掩抖动。
+
+窗口／旧Qt操作联合43项通过（`build/v030-stable-workbench-targeted.log`）。进一步检查实际Show／Hide与Resize事件，在1280×800及960×680中各连续修改12次、全部撤销，并切换样式／校准步骤，两项均通过（`build/v030-stable-workbench-visibility.log`）。在独立进程只换回已提交`0b6af35`的旧刷新函数，同两项均出现期望的失败，证明回归能抓到旧行为（`build/v030-baseline-banner-counterexample.log`及同名JSON）；未改生产文件，不冒充旧完整二进制验收。
+
+真实原片及1000句的后续布局插桩保留在`tmp/v030-stable-layout-identity-diagnostic`。50次提交期间没有工作区Resize事件，布局抖动已消除；最长提交仍约303.7ms，有原生绘制阶段的额外等待。另一次无布局过滤的插桩最长约308.0ms（`tmp/v030-stable-banner-commit-diagnostic`）。两份均在50次提交后刻意停止，不是完整性能验收；完整回归与完整压力仍须匹配此改动，41条主待办保持。
+
+额外覆盖`QApplication.notify`的诊断进程曾以Windows状态`0xc0000374`退出，没有生成完整报告；原因未由日志确定，不作性能或生产故障归因。该覆盖只在忽略的诊断脚本中，未进入产品。后续改用普通只读事件过滤器，成功完成观察；记录为`build/v030-native-notify-diagnostic-failure.json`。Qt编码器排除仍只为外部环境实验，没有接入当前生产代码。
+
+该布局修复的622项来源已通过**1192项完整源码回归**，无失败、错误或跳过，346.40秒（`build/v030-source-full-stable-banner.log`）。当前来源与测试来源相同，原生模块仍为已核验的`4d7c58`源码／`f16cb22`二进制；完整来源另存`build/v030-source-full-stable-banner-sources.json`，回读为`build/v030-source-full-stable-banner-readback.json`。完整压力、新运行包与发行尚不能据此记为通过。
+
+随后同一份622项来源的未插桩完整压力测量**13个目标全部通过**（`tmp/v030-preview-measurement-stable-banner/report.json`）。原生隐藏Windows Qt，实际DPR1.0，默认Qt配置，无编码器排除实验变量；保持正常回收和编辑恢复，代理阶段按原每秒恢复与20ms心跳运行。首解码2292.5ms、首绘制2409.6ms，下一句／列表p95为89.4／119.5ms，拖动11.6ms；单次提交151.6ms，连续50次提交p95为175.2ms／最长239.4ms，全部撤销、重做并还原工程，私有内存增长未越过256MiB。原片定位416.9ms、试听246.6ms；新代理约133.9秒，心跳p95为93.3ms／最长449.1ms，代理定位61.5ms。所有原始数组保留，没有剔除慢次。
+
+完整来源与1192项回归来源一致，原片及源码指纹前后保持；实际GPU64帧、无错误。回读为`build/v030-preview-stable-banner-readback.json`，报告SHA256为`2d8adf0a2f192c0b6c883a32a27209a303c2c542883d0478e7a7f881e2703106`。此前351.9ms提交、698.0ms心跳及各旧负记录继续保留，不从不同轮次拼接通过项目。这只证明同机源码态此整轮；新独立包、两档缩放、完整持续播放、冷热各三次启动及最终发行仍须匹配验证，七条目标及41条主待办尚不整体勾选。
+
+另存`tmp/v030-stable-banner-thread-cpu-diagnostic`为墙钟／线程CPU插桩，刻意在50次提交后停止，不作验收。Windows线程CPU采样呈约15.625ms量化，不能据小样本给出精确占比；部分恢复写入的墙钟约95–146ms、线程CPU约15.6ms，不证明全程占用解释器锁或已定位主要等待原因。产品没有覆盖Qt事件分发，也未改变原版绘图算法。
