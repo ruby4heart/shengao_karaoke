@@ -290,3 +290,7 @@ FFmpeg 同时输出视频与音频过滤日志时会在行中交错，首轮严�
 C模块已按新源码指纹重建（`build/v030-native-origin-build.log`）：源码`45a60f1ba70ecad597c5c50182c1e5295a04d623bbaa5d2f74cd8cffd97db877`，二进制`e5751aebbad2e7fff71148ab8c0558be4c27e162cfd6f654ac798d66084708e3`。首次57通过、1个引用计数断言失败；断言重写为属性参数额外保留临时引用，改为普通赋值分别采样后再断言。生产C代码保持，修正后58项通过、1.94秒（`build/v030-native-origin-count-fixed.log`），覆盖全部来源组合、非法值原错误、特殊类型回退、规则变化、直接坏数据及上下文释放。随后进行局部耗时对照，仍非完整通过证据。
 
 新校验器的621项来源已通过1180项完整源码回归，无失败、错误或跳过，398.27秒（`build/v030-source-full-native-origin.log`）；完整来源指纹前后相同，回读见`build/v030-source-full-native-origin-readback.json`。此结论不将旧620项运行包改称当前包，后续完整性能与新包仍须匹配验证。
+
+621项来源完整压力测量为`tmp/v030-preview-measurement-native-origin-certified/report.json`：已完成，总体false。首解码3370.2ms、首绘制3660.4ms，连续提交p95为276.8ms／最长327.6ms；单次提交224.3ms，原片定位356.2ms、试听256.0ms，代理心跳p95为118.5ms／最长412.1ms、代理定位61.8ms，其余目标通过。621项来源与原片指纹前后相同，回读为`build/v030-preview-native-origin-certified-readback.json`。不以p95下降掩盖最大值失败，也不将旧620项包用于新源码结论。
+
+下一步继续测工程重建、复制与首帧前的任务排队，不减少校验、不共享活动模型的可变资料。后台编码是否仍影响GUI也须先独立实验；[orjson官方说明](https://github.com/ijl/orjson#serialize)明确序列化期间持有解释器锁，这只是机制依据，尚不能单独证明本机主要耗时来自该处。正式版41条与0.30七条继续保持未整体勾选。
