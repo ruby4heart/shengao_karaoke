@@ -18,6 +18,12 @@ def _context():
 def available():return _context() is not None
 
 
+def shareable(value):
+    """Exact finite JSON trees have no user hooks and allow read-only sharing."""
+    context=_context()
+    return context is not None and context[1](value)
+
+
 def dumps(value):
     context=_context()
     if context is not None and context[1](value):

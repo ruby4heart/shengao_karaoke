@@ -17,22 +17,58 @@ class VideoCanvas(QWidget):
         self.painted_sequence=0;self.painted_frame_start_us=None;self.painted_frame_end_us=None
         self.painted_at_s=None
         self.first_painted_at_s=None
+        self._source_frame=None;self._source_frame_size=None;self._gpu_scaler=None;self._converting_frame=False;self._frame_accelerated=False
+        self.frame_resize_timer=QTimer(self);self.frame_resize_timer.setSingleShot(True);self.frame_resize_timer.timeout.connect(self.resize_frame)
         self.setObjectName('videoPreview');self._wheel=0
         self.setToolTip('滚轮按 12.5% 缩放视频；放大后可用滚动条移动画面。双击恢复适合窗口。')
 
-    def video_frame(self,frame):
-        image=frame.toImage()
+    def video_frame(self,frame,*,_new_frame=True):
+        from .frame_scaler import preview_size,eligible,GpuFrameScaler
+        if not frame.isValid() or self._converting_frame:return
+        self._converting_frame=True;previously_accelerated=self._frame_accelerated
+        try:
+            self._source_frame=QVideoFrame(frame);image=None
+            size=preview_size(frame,self.width(),self.height(),self.devicePixelRatioF())
+            if eligible(frame,size):
+                if self._gpu_scaler is None:
+                    self._gpu_scaler=GpuFrameScaler();self.destroyed.connect(self._gpu_scaler.close)
+                image=self._gpu_scaler.convert(frame,size)
+            accelerated=image is not None
+            if not accelerated:image=frame.toImage()
+            if not accelerated and not image.isNull():
+                # toImage includes surface transforms; presentation transforms
+                # remain separate. The guarded GPU path already renders both.
+                if frame.rotation().value:image=image.transformed(QTransform().rotate(frame.rotation().value))
+                if frame.mirrored():image=image.flipped(Qt.Orientation.Horizontal)
+            source_size=QSize(frame.width(),frame.height()) if accelerated else image.size()
+        finally:self._converting_frame=False
+        self._frame_accelerated=accelerated
+        if not accelerated:
+            self._source_frame=None
+            if previously_accelerated and self._gpu_scaler is not None:self._gpu_scaler.clear()
         if not image.isNull():
-            # toImage already applies the surface format's transform. Only
-            # the separate frame presentation transform remains (Qt 6.12).
-            if frame.rotation().value:image=image.transformed(QTransform().rotate(frame.rotation().value))
-            if frame.mirrored():image=image.flipped(Qt.Orientation.Horizontal)
-            changed=self.frame.size()!=image.size();self.frame=image
-            self.frame_sequence+=1;self.frame_start_us=frame.startTime();self.frame_end_us=frame.endTime()
-            if changed:self.frameSizeChanged.emit(image.width(),image.height())
+            changed=self._source_frame_size!=source_size;self._source_frame_size=source_size;self.frame=image
+            if _new_frame:self.frame_sequence+=1
+            self.frame_start_us=frame.startTime();self.frame_end_us=frame.endTime()
+            if changed:self.frameSizeChanged.emit(source_size.width(),source_size.height())
             self.update()
 
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        if self._source_frame is not None:self.frame_resize_timer.start(0)
+
+    def resize_frame(self):
+        if self._source_frame is not None and self._frame_accelerated:self.video_frame(self._source_frame,_new_frame=False)
+
+    def close_frame_scaler(self):
+        self.frame_resize_timer.stop();self._source_frame=None
+        if self._gpu_scaler is not None:self._gpu_scaler.close()
+
+    def frame_scaler_status(self):return self._gpu_scaler.status() if self._gpu_scaler is not None else {'backend':'Qt image','frames':0,'error':''}
+
     def clear_frame(self):
+        self.frame_resize_timer.stop();self._source_frame=None;self._source_frame_size=None;self._frame_accelerated=False
+        if self._gpu_scaler is not None:self._gpu_scaler.clear()
         self.frame=QImage();self.frame_start_us=None;self.frame_end_us=None
         self.painted_frame_start_us=None;self.painted_frame_end_us=None;self.update()
         self.painted_at_s=None

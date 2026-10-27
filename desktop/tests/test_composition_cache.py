@@ -40,8 +40,9 @@ def test_overlap_statistics_match_strict_brute_force_for_empty_equal_and_unorder
         assert index.maximum(query)==expected
 
 
-@pytest.mark.parametrize('local',[False,True])
-def test_geometry_summaries_match_original_scan_and_actual_ass_pixels(monkeypatch,local):
+@pytest.mark.parametrize('mode',['mixed','local','uniform'])
+def test_geometry_summaries_match_original_scan_and_actual_ass_pixels(monkeypatch,mode):
+    local=mode=='local'
     p=sample();p.style.display_mode='alternating'
     if not local:p.layout_styles={}
     from shengao.line_layout import resolved_layouts
@@ -50,10 +51,12 @@ def test_geometry_summaries_match_original_scan_and_actual_ass_pixels(monkeypatc
         if n%6==0:line.display_start=0;line.display_end=10000
         p.lines.append(line)
         if local and n%4==0:p.layout_styles[line.id]=make_setting(line,60+n,90,[])
+    if mode=='uniform':
+        for line in p.lines:line.text='歌う';line.units=[];line.romaji='';line.translation=''
     windows=display_windows(p);layouts=resolved_layouts(p);index=_LaneLayoutIndex(p,windows,layouts)
     for (_,style),window in zip(layouts,windows):assert index.get(window,style)==lane_layout(p,window,windows,style,layouts)
-    fast=compose(p)
-    def scan(self,window,style):return lane_layout(p,window,windows,style,layouts)
+    fast=compose(p,cache=CompositionCache())
+    def scan(self,window,style,**kwargs):return lane_layout(p,window,windows,style,layouts)
     monkeypatch.setattr(_LaneLayoutIndex,'get',scan);reference=compose(p)
     assert fast==reference
     renderer=AssRenderer()
@@ -62,6 +65,22 @@ def test_geometry_summaries_match_original_scan_and_actual_ass_pixels(monkeypatc
             renderer.set_text(reference);expected=renderer.rgba(320,180,when)
             renderer.set_text(fast);assert renderer.rgba(320,180,when)==expected
     finally:renderer.close()
+
+
+@pytest.mark.parametrize('count',[0,1,35,350])
+def test_single_statistic_matches_original_vector_path_with_numeric_type_and_signed_zero(count):
+    import math
+    rng=random.Random(2508);windows=[];metrics=[]
+    for _ in range(count):
+        start=rng.randrange(-10,100)*10;windows.append(DisplayWindow(start,start+rng.randrange(80)*10))
+        metrics.append((rng.choice([-3,1,1.,True,False,0.,-0.,7.2]),))
+    fast=WindowIndex(windows,metrics);reference=WindowIndex(windows,[(value[0],0) for value in metrics])
+    for query in [*windows,DisplayWindow(0,0),DisplayWindow(-1000,3000)]:
+        actual=fast.maximum(query);original=reference.maximum(query)
+        assert actual==(original[:1] if original is not None else None)
+        if actual is not None:
+            assert type(actual[0]) is type(original[0])
+            if type(actual[0]) is float:assert math.copysign(1,actual[0])==math.copysign(1,original[0])
 
 
 def compare(p,cache):

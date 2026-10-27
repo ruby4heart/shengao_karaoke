@@ -37,14 +37,20 @@ class RecoveryWriter:
         self._invalidate();atomic_json(self.path,owned,compact=True)
 
     def queue_owned(self,owned):
-        """Caller transfers a detached snapshot and must not mutate it."""
+        """Detached data may have other read-only readers; none may mutate it."""
         if self._closed:return False
         generation=self._invalidate();self._pending=(generation,owned);self._start_pending();return True
 
     def _start_pending(self):
         if self._closed or self.active is not None or self._pending is None:return
         generation,owned=self._pending;self._pending=None
-        self.active=jobs.run(lambda cancel,progress:self._write(generation,owned,cancel),
+        holder=[owned];del owned
+        def work(cancel,progress):
+            # Consume the payload here rather than retaining a full document
+            # in Work.fn until its completion is dispatched on the GUI thread.
+            value=holder.pop()
+            return self._write(generation,value,cancel)
+        self.active=jobs.run(work,
             lambda result:self._finished(generation),lambda error:self._finished(generation,error))
 
     def _finished(self,generation,error=None):

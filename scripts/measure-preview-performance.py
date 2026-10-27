@@ -38,16 +38,21 @@ def hardware():
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--source',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--cache-label',required=True);parser.add_argument('--with-proxy',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--source',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--cache-label',required=True);parser.add_argument('--with-proxy',action='store_true');parser.add_argument('--native-hidden',action='store_true');args=parser.parse_args()
+    if args.native_hidden:os.environ['QT_QPA_PLATFORM']='windows'
     source=args.source.resolve();out=args.output.resolve()
     if not source.is_file():parser.error('source does not exist')
     out.mkdir(parents=True,exist_ok=False)
     before_sources=snapshot(ROOT)
     report={'completed':False,'passed_measured_targets':False,'scope':'Source checkout, controlled 1000-line lyrics with actual local media; excludes standalone cold/warm startup, human accuracy and acoustic A/V measurement.','spec':'docs/V030-PROXY-PERFORMANCE-SPEC.md','hardware_before':hardware(),'cache_label':args.cache_label,'system_cache_flushed':False,'source_stamp':file_stamp(source),'source_sha256':digest(source),'ffmpeg_sha256':digest(ffmpeg()),'source_snapshot':before_sources,'computer_use':False,'paid_api_calls':0,'measurements':{},'targets':{},'pending':['Standalone cold and warm startup, three fresh processes each','Packaged normal and 150% reproduction','Human finished-song accuracy and acoustic A/V judgement']}
+    report['native_hidden']=args.native_hidden
+    if args.native_hidden:report['scope']='Source checkout, native Windows Qt with owned hidden window, controlled 1000-line lyrics and actual local media; excludes standalone startup, human accuracy and acoustic A/V measurement.'
     app=QApplication([]);app.setStyle('Fusion');app.setStyleSheet(STYLE)
     from shengao.gui_gc import install
     gc_policy=install(app)
-    w=StudioWindow(out/'home',test=True);w.playback.audio.setMuted(True);w.resize(1280,800);w.show();frames=[];source_opened=None
+    w=StudioWindow(out/'home',test=True);w.playback.audio.setMuted(True);w.resize(1280,800)
+    if args.native_hidden:w.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen,True)
+    w.show();frames=[];source_opened=None
     def frame_ready(frame):
         if frame.isValid():frames.append({'received_s':time.perf_counter(),'pts_us':frame.startTime(),'end_us':frame.endTime(),'player_ms':w.playback.player.position()})
     w.playback.sink.videoFrameChanged.connect(frame_ready,Qt.ConnectionType.QueuedConnection)
@@ -162,6 +167,7 @@ def main():
         report['gui_gc']=gc_policy.report() if gc_policy is not None else None
         from shengao.checkpoint_encoding import status as checkpoint_status
         report['checkpoint_encoder']=checkpoint_status()
+        report['video_frame_scaler']=w.playback.canvas.frame_scaler_status()
         report['hardware_after']=hardware();report['source_unchanged']=file_stamp(source)==report['source_stamp'] and digest(source)==report['source_sha256']
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');w.close();app.processEvents()
         if gc_policy is not None:gc_policy.close()

@@ -28,7 +28,7 @@ command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onedir','-
  '--name','shengao-karaoke','--distpath','build/desktop-dist','--workpath','build/desktop-pyinstaller',
  '--specpath','build','--paths','desktop','--paths','backend','--collect-all','janome','--icon',str(root/'desktop'/'assets'/'shengao.ico'),
  '--add-data',str(root/'desktop'/'assets')+';assets']
-for module in ['PySide6.QtWebEngineCore','PySide6.QtWebEngineWidgets','PySide6.QtWebEngineQuick','PySide6.QtQuick','PySide6.QtQml','PySide6.QtPdf','tkinter','torch','torchaudio','demucs']:
+for module in ['PySide6.QtWebEngineCore','PySide6.QtWebEngineWidgets','PySide6.QtWebEngineQuick','PySide6.QtPdf','tkinter','torch','torchaudio','demucs']:
     command+=['--exclude-module',module]
 command+=pyinstaller_arguments(root)+['desktop/main.py']
 subprocess.run(command,cwd=root,check=True)

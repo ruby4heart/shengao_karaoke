@@ -140,10 +140,13 @@ def lane_layout(project,window,windows,line_style=None,layouts=None,overlaps=Non
 class _LaneLayoutIndex:
     """Fresh geometry summaries for one complete composition, never revisions."""
     def __init__(self,project,windows,layouts):
-        self.project=project;self.local=bool(project.layout_styles);self.scaled={};self.index=None
+        self.project=project;self.local=bool(project.layout_styles);self.scaled={};self.index=None;self.common_features=None;self.signatures={}
         if project.style.display_mode=='alternating':
             if self.local:metrics=[(window.slot+1,self.band(line,style)) for (line,style),window in zip(layouts,windows)]
-            else:metrics=[(window.slot+1,line.text.count('\n')+1,bool(line.romaji),bool(line.translation)) for line,window in zip(project.lines,windows)]
+            else:
+                metrics=[(window.slot+1,line.text.count('\n')+1,bool(line.romaji),bool(line.translation)) for line,window in zip(project.lines,windows)]
+                if metrics and all(type(value) is str for line in project.lines for value in (line.text,line.romaji,line.translation)) and all(value[1:]==metrics[0][1:] for value in metrics):
+                    self.common_features=metrics[0][1:];metrics=[(value[0],) for value in metrics]
             self.index=WindowIndex(windows,metrics)
 
     @staticmethod
@@ -153,25 +156,32 @@ class _LaneLayoutIndex:
         if style.show_translation and line.translation:value+=style.translation_size+20
         return value
 
-    def get(self,window,style):
+    def get(self,window,style,*,_token=None):
         if style.display_mode!='alternating':return style,1,0,1.
         maxima=self.index.maximum(window)
         count=max(2,maxima[0] if maxima is not None else 2)
         if self.local:band=maxima[1] if maxima is not None else self.band(self.project.lines[0],style) if self.project.lines else 32
         else:
-            rows=maxima[1] if maxima is not None else 1
+            features=(self.common_features if self.common_features is not None else maxima[1:]) if maxima is not None else (1,False,False)
+            rows,has_romaji,has_translation=features
             band=rows*(style.size+(style.ruby_size+24 if style.show_ruby else 16))+32
-            if style.show_romaji and maxima is not None and maxima[2]:band+=style.romaji_size+20
-            if style.show_translation and maxima is not None and maxima[3]:band+=style.translation_size+20
-        values=tuple(getattr(style,name) for name in style.__dataclass_fields__)
-        kinds=tuple(map(type,values));plain=all(kind in (str,int,float,bool,type(None)) for kind in kinds)
-        key=(kinds,values,count,band) if plain else None
+            if style.show_romaji and has_romaji:band+=style.romaji_size+20
+            if style.show_translation and has_translation:band+=style.translation_size+20
+        if _token is None:
+            values=tuple(getattr(style,name) for name in style.__dataclass_fields__)
+            kinds=tuple(map(type,values));_token=(kinds,values) if all(kind in (str,int,float,bool,type(None)) for kind in kinds) else None
+        key=(*_token,count,band) if _token is not None else None
         if key is not None and key in self.scaled:return self.scaled[key]
         scale=min(1.,944/(count*band))
         effective=replace(style,**{name:getattr(style,name)*scale for name in ('size','ruby_size','romaji_size','translation_size','outline','shadow','glow')})
+        if key is not None:self.signatures[id(effective)]=(effective,tuple(getattr(effective,name) for name in effective.__dataclass_fields__))
         result=(effective,count,band*scale,scale)
         if key is not None:self.scaled[key]=result
         return result
+
+    def signature(self,style):
+        record=self.signatures.get(id(style))
+        return record[1] if record is not None and record[0] is style else tuple(getattr(style,name) for name in style.__dataclass_fields__)
 
 def compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=None,_snapshot=None,_windows=None,_font_stamp=None):
     """Compose the whole export, or exact visible events for private thumbnails.
@@ -224,20 +234,22 @@ def _compose(project,embed=False,*,preview_time=None,preview_line_id=None,cache=
     line_snapshots={line['id']:line for line in _snapshot['lines']} if cache is not None and _snapshot is not None else {}
     layout_snapshots=_snapshot['layout_styles'] if _snapshot is not None else None
     style_key=tuple(getattr(style,name) for name in style.__dataclass_fields__)
+    from .project import Style
+    kinds=tuple(map(type,style_key));style_token=(kinds,style_key) if type(style) is Style and all(kind in (str,int,float,bool,type(None)) for kind in kinds) else None
     for original,(line,line_style),window in zip(project.lines,layouts,windows):
         if preview_line_id is not None and line.id!=preview_line_id:continue
         # ASS rounds times to centiseconds, and short colour phases last at
         # least 10 ms. Keep a conservative boundary margin; libass decides
         # visibility, exactly as it does for the complete composition.
         if preview_time is not None and not window.start-10<=preview_time<window.end+20:continue
-        effective,slot_count,band_height,scale=lane_index.get(window,line_style)
+        effective,slot_count,band_height,scale=lane_index.get(window,line_style,_token=style_token if line_style is style else None)
         from .color_states import effective_profile
         palette=effective_profile(project.color_styles,line.id,validated=True);color_bounds=[]
         if cache is not None:
             import copy
             source=line_snapshots[original.id] if line_snapshots else original.to_dict()
             setting=layout_snapshots.get(line.id) if layout_snapshots is not None else copy.deepcopy(project.layout_styles.get(line.id))
-            key=(source,setting,style_key,tuple(getattr(effective,name) for name in effective.__dataclass_fields__),window.start,window.end,window.slot,slot_count,band_height,scale,palette)
+            key=(source,setting,style_key,style_key if effective is style else lane_index.signature(effective),window.start,window.end,window.slot,slot_count,band_height,scale,palette)
             previous=cache.entries.get(line.id)
             if previous is not None and previous[0]==key:rows.extend(previous[1]);next_entries[line.id]=previous;continue
             row_begin=len(rows)

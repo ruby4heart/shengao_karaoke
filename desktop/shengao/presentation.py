@@ -18,7 +18,7 @@ class WindowIndex:
         self.ends=[-1]*(2*self.size)
         for n,i in enumerate(self.order):self.ends[self.size+n]=windows[i].end
         for n in range(self.size-1,0,-1):self.ends[n]=max(self.ends[n*2],self.ends[n*2+1])
-        self.metrics=None
+        self.metrics=None;self.scalar_metrics=None
         if metrics is not None:
             if len(metrics)!=len(windows) or metrics and any(len(value)!=len(metrics[0]) for value in metrics):raise ValueError('显示区间统计维度不一致')
             self.minimum_ends=[float('inf')]*(2*self.size);self.metrics=[None]*(2*self.size)
@@ -26,6 +26,10 @@ class WindowIndex:
             for n in range(self.size-1,0,-1):
                 self.minimum_ends[n]=min(self.minimum_ends[n*2],self.minimum_ends[n*2+1])
                 self.metrics[n]=self._merge(self.metrics[n*2],self.metrics[n*2+1])
+            if metrics and len(metrics[0])==1:
+                import math
+                if all(type(value[0]) in (int,float,bool) and (type(value[0]) is not float or math.isfinite(value[0])) for value in metrics):
+                    self.scalar_metrics=[value[0] if value is not None else None for value in self.metrics]
 
     @staticmethod
     def _merge(a,b):
@@ -42,9 +46,12 @@ class WindowIndex:
             # All starts precede the query end, and all ends follow its start.
             # Thus this whole subtree has exactly the original overlap rule.
             if b<=limit and self.minimum_ends[node]>window.start:
-                result=self._merge(result,self.metrics[node]);continue
+                if self.scalar_metrics is None:result=self._merge(result,self.metrics[node])
+                else:
+                    value=self.scalar_metrics[node];result=value if result is None else max(result,value)
+                continue
             middle=(a+b)//2;stack.append((node*2+1,middle,b));stack.append((node*2,a,middle))
-        return result
+        return (result,) if self.scalar_metrics is not None and result is not None else result
 
     def overlapping(self,window):
         limit=bisect_left(self.starts,window.end);stack=[(1,0,self.size)];result=[]

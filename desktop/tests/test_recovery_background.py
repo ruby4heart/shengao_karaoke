@@ -16,6 +16,29 @@ def wait(qapp,predicate,seconds=5):
     assert predicate(),'background recovery did not finish'
 
 
+def test_worker_releases_owned_payload_before_gui_dispatches_completion(qapp,tmp_path,monkeypatch):
+    import weakref
+    entered=threading.Event();release=threading.Event();freed=threading.Event();threads=[];original=recovery.atomic_json
+    class Payload(dict):
+        def __del__(self):threads.append(threading.get_ident());freed.set()
+    def gated(path,value,**kwargs):
+        entered.set()
+        if not release.wait(5):raise TimeoutError('worker was not released')
+        return original(path,value,**kwargs)
+    monkeypatch.setattr(recovery,'atomic_json',gated)
+    writer=recovery.RecoveryWriter(tmp_path/'recovery.json',lambda error:None)
+    owned=Payload(project={'title':'后台释放'},pending=None,path='');reference=weakref.ref(owned)
+    try:
+        writer.queue_owned(owned);del owned;assert entered.wait(5);release.set()
+        # Intentionally do not process GUI events yet: Work.fn must not keep
+        # the document until its queued completion callback reaches the GUI.
+        assert freed.wait(5) and reference() is None and len(threads)==1 and threads[0]!=threading.get_ident()
+        assert writer.active is not None
+        wait(qapp,lambda:writer.idle)
+        assert json.loads(writer.path.read_text(encoding='utf-8'))['project']['title']=='后台释放'
+    finally:release.set();writer.close()
+
+
 @pytest.fixture
 def held_writer(monkeypatch):
     original=recovery.atomic_json;entered=threading.Event();release=threading.Event();writes=[]

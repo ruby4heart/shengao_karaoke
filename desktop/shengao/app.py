@@ -87,6 +87,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         from .fast_snapshot import enable as enable_fast_snapshot
         self.snapshot_accelerator=enable_fast_snapshot()
         self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed)
+        self._edited_recovery=None;self.edited_recovery_timer=QTimer(self);self.edited_recovery_timer.setSingleShot(True);self.edited_recovery_timer.setInterval(1000);self.edited_recovery_timer.timeout.connect(self.publish_edited_checkpoint)
         self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
         if not test:QTimer.singleShot(250,self.offer_recovery)
@@ -1071,6 +1072,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         windows=display_windows(self.project) if render_now else None
         error=self.render_subtitles(_snapshot=snapshot,_windows=windows,_after_edit=True) if render_now else None
         self.refresh(focus,_snapshot=snapshot,_windows=windows)
+        self.checkpoint_edited_snapshot(snapshot)
         if error:self.message(error)
 
     def refresh(self,focus=False,*,_snapshot=None,_windows=None):
@@ -1632,11 +1634,13 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def undo(self):
         if not self.flush_edits():return
         before=self.project.media
-        if self.history.undo():self.sync_history_media(before);self.refresh()
+        if self.history.undo():
+            self.drop_edited_checkpoint();self.sync_history_media(before);snapshot=self.project.to_dict();self.refresh(_snapshot=snapshot);self.checkpoint_edited_snapshot(snapshot)
     def redo(self):
         if not self.flush_edits():return
         before=self.project.media
-        if self.history.redo():self.sync_history_media(before);self.refresh()
+        if self.history.redo():
+            self.drop_edited_checkpoint();self.sync_history_media(before);snapshot=self.project.to_dict();self.refresh(_snapshot=snapshot);self.checkpoint_edited_snapshot(snapshot)
     def sync_history_media(self,before):
         if before!=self.project.media:
             if self.project.media and Path(self.project.media).is_file():self.load_media(self.project.media,False,self.playback.canvas.position,self.playback.zoom,True)
@@ -2073,18 +2077,43 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def recovery_record(self,snapshot):
         # Workers never read the live project or a mutable pending API result.
         return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending)}
+    def checkpoint_edited_snapshot(self,snapshot):
+        # Only the successful synchronous History transaction calls this.
+        # Its detached snapshot is immutable to all internal readers. Exact
+        # JSON data has no encoding hooks that could mutate a shared cache.
+        # Pending API results/unusual Python values retain fresh timed capture.
+        from .checkpoint_encoding import shareable
+        if self.closing or not self.autosave.isActive() or self.pending is not None or not shareable(snapshot):
+            self.drop_edited_checkpoint();return False
+        if snapshot!=self.history.saved:
+            self._edited_recovery=(self.project.uid,self.recovery_record(snapshot))
+            if not self.edited_recovery_timer.isActive():self.edited_recovery_timer.start()
+        else:self.clear_recovery()
+        self.autosave.start()
+        return True
+    def drop_edited_checkpoint(self):
+        self.edited_recovery_timer.stop();self._edited_recovery=None
+    def publish_edited_checkpoint(self):
+        value=self._edited_recovery;self.drop_edited_checkpoint()
+        if value is None or self.closing or not self.autosave.isActive():return
+        uid,record=value
+        if uid!=self.project.uid or self.pending is not None:self.queue_recovery()
+        else:self.recovery_writer.queue_owned(record)
     def queue_recovery(self):
         if self.closing:return
+        self.drop_edited_checkpoint()
         snapshot=self.project.to_dict()
         if snapshot!=self.history.saved or self.pending:self.recovery_writer.queue_owned(self.recovery_record(snapshot))
         else:self.clear_recovery()
     def save_recovery(self):
+        self.drop_edited_checkpoint()
         snapshot=self.project.to_dict()
         if snapshot!=self.history.saved or self.pending:
             try:self.recovery_writer.write_now(self.recovery_record(snapshot))
             except (OSError,ValueError) as error:self.recovery_failed(error)
         else:self.clear_recovery()
     def clear_recovery(self):
+        self.drop_edited_checkpoint()
         try:self.recovery_writer.clear()
         except OSError:pass
     def offer_recovery(self):
@@ -2120,13 +2149,13 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def dispose(self):
         if self.closing:return
         self.closing=True;self._source_serial+=1
-        self.recovery_writer.close()
+        self.drop_edited_checkpoint();self.recovery_writer.close()
         if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
         self.fine_listener.dispose()
         self.cancel_proxy_request(False)
         if self.source_job:self.source_job.cancel.set()
         self.center_reveal_timer.stop();self._center_reveal_widget=None
-        QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.renderer.close()
+        QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.close_frame_scaler();self.playback.canvas.renderer.close()
         if self.cards_renderer:self.cards_renderer.close()
 
 def main():

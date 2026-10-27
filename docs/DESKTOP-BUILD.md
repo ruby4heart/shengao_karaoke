@@ -30,6 +30,8 @@ cmd /c scripts\build-desktop-engine.cmd
 
 快照模块使用同一桌面Python的头文件和MSVC生成 `_shengao_snapshot.pyd`，并记录源码、二进制指纹与CPython ABI。修改 `desktop/native/snapshot.c` 后先重建该模块，再运行源码回归和应用构建；`build-desktop.py`拒绝来源不匹配的模块，并将其与记录复制到运行包。实际应用只从自身运行目录加载核验后的模块；缺失或不匹配时保留Python实现，发行自检仍会报告未达到构建要求。两种实现均保留完整工程验证、原文、元数据与撤销语义，不更改原版绘图。
 
+0.30开发树的GPU缩小组件使用已固定PySide6中的Qt Quick／QML／Multimedia，运行包必须收集这些模块、视频QML插件和随附许可，不能沿用以前排除QtQuick／QtQml的配置。纯offscreen软件场景图保留原图像路径；实际GPU验收使用原生Windows隐藏窗口，执行 `shengao-karaoke.exe --gpu-preview-test --output <独立目录>`，记录真实DPR、色彩、源尺寸、字幕和回退。正常GUI自检通过仍不能代替此项，新包须另验依赖与模块完整性。
+
 定时恢复的常见JSON数据使用固定的orjson 3.13.0；原生检查先排除非有限数、自定义类型和非字符串键，不兼容的大整数或特殊文本继续使用原标准库路径。手动工程保存和显式恢复检查点保持原编码。`fetch-json-runtime.py`仅从记录的官方地址取得固定wheel、源码归档及随附许可，校验完整SHA256；完整源码ZIP包含这些文件，已齐全时不再下载。构建还逐文件核对已安装模块与官方wheel，运行包保留许可及来源记录；不要只安装同名版本便跳过来源校验。
 
 本地引擎构建会先逐项核对 `desktop/vocal-requirements.lock` 的全部固定版本。旧 `.venv-vocals` 只有人声分离依赖，不能用于当前歌声对齐引擎；缺少 `g2pflow`、`librosa`、`numba` 或版本不符时必须在 PyInstaller 前失败。成功的引擎附 `engine-environment.json` 与 `engine-sources.json`，依赖校验通过也仍须实际推理与运行包验收，不能仅凭打包工具返回成功交付。
