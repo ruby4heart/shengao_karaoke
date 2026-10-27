@@ -131,6 +131,112 @@ static PyObject *json_tree(PyObject *self,PyObject *value) {
     return PyBool_FromLong(result);
 }
 
+/* Certify the unchanged provenance schema for exact built-ins only. Any
+ * unsupported/invalid record returns false and keeps the Python validator's
+ * original errors and hook order. No record is cached by identity/revision. */
+typedef struct {
+    PyObject *fields,*kinds,*providers,*changes,*keys,*zero,*one;
+} OriginContext;
+#define ORIGIN_CAPSULE "shengao.origin-context-v1"
+
+static void origin_free(OriginContext *c) {
+    if (!c) return;
+    Py_XDECREF(c->fields);Py_XDECREF(c->kinds);Py_XDECREF(c->providers);
+    Py_XDECREF(c->changes);Py_XDECREF(c->keys);Py_XDECREF(c->zero);Py_XDECREF(c->one);
+    PyMem_Free(c);
+}
+static void origin_destroy(PyObject *capsule) {
+    OriginContext *c=PyCapsule_GetPointer(capsule,ORIGIN_CAPSULE);
+    if (!c) {PyErr_Clear();return;}
+    origin_free(c);
+}
+static int plain_choices(PyObject *set) {
+    if (!PyFrozenSet_CheckExact(set)) return 0;
+    PyObject *iterator=PyObject_GetIter(set),*value;int ok=1;
+    if (!iterator) return 0;
+    while ((value=PyIter_Next(iterator))) {
+        ok=PyUnicode_CheckExact(value);Py_DECREF(value);
+        if (!ok) break;
+    }
+    if (PyErr_Occurred()) ok=0;
+    Py_DECREF(iterator);return ok;
+}
+static PyObject *origin_context(PyObject *self,PyObject *args) {
+    PyObject *fields,*kinds,*providers,*changes;
+    if (!PyArg_ParseTuple(args,"OOOO:origin_context",&fields,&kinds,&providers,&changes)) return NULL;
+    if (!plain_choices(fields)||!plain_choices(kinds)||!plain_choices(providers)||
+        !PyTuple_CheckExact(changes)||PyTuple_GET_SIZE(changes)!=2) goto invalid;
+    OriginContext *c=PyMem_Calloc(1,sizeof(OriginContext));
+    if (!c) return PyErr_NoMemory();
+    c->fields=Py_NewRef(fields);c->kinds=Py_NewRef(kinds);c->providers=Py_NewRef(providers);c->changes=Py_NewRef(changes);
+    c->keys=Py_BuildValue("(sssssssss)","version","kind","provider","method","reference","current","reading","parent_kinds","operations");
+    c->zero=PyLong_FromLong(0);c->one=PyLong_FromLong(1);
+    if (!c->keys||!c->zero||!c->one) {origin_free(c);return NULL;}
+    int valid=PySet_Size(fields)==9;
+    for (Py_ssize_t i=0;valid && i<9;i++) valid=PySet_Contains(fields,PyTuple_GET_ITEM(c->keys,i))==1;
+    for (Py_ssize_t i=0;valid && i<2;i++) {
+        PyObject *pair=PyTuple_GET_ITEM(changes,i);
+        valid=PyTuple_CheckExact(pair)&&PyTuple_GET_SIZE(pair)==2;
+        if (valid) valid=PyUnicode_CheckExact(PyTuple_GET_ITEM(pair,0))&&plain_choices(PyTuple_GET_ITEM(pair,1));
+        if (valid) valid=PyObject_RichCompareBool(PyTuple_GET_ITEM(pair,0),PyTuple_GET_ITEM(c->keys,7+i),Py_EQ)==1;
+    }
+    if (!valid||PyErr_Occurred()) {origin_free(c);goto invalid;}
+    PyObject *capsule=PyCapsule_New(c,ORIGIN_CAPSULE,origin_destroy);
+    if (!capsule) origin_free(c);
+    return capsule;
+invalid:
+    if (!PyErr_Occurred()) PyErr_SetString(PyExc_ValueError,"unsupported provenance schema contract");
+    return NULL;
+}
+
+static int origin_pair(PyObject *value,PyObject *zero) {
+    if (!value||!PyList_CheckExact(value)||PyList_GET_SIZE(value)!=2) return 0;
+    PyObject *a=PyList_GET_ITEM(value,0),*b=PyList_GET_ITEM(value,1);
+    if (!PyLong_CheckExact(a)||!PyLong_CheckExact(b)) return 0;
+    return PyObject_RichCompareBool(zero,a,Py_LE)==1 && PyObject_RichCompareBool(a,b,Py_LE)==1;
+}
+static int certify_origin(OriginContext *c,PyObject *value) {
+    if (!PyDict_CheckExact(value)) return 0;
+    if (!PyDict_Size(value)) return 1;
+    Py_ssize_t pos=0;PyObject *key,*item;
+    while (PyDict_Next(value,&pos,&key,&item))
+        if (!PyUnicode_CheckExact(key)||PySet_Contains(c->fields,key)!=1) return 0;
+    PyObject *version=PyDict_GetItemWithError(value,PyTuple_GET_ITEM(c->keys,0));
+    if (!version||!PyLong_CheckExact(version)||PyObject_RichCompareBool(version,c->one,Py_EQ)!=1) return 0;
+    for (Py_ssize_t i=1;i<=2;i++) {
+        item=PyDict_GetItemWithError(value,PyTuple_GET_ITEM(c->keys,i));
+        if (!item||!PyUnicode_CheckExact(item)||PySet_Contains(i==1?c->kinds:c->providers,item)!=1) return 0;
+    }
+    item=PyDict_GetItemWithError(value,PyTuple_GET_ITEM(c->keys,3));
+    if (!item||!PyUnicode_CheckExact(item)||PyUnicode_GET_LENGTH(item)>80) return 0;
+    for (Py_ssize_t i=4;i<=5;i++)
+        if (!origin_pair(PyDict_GetItemWithError(value,PyTuple_GET_ITEM(c->keys,i)),c->zero)) return 0;
+    item=PyDict_GetItemWithError(value,PyTuple_GET_ITEM(c->keys,6));
+    if (item&&(!PyUnicode_CheckExact(item)||PyUnicode_GET_LENGTH(item)>20000)) return 0;
+    for (Py_ssize_t i=0;i<2;i++) {
+        PyObject *pair=PyTuple_GET_ITEM(c->changes,i),*choices=PyTuple_GET_ITEM(pair,1);
+        item=PyDict_GetItemWithError(value,PyTuple_GET_ITEM(pair,0));
+        if (!item) continue;
+        if (!PyList_CheckExact(item)||PyList_GET_SIZE(item)>PySet_Size(choices)) return 0;
+        for (Py_ssize_t a=0;a<PyList_GET_SIZE(item);a++) {
+            PyObject *entry=PyList_GET_ITEM(item,a);
+            if (!PyUnicode_CheckExact(entry)||PySet_Contains(choices,entry)!=1) return 0;
+            for (Py_ssize_t b=0;b<a;b++)
+                if (PyObject_RichCompareBool(entry,PyList_GET_ITEM(item,b),Py_EQ)!=0) return 0;
+        }
+    }
+    return 1;
+}
+static PyObject *origin_valid(PyObject *self,PyObject *args) {
+    PyObject *capsule,*value;
+    if (!PyArg_ParseTuple(args,"OO:origin_valid",&capsule,&value)) return NULL;
+    OriginContext *c=PyCapsule_GetPointer(capsule,ORIGIN_CAPSULE);
+    if (!c) return NULL;
+    int result=certify_origin(c,value);
+    if (PyErr_Occurred()) return NULL;
+    return PyBool_FromLong(result);
+}
+
 /* Collect exactly the legacy [line, *units, *highlights] order before testing
  * any value's truth. Strong references keep that list stable even when an
  * uncommon __bool__ changes one of the copied containers. */
@@ -199,6 +305,8 @@ static PyMethodDef methods[]={
     {"detach",detach,METH_VARARGS,"Copy plain containers, delegating uncommon values."},
     {"clean_lyric",clean_lyric,METH_VARARGS,"Apply legacy omission only to the original lyric nodes."},
     {"json_tree",json_tree,METH_O,"Admit only finite plain JSON data, without executing hooks."},
+    {"origin_context",origin_context,METH_VARARGS,"Prepare an immutable provenance schema contract."},
+    {"origin_valid",origin_valid,METH_VARARGS,"Certify exact built-ins; unsupported records keep Python validation."},
     {NULL,NULL,0,NULL}
 };
 static struct PyModuleDef definition={PyModuleDef_HEAD_INIT,"_shengao_snapshot",NULL,-1,methods};

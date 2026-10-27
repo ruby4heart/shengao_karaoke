@@ -37,6 +37,7 @@ def _set_snapshot_accelerator(module):
     _SNAPSHOT_ACCELERATOR=None if module is None else (module,
         {kind:tuple(kind.__dataclass_fields__) for kind in (LyricLine,Unit,Highlight)},
         lambda value:module.detach(value,copy.deepcopy))
+    provenance._set_accelerator(module)
 
 
 def _detached(value):

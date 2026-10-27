@@ -6,14 +6,26 @@ Empty metadata is retained as empty for immutable legacy task signatures.
 """
 import copy
 
-KINDS={'character','word','estimated','acoustic','manual','imported','reference','unknown'}
-PROVIDERS={'local','elevenlabs','microsoft','tifa','ass','srt','lrc','mixed','unknown'}
-OPERATIONS={'shift','stretch','manual_boundary','automatic_gap','sound_gap','regroup','clamp'}
+KINDS=frozenset(('character','word','estimated','acoustic','manual','imported','reference','unknown'))
+PROVIDERS=frozenset(('local','elevenlabs','microsoft','tifa','ass','srt','lrc','mixed','unknown'))
+OPERATIONS=frozenset(('shift','stretch','manual_boundary','automatic_gap','sound_gap','regroup','clamp'))
 _FIELDS=frozenset(('version','kind','provider','method','reference','current','reading','parent_kinds','operations'))
 _CHANGES=(('parent_kinds',KINDS),('operations',OPERATIONS))
+_ACCELERATOR=None
+
+
+def _set_accelerator(module):
+    global _ACCELERATOR
+    _ACCELERATOR=None
+    if module is None:return
+    try:context=module.origin_context(_FIELDS,KINDS,PROVIDERS,_CHANGES)
+    except (AttributeError,TypeError,ValueError):return
+    _ACCELERATOR=(module.origin_valid,context,KINDS,PROVIDERS,OPERATIONS,_FIELDS,_CHANGES)
 
 
 def validate(value):
+    native=_ACCELERATOR
+    if native is not None and KINDS is native[2] and PROVIDERS is native[3] and OPERATIONS is native[4] and _FIELDS is native[5] and _CHANGES is native[6] and native[0](native[1],value):return
     if not isinstance(value,dict):raise ValueError('时间来源记录无效')
     if not value:return
     if not value.keys()<=_FIELDS or type(value.get('version')) is not int or value.get('version')!=1 or not isinstance(value.get('kind'),str) or value['kind'] not in KINDS or not isinstance(value.get('provider'),str) or value['provider'] not in PROVIDERS:
