@@ -213,9 +213,22 @@ class LyricLine:
     @classmethod
     def _from_dict_record(cls,value):
         """Detach a record for a containing document's complete validation."""
-        detach=_detached if _SNAPSHOT_ACCELERATOR is None else _SNAPSHOT_ACCELERATOR[2]
-        fields = {k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
-        fields['units'] = [Unit(**{k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in u.items() if k in Unit.__dataclass_fields__}) for u in value.get('units', [])]
+        accelerator=_SNAPSHOT_ACCELERATOR
+        detach=_detached if accelerator is None else accelerator[2]
+        prepare=None if accelerator is None or type(cls) is not type else getattr(accelerator[0],'record_fields',None)
+        fields=NotImplemented if prepare is None else prepare(value,cls.__dataclass_fields__,'units')
+        if fields is NotImplemented:
+            fields={k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in value.items() if k in cls.__dataclass_fields__ and k != 'units'}
+        units=[]
+        for unit in value.get('units',[]):
+            # Python resolves the called constructor before evaluating its
+            # keyword values, whose copy hooks may change the module binding.
+            constructor=Unit
+            kwargs=NotImplemented if prepare is None or type(constructor) is not type else prepare(unit,Unit.__dataclass_fields__,None)
+            if kwargs is NotImplemented:
+                kwargs={k: v if type(v) in _SNAPSHOT_ATOMIC else detach(v) for k, v in unit.items() if k in Unit.__dataclass_fields__}
+            units.append(constructor(**kwargs))
+        fields['units']=units
         return cls(**fields)
 
     def to_dict(self):

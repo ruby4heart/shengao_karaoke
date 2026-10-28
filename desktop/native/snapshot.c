@@ -157,6 +157,43 @@ static PyObject *detach(PyObject *self,PyObject *args) {
     return copy_node(value,NULL,fallback,0,1);
 }
 
+/* Prepare keyword arguments, retaining the Python model constructors. Only
+ * exact plain containers are copied here; opaque values fall back before any
+ * user hook runs. Field filtering precedes copying, including unknown data. */
+static PyObject *record_fields(PyObject *self,PyObject *args) {
+    PyObject *value,*fields,*omitted;
+    if (!PyArg_ParseTuple(args,"OOO:record_fields",&value,&fields,&omitted)) return NULL;
+    if (!PyDict_CheckExact(value)||!PyDict_CheckExact(fields)||
+        !(omitted==Py_None||PyUnicode_CheckExact(omitted))) Py_RETURN_NOTIMPLEMENTED;
+    uint64_t version=dict_version(value),schema_version=dict_version(fields);
+    Py_ssize_t pos=0;PyObject *key,*item;
+    while (PyDict_Next(value,&pos,&key,&item))
+        if (!PyUnicode_CheckExact(key)) Py_RETURN_NOTIMPLEMENTED;
+    pos=0;
+    while (PyDict_Next(fields,&pos,&key,&item))
+        if (!PyUnicode_CheckExact(key)) Py_RETURN_NOTIMPLEMENTED;
+    PyObject *result=PyDict_New();
+    if (!result) return NULL;
+    if (dict_version(value)!=version||dict_version(fields)!=schema_version) goto unsupported_fields;
+    pos=0;
+    while (PyDict_Next(value,&pos,&key,&item)) {
+        int included=PyDict_Contains(fields,key);
+        if (included<0) {Py_DECREF(result);return NULL;}
+        if (!included||(omitted!=Py_None&&PyUnicode_Compare(key,omitted)==0)) continue;
+        Py_INCREF(key);Py_INCREF(item);
+        PyObject *owned=copy_plain(item,0);
+        int changed=dict_version(value)!=version||dict_version(fields)!=schema_version;
+        int unknown=owned==Py_NotImplemented;
+        int ok=owned&&!unknown&&!changed&&PyDict_SetItem(result,key,owned)==0;
+        Py_DECREF(key);Py_DECREF(item);Py_XDECREF(owned);
+        if (!owned||(!unknown&&!changed&&!ok)) {Py_DECREF(result);return NULL;}
+        if (unknown||changed||dict_version(value)!=version||dict_version(fields)!=schema_version) goto unsupported_fields;
+    }
+    return result;
+unsupported_fields:
+    Py_DECREF(result);Py_RETURN_NOTIMPLEMENTED;
+}
+
 /* A fast encoder may have broader type support and different NaN semantics.
  * Admit only finite, exact JSON built-ins; all other data keeps stdlib rules.
  * This traversal allocates no containers and calls no user-defined methods. */
@@ -554,6 +591,7 @@ error:
 static PyMethodDef methods[]={
     {"snapshot",snapshot,METH_VARARGS,"Copy known models with the canonical field order."},
     {"detach",detach,METH_VARARGS,"Copy plain containers, delegating uncommon values."},
+    {"record_fields",record_fields,METH_VARARGS,"Detach plain model keyword arguments without bypassing constructors."},
     {"clean_lyric",clean_lyric,METH_VARARGS,"Apply legacy omission only to the original lyric nodes."},
     {"json_tree",json_tree,METH_O,"Admit only finite plain JSON data, without executing hooks."},
     {"origin_context",origin_context,METH_VARARGS,"Prepare an immutable provenance schema contract."},
