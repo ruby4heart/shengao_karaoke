@@ -236,6 +236,7 @@ class Playback(QWidget):
     def refresh_loaded_state(self):self.loaded(self.player.mediaStatus())
 
     def open(self,path,position=0,preview=False,reference_size=None):
+        gui_activity()
         self._paused_preview_target=None
         self.load_timer.stop();same_source=self.player.source()==QUrl.fromLocalFile(str(path))
         self.interrupt_temporary()
@@ -302,6 +303,10 @@ class Playback(QWidget):
         if value!=self.canvas.position:self.canvas.position=value;self.canvas.update()
 
     def tick(self):
+        # Waiting for the first preview is active work, even with no input.
+        # Defer idle full-GC until it finishes; the policy's 60s ceiling still
+        # applies to stuck/very slow loads and young GC remains automatic.
+        if self.preview_pending or self.player.mediaStatus()==QMediaPlayer.MediaStatus.LoadingMedia:gui_activity()
         if self.temporary_position is not None:
             self.update_canvas_position(self.temporary_position);return
         target=self.pending_seek if self.pending_seek is not None else self.preview_target if self.preview_pending else None

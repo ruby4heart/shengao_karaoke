@@ -141,6 +141,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.filter=QComboBox();self.filter.addItems(['全部歌词','时间待确认','读音待确认']);ll.addWidget(self.filter)
         self.lyrics=QListWidget();self.lyrics.setObjectName('lyricsList');self.lyrics.setWordWrap(True);self.lyrics.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection);self.lyrics.setToolTip('单击切句；Ctrl 点选多句，Shift 选择连续多句。右侧“修改范围”决定移动哪些歌词。');ll.addWidget(self.lyrics,1)
         self.lyrics.setItemDelegate(LyricDelegate(self.lyrics));self.lyrics.setSpacing(2)
+        # LyricDelegate gives every row the same height, including placeholders.
+        # Let Qt derive scrolling from that height without querying every row.
+        self.lyrics.setUniformItemSizes(True)
         self.count=label('尚未加入歌词','muted');ll.addWidget(self.count);ll.addWidget(button('＋ 粘贴原歌词',self.paste_lyrics));self.splitter.addWidget(left)
         middle=QFrame();middle.setObjectName('card');middle_layout=vertical(middle,0);self.center_pages=QStackedWidget();middle_layout.addWidget(self.center_pages)
         self.welcome=WelcomePane(self.add_media,self.paste_lyrics,self.open_dialog,self.open_demo);self.welcome.openProject.connect(self.open_recent);self.welcome.set_recent(self.preferences.recent())
@@ -1711,13 +1714,18 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not Path(path).is_file():self.message('媒体文件不存在');return
         self.clear_media()
         self.analysis_generation+=1;generation=self.analysis_generation
+        # setSource starts Qt's asynchronous demux/probe. Let it overlap the
+        # detached history transaction rather than waiting for its full copy.
+        # Backend notifications are queued and cannot bind the old document.
+        self.playback.open(path,position,preview=preview)
         if edit:
             def apply(p):
                 p.media=path;p.media_role='original';p.media_versions={'original':MediaVersion(path)}
                 if p.title=='未命名作品':p.title=Path(path).stem
                 p.duration=0;p.has_video=None;p.transcript=[];p.transcript_stamp={};p.media_stamp={}
-            self.edit('添加媒体',apply)
-        self.playback.open(path,position,preview=preview);self.playback.set_zoom(zoom);self.timeline.peaks=None;self.timeline.spectrum=None;self.message('正在后台生成波形和频谱，可以先粘贴歌词。')
+            if not self.edit('添加媒体',apply):
+                self.playback.clear();return
+        self.playback.set_zoom(zoom);self.timeline.peaks=None;self.timeline.spectrum=None;self.message('正在后台生成波形和频谱，可以先粘贴歌词。')
         uid=self.project.uid
         def done(result):
             if self.closing or generation!=self.analysis_generation:return

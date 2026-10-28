@@ -73,3 +73,17 @@ def test_multiselection_and_user_deselection_match_actual_widget_state(reading_w
     assert {w.project.lines[item.data(Qt.ItemDataRole.UserRole)].id for item in w.lyrics.selectedItems()}==marked
     w.lyrics.clearSelection();w.refresh_lyrics()
     assert [item.data(Qt.ItemDataRole.UserRole) for item in w.lyrics.selectedItems()]==[w.current]
+
+
+def test_long_list_last_row_scrolling_and_keyboard_navigation_keep_fixed_geometry(reading_window,qapp):
+    w=prepare(reading_window,1000);w.resize(1460,940);qapp.processEvents()
+    w.project.lines[-1].text='長い歌詞\n二行目と注音のある言葉';w.refresh_lyrics()
+    last=w.lyrics.item(999);w.lyrics.scrollToItem(last);qapp.processEvents()
+    rect=w.lyrics.visualItemRect(last)
+    assert rect.height()==w.lyrics.visualItemRect(w.lyrics.item(0)).height()==72
+    assert w.lyrics.viewport().visibleRegion().contains(rect.center())
+    QTest.mouseClick(w.lyrics.viewport(),Qt.MouseButton.LeftButton,pos=rect.center())
+    assert w.current==999 and w.line.text.endswith('言葉')
+    QTest.keyClick(w.lyrics,Qt.Key.Key_Up);qapp.processEvents()
+    assert w.current==998 and w.lyrics.currentRow()==998
+    assert w.lyrics.viewport().visibleRegion().contains(w.lyrics.visualItemRect(w.lyrics.item(998)).center())

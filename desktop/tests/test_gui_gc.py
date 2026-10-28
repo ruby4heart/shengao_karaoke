@@ -53,3 +53,21 @@ def test_external_gc_preferences_are_not_overwritten_on_close(qapp):
     try:
         gc.set_threshold(*external);p.close();assert gc.get_threshold()==external
     finally:p.close();gc.set_threshold(*old)
+
+
+def test_first_frame_wait_defers_idle_gc_then_releases_it_and_keeps_deadline(qapp,monkeypatch):
+    from shengao.playback import Playback
+    calls=[];p,clock,held,old=policy(qapp,lambda generation:calls.append(generation) or 0)
+    monkeypatch.setattr(qapp,'_shengao_gc_policy',p,raising=False)
+    playback=Playback();playback.timer.stop()
+    try:
+        playback.preview_pending=True;playback.preview_target=500
+        clock[0]=2;playback.tick();clock[0]=2.8;p.maybe_collect()
+        assert calls==[] and playback.canvas.position==500
+        playback.cancel_preview();clock[0]=3.1;p.maybe_collect();assert calls==[2]
+        playback.preview_pending=True;playback.preview_target=600
+        clock[0]=64;playback.tick();p.maybe_collect()
+        assert calls==[2,2] and p.records[-1]['forced_after_60s']
+        assert gc.isenabled() and gc.get_threshold()[:2]==old[:2]
+    finally:
+        playback.clear();playback.canvas.renderer.close();playback.deleteLater();qapp.processEvents();p.close()
