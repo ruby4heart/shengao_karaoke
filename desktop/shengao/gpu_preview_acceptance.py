@@ -8,14 +8,17 @@ def main():
     args=parser.parse_args();out=Path(args.output).resolve();out.mkdir(parents=True,exist_ok=True)
     os.environ['QT_QPA_PLATFORM']='windows'
     from PySide6.QtCore import Qt,QSize,QRect
-    from PySide6.QtGui import QImage
-    from PySide6.QtWidgets import QApplication,QWidget
+    from PySide6.QtGui import QImage,QTextLayout
+    from PySide6.QtWidgets import QApplication,QWidget,QLabel
     from PySide6.QtMultimedia import QVideoFrame,QVideoFrameFormat
     from PySide6.QtTest import QTest
     import numpy as np
     from .playback import VideoCanvas
     from .frame_scaler import eligible,preview_size
-    app=QApplication([]);host=QWidget();host.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen,True);host.resize(640,360)
+    from .theme import STYLE
+    from .fonts import register_qt_fonts
+    app=QApplication([]);app.setStyle('Fusion');app.setStyleSheet(STYLE);register_qt_fonts()
+    host=QWidget();host.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen,True);host.resize(640,360)
     canvas=VideoCanvas(host);canvas.resize(640,360);canvas.show();host.show();checks=[];record={'scope':__doc__,'checks':checks,'passed':False}
     def check(name,condition):
         checks.append({'name':name,'passed':bool(condition)})
@@ -58,6 +61,16 @@ def main():
         return False
     sizes=[];canvas.frameSizeChanged.connect(lambda w,h:sizes.append((w,h)))
     try:
+        filename='Emerald ⧸ 楽園【OFFICIAL MUSIC VIDEO】';labels=[];font_records=[]
+        for role in ('projectName','muted'):
+            label=QLabel(filename,host);label.setObjectName(role);label.setTextFormat(Qt.TextFormat.PlainText);label.hide();label.ensurePolished();labels.append(label)
+            layout=QTextLayout(filename,label.font());layout.beginLayout();line=layout.createLine();line.setLineWidth(4000);layout.endLayout();runs=layout.glyphRuns()
+            missing=sum(glyph==0 for run in runs for glyph in run.glyphIndexes())
+            symbol=any(run.rawFont().familyName()=='Segoe UI Symbol' and run.rawFont().glyphIndexesForString('⧸')[0]!=0 for run in runs)
+            font_records.append({'role':role,'families':label.font().families(),'actual_families':[run.rawFont().familyName() for run in runs],'missing_glyphs':missing})
+            check('native_ui_'+role+'_resolves_real_symbol_glyph',bool(runs) and not missing and symbol)
+        record['native_ui_fonts']=font_records
+        check('native_ui_filename_unicode_is_preserved',all(label.text()==filename for label in labels))
         frame=frame_variant();original=(frame.startTime(),frame.endTime(),frame.size(),frame.pixelFormat())
         record['device_pixel_ratio']=canvas.devicePixelRatioF();record['source_size']=[frame.width(),frame.height()]
         check('native_gpu_candidate_is_eligible',eligible(frame,preview_size(frame,canvas.width(),canvas.height(),canvas.devicePixelRatioF())))

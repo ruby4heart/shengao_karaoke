@@ -501,3 +501,32 @@ C模块已按新源码指纹重建（`build/v030-native-origin-build.log`）：�
 总体false、12／13目标通过，退出码1表示仍有门槛未通过，并非运行异常。完整撤销／重做还原、256MiB增长预算、原片与630项来源前后保持；真实Direct3D11处理61帧，无错误。开始前可用内存2555764736字节，与此前轮次不同，不将跨轮差值当作单一改动的因果收益。完整报告为`tmp/v030-preview-loading-full-normal/report.json`，SHA256为`71815e8c7f8d45bba42783a562c3e0380cbbf61517054e039261c09a6b1cee95`；串行回执为`build/v030-loading-source-followups.json`。下一步仍需处理首次实际出画、匹配新包及两档复验；七条目标与正式版41条主待办不提前勾选。
 
 后续单独的20ms载入心跳诊断得到首解码2508.5ms、出画2703.9ms，但仍不是完整压力。首画面前观察到1570.5ms与869.7ms两个GUI心跳间隔，对应GUI线程CPU增量1359.4ms与796.9ms，表明需要继续定位载入初期主线程工作，而不能只把等待归因于网络或解码器。原始记录为`tmp/v030-loading-heartbeat-current/report.json`，来源和歌词保持；不以这个较快诊断覆盖3272.6ms的完整压力失败。
+
+## 2026-10-28：特殊文件名字体回退修复（631项来源）
+
+原片文件名中的`⧸`（U+29F8）不在微软雅黑UI及四个内置CJK字体的字符表中。本机首次布局该文件名时，主线程出现约1.5–2秒的忙碌间隔。内容完全相同的工作区视频副本改用简短文件名后，插桩诊断出画约1676.4ms；SHA256仍为`1972808f0caddffdc5d447d3204469e8fe23ff94d27d1861d3523c6cd63b4ac8`。原片未重命名或修改；该副本仅用于定位，不进入公开附件。
+
+修复是在原界面字体后明确列出已内置的Noto Sans CJK JP及Windows的Segoe UI Symbol。保留实际原路径、日文和符号；没有用替换字符或缺字方框取得更快结果。原生Windows字形检查确认标题／普通标签均有真实符号字形、缺字数为0；字体回退诊断在真实原片名称下出画1349.8ms。关闭整套样式未消除原问题；普通堆叠页面的尺寸查询也没有构成该秒级开销。局部数值仍不是完整压力成绩。字体匹配语义见[Qt QFont文档](https://doc.qt.io/qt-6/qfont.html)，Segoe UI Symbol的系统来源见[Microsoft字体资料](https://learn.microsoft.com/en-us/typography/font-list/segoe-ui-symbol)。软件引用系统字体，不复制或分发其文件。
+
+最初的两项字形单测在offscreen插件下失败，原日志保留为`build/v030-ui-fallback-targeted.log`：该插件不提供Windows系统字体库，只有已注册的四个CJK字体，U+29F8确实缺字。测试现显式加载本机真实系统字体，结束后移除；另在两档真正Windows实例中独立检查，不由测试替产品预装字体。原生与offscreen差异分别保存在`build/v030-ui-glyph-native.json`和`build/v030-ui-glyph-offscreen.json`。
+
+15项针对性回归通过；每档原生GPU流程由27项扩为30项，新增标题／普通标签真实字形及原始Unicode文件名保持。实际Unicode文件导入／一次撤销、原歌词、字幕字体、完整ASS和真实libass像素保持均通过。最新631项来源的**1246项完整源码回归通过，400.31秒，无失败、错误或跳过**；前后来源与空参数全量调用记录一致。日志SHA256为`339d5ec89a990a4d679e356aba76f2ca8d9436f03221e37786ee882451e35e7d`，回读为`build/v030-source-full-ui-fallback-readback.json`。当前正在串行执行两档未插桩完整压力；全部通过后才核对清理路径并匹配重建，新包与正式发行不提前记作完成。
+
+### 两档完整压力已结束：正常13／13，150%为12／13
+
+相同631项来源、原生Windows隐藏窗口，原门槛、1000句、50次真实提交、全部撤销／重做、后台代理与恢复均保持：
+
+| 项目 | 正常缩放 | 150%缩放 |
+| --- | ---: | ---: |
+| 首解码／实际出画 | 927.8／1191.8ms | 939.2／1077.3ms |
+| 连续50次提交p95／最长 | 221.2／223.3ms | 239.9／332.9ms |
+| 后台20ms心跳p95／最长 | 108.2／347.6ms | 111.8／393.9ms |
+| 完整目标 | 13／13通过 | 12／13通过 |
+
+首次出画两档均通过3秒。150%下只有第6次提交超过250ms，其余49次及全部其他目标通过；该失败仍使整轮为false。开始前可用内存分别2826764288与2963075072字节，原片、来源与人工数据前后保持。正常报告SHA256为`77ffb00fdcb8dd47248d8bcd2d3f4fc1368da00c3ba4a2575de151716172706e`，150%为`ac3dc1c4e1621cd04fa34873aefe98771943d9761ba02c868caaacdc4b332a61`；完整路径分别为`tmp/v030-preview-ui-fallback-normal/report.json`和`tmp/v030-preview-ui-fallback-dpi150/report.json`。
+
+串行控制器`build/v030-ui-fallback-source-build.json`已结束，`completed=true`、`pressure_passed=false`、`build_completed=false`。因150%提交仍超时，尚未进入匹配重建，旧24bd候选仍为629项来源；不能将正常缩放的通过拼到另一轮或改称新冻结包已通过。七条目标与正式版41条主待办保持。
+
+未插入cProfile、未包装Project序列化器的局部计时保留在`tmp/v030-dpi-commit-gc-current`及`tmp/v030-dpi-drawing-current`。后者仍有一次343.1ms：完整提交回调约179.7ms，该次原版时间轴绘图约57.6ms；采样未发现完整GC与这次停顿重叠。普通音频底图平均约1.7ms、目标刷新约4.1ms，不能凭猜测重写FFT或分词。局部采样不包含完整撤销／代理阶段，不作通过证据。
+
+另对子进程单独请求1ms计时精度并保留CPU优先级及原执行QoS，50次提交仍最长310.1ms。请求与PowerThrottling状态均已恢复，无其他进程、全局电源或注册表变更；此策略**未接入生产**。记录为`tmp/v030-dpi-local-timer-current/timer-diagnostic.json`。后续继续优化实际提交路径，保留250ms门槛及全部失败数据。

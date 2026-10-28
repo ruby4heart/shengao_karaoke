@@ -1,6 +1,6 @@
 """Shared light palette and readable, quiet desktop controls."""
 STYLE='''
-QWidget { font-family: "Microsoft YaHei UI"; font-size: 13px; color: #27364e; }
+QWidget { font-family: "Microsoft YaHei UI", "Noto Sans CJK JP", "Segoe UI Symbol"; font-size: 13px; color: #27364e; }
 QMainWindow, QDialog { background: #f5f7fb; }
 QFrame#header { background: #ffffff; border: none; border-bottom: 1px solid #e6eaf1; }
 QLabel#brand { color: #3e50d5; font-size: 23px; font-weight: 700; }
