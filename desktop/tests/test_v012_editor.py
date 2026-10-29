@@ -121,11 +121,16 @@ def test_obvious_segmentation_and_reading_actions_follow_original_lyrics(qapp,tm
 
 
 def test_beginner_next_actions_advance_in_order_without_aegisub_knowledge(qapp,tmp_path,project):
-    w=window(qapp,tmp_path,project);w.set_stage(1);assert '检查假名' in w.next_button.text();w.next_button.click()
-    assert w.stage==2 and w.calibration_tabs.currentIndex()==1
-    w.calibrate_footer.click();assert w.project.checks[w.line.id]['reading'] and not w.line.reviewed
-    assert '校准时间' in w.next_button.text();w.next_button.click();assert w.calibration_tabs.currentIndex()==0
-    w.calibrate_footer.click();assert w.line.reviewed and '调整样式' in w.next_button.text()
+    w=window(qapp,tmp_path,project);w.set_stage(1)
+    # The unified workbench follows its actual pending state on every page;
+    # opening the draft page no longer overrides that state with a separate
+    # hard-coded reading-first wizard.
+    assert w.workbench_decision.key=='timing';w.next_button.click()
+    assert w.stage==2 and w.calibration_tabs.currentIndex()==0 and w.next_button.isHidden()
+    w.calibrate_footer.click();assert w.line.reviewed and not w.project.checks.get(w.line.id,{}).get('reading')
+    assert w.workbench_decision.key=='reading' and not w.next_button.isHidden()
+    w.next_button.click();assert w.calibration_tabs.currentIndex()==1
+    w.calibrate_footer.click();assert w.project.checks[w.line.id]['reading'] and w.workbench_decision.key=='ready'
     w.next_button.click();assert w.stage==3 and '先看样片' in w.next_button.text();w.close()
 
 

@@ -46,6 +46,7 @@ class WorkbenchFlow:
         primary=primary_for_stage(decision,self.stage,current_output=facts.current_output)
         self.next_hint.setText(decision.detail)
         self.next_button.setText(primary.text+' →')
+        self.next_button.setToolTip(primary.text+'。'+decision.detail)
         self.next_callback=lambda:self.execute_workbench_action(primary.command)
         # The current calibration page already has its explicit confirmation
         # footer. Do not add a second button that only reopens the same task.
@@ -62,6 +63,7 @@ class WorkbenchFlow:
         self._primary_style(self.prepare_lyrics_button,primary.command=='original_lyrics')
         self.prepare_next.setVisible(primary.command not in ('add_media','original_lyrics'))
         self.prepare_next.setText(primary.text+' →')
+        self.prepare_next.setToolTip(primary.text+'。'+decision.detail)
         # The prepare page uses the same recommendation even when the compact
         # navigation banner is folded. Existing common buttons avoid duplication.
         self.prepare_next_command=primary.command

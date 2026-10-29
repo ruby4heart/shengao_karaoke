@@ -12,4 +12,7 @@ def test_native_gpu_scaling_geometry_zoom_pts_and_cpu_fallback(tmp_path,scale):
     result=subprocess.run([sys.executable,str(root/'desktop/main.py'),'--gpu-preview-test','--output',str(tmp_path/'native-gpu')],cwd=root,env=env,capture_output=True,timeout=90)
     assert result.returncode==0,result.stderr.decode(errors='replace')[-5000:]
     report=json.loads((tmp_path/'native-gpu/report.json').read_text(encoding='utf-8'))
-    assert report['passed'] and len(report['checks'])==31 and all(check['passed'] for check in report['checks'])
+    assert report['passed'] and len(report['checks'])==35 and all(check['passed'] for check in report['checks'])
+    names={check['name'] for check in report['checks']}
+    assert {'user_can_disable_gpu_without_changing_frame_identity','disabled_gpu_releases_owned_context',
+        'disabled_gpu_stays_on_regular_path','user_can_reenable_checked_gpu_path'}<=names

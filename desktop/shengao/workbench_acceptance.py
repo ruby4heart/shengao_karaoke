@@ -1,7 +1,7 @@
 """Same real Qt workbench checks in source and frozen processes, offline."""
 from pathlib import Path
 import json,subprocess
-from PySide6.QtCore import Qt,QPoint,QEvent
+from PySide6.QtCore import Qt,QPoint,QEvent,QUrl
 from PySide6.QtGui import QInputMethodEvent,QKeyEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication,QDialogButtonBox
@@ -34,7 +34,11 @@ def exercise(app,StudioWindow,out,check,wait):
         check('workbench_confirmed_lyrics_continue_to_style',w.stage==3 and w.project.to_dict()==before)
         w.set_stage(4);check('workbench_visiting_export_does_not_finish_output',not w.steps[4].complete)
         w.set_stage(0);check('workbench_return_keeps_correct_next_step',w.prepare_next.text()=='检查字幕样式 →' and w.prepare_next.text()==w.next_button.text())
-        w.set_stage(2);old_profile=w.audio_profile.to_data();w.adopt_audio_profile(profile())
+        w.set_stage(2);before=w.project.to_dict();w.resegment_current();w.inline_segment.text.anchorClicked.emit(QUrl('char:1'))
+        check('workbench_pending_segmentation_protects_editor',w.inline_segment.pending and not w.timeline.editing_enabled and not w.optional_reading.isEnabled() and not w.draft_button.isEnabled() and not w.draft_resume_button.isEnabled() and w.next_button.isHidden())
+        w.inline_segment.cancel.click()
+        check('workbench_cancel_segmentation_restores_editor',not w.inline_segment.pending and w.timeline.editing_enabled and w.optional_reading.isEnabled() and w.project.to_dict()==before)
+        old_profile=w.audio_profile.to_data();w.adopt_audio_profile(profile())
         actions=[];original_action=w.audio_action;w.timeline.action.disconnect(original_action);w.timeline.action.connect(actions.append);w.audio_action=actions.append
         try:
             w.timeline.setFocus();QTest.keyClick(w.timeline,Qt.Key.Key_F9);QTest.keyClick(w.timeline,Qt.Key.Key_R)

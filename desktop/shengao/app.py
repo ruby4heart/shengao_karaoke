@@ -997,6 +997,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if empty and self.stage==0:self.left_panel.hide();self.right_panel.hide()
         elif self.stage==0 or has_lines:self.right_panel.show();self.left_panel.setVisible(has_lines and self.width()>=1180 and self.view_choice.currentIndex()==0)
         if self.preview_expanded:self.left_panel.hide();self.right_panel.hide()
+        self.refresh_inline_editor()
         self.refresh_workbench_flow(summary,media_ready,snapshot=_snapshot)
 
     def go_missing_segmentation(self):
