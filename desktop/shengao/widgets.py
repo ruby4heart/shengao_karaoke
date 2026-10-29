@@ -72,13 +72,16 @@ class StepButton(QPushButton):
         self.setAccessibleName(f'第 {index+1} 步 {title}');self.setToolTip(self.captions[index]);self.setMinimumHeight(62);self.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
     def sizeHint(self):return QSize(145,62)
     def set_complete(self,value):self.complete=value;self.update()
+    def set_status(self,state,caption):
+        self.workflow_status=state;self.status_caption=caption;self.complete=state=='done'
+        self.setToolTip(caption);self.setAccessibleDescription(caption);self.update()
     def paintEvent(self,event):
         p=QPainter(self);p.setRenderHint(QPainter.RenderHint.Antialiasing);active=self.isChecked();r=self.rect().adjusted(1,1,-1,-1)
         p.setBrush(QColor('#eef0ff' if active else '#ffffff'));p.setPen(QPen(QColor('#a7aff5' if active else '#e4e8f0'),1));p.drawRoundedRect(r,10,10)
         p.setPen(Qt.PenStyle.NoPen);p.setBrush(QColor('#5263e8' if active else '#e5f4ee' if self.complete else '#f0f3f8'));p.drawEllipse(QRectF(12,18,26,26))
         p.setPen(QColor('#ffffff' if active else '#248264' if self.complete else '#64748b'));p.setFont(QFont('Microsoft YaHei UI',10,QFont.Weight.DemiBold));p.drawText(QRectF(12,18,26,26),Qt.AlignmentFlag.AlignCenter,'✓' if self.complete and not active else str(self.index+1))
         p.setPen(QColor('#3544b5' if active else '#25344b'));p.setFont(QFont('Microsoft YaHei UI',10,QFont.Weight.DemiBold));p.drawText(48,26,self.title)
-        p.setPen(QColor('#77859a'));p.setFont(QFont('Microsoft YaHei UI',8));fm=p.fontMetrics();p.drawText(48,45,fm.elidedText(self.captions[self.index],Qt.TextElideMode.ElideRight,max(1,self.width()-58)));p.end()
+        p.setPen(QColor('#77859a'));p.setFont(QFont('Microsoft YaHei UI',8));fm=p.fontMetrics();p.drawText(48,45,fm.elidedText(getattr(self,'status_caption',self.captions[self.index]),Qt.TextElideMode.ElideRight,max(1,self.width()-58)));p.end()
 
 class Collapsible(QWidget):
     def __init__(self,title,parent=None):

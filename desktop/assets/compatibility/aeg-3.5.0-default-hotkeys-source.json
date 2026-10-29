@@ -1,0 +1,6 @@
+{
+  "source": "Aegisub 3.5.0/src/libresrc/default_hotkey.json",
+  "sha256": "f69d48ce66d5ebf2201dc98089dfa4b2a1332144fa1cab781960f71451146948",
+  "scope": "Original Windows defaults as compatibility reference. Only supported Audio/Always commands are adopted; other contexts are listed, not executed.",
+  "third_party_notices": "See the existing Aegisub notices and full source in the distribution."
+}

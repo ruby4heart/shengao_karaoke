@@ -59,6 +59,7 @@ from .fine_listening import FineListeningWorkflow
 from .issues_workflow import IssuesWorkflow
 from .style_workflow import StyleWorkflow
 from .proxy_workflow import ProxyWorkflow
+from .workbench_flow import WorkbenchFlow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -66,11 +67,11 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
-        self.preferences=Preferences(self.home);self.last_output='';self.next_callback=None;self._flushing=False
+        self.preferences=Preferences(self.home);self.reset_output_context();self.next_callback=None;self._flushing=False
         self.api=ApiJob(self,self.home);self.local_job=None;self.analysis_job=None;self.extra_fonts=[];self.snapshots={}
         self.analysis_generation=0;self.closing=False
         self.init_proxy_workflow()
@@ -211,18 +212,19 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.cancel_button=button('取消任务',self.cancel_task);self.cancel_button.hide();status.addWidget(self.cancel_button);self.task_button=button('任务记录',self.task_history);status.addWidget(self.task_button);outer.addLayout(status)
 
     def build_prepare(self):
-        l=self.page_layouts[0];l.addWidget(label('先添加素材，再准备歌词','heading'));l.addWidget(label('有正确原歌词时优先粘贴，每行一句。没有原歌词也能先识别，核对文字后再做注音和校轴。','muted'))
-        l.addWidget(button('① 添加视频／音频',self.add_media));self.media_label=label('尚未添加媒体','muted');l.addWidget(self.media_label);l.addWidget(label('视频上方一键切换原唱／伴奏；右侧箭头可更换任一版本文件。两个版本共用歌词、注音和时间轴。','muted'))
+        l=self.page_layouts[0];self.prepare_heading=label('先添加素材，再准备歌词','heading');l.addWidget(self.prepare_heading);self.prepare_detail=label('有正确原歌词时优先粘贴，每行一句。','muted');l.addWidget(self.prepare_detail)
+        self.prepare_media_button=button('① 添加视频／音频',self.add_media);l.addWidget(self.prepare_media_button);self.media_label=label('尚未添加媒体','muted');l.addWidget(self.media_label);l.addWidget(label('视频上方一键切换原唱／伴奏；右侧箭头可更换任一版本文件。两个版本共用歌词、注音和时间轴。','muted'))
         self.build_proxy_controls(l)
-        l.addWidget(button('② 粘贴原歌词',self.paste_lyrics));l.addWidget(label('不需要提前准备时间标签；识别多出的空格不会改变原歌词。','muted'))
+        self.prepare_lyrics_button=button('② 粘贴原歌词',self.paste_lyrics);l.addWidget(self.prepare_lyrics_button);l.addWidget(label('不需要提前准备时间标签；识别多出的空格不会改变原歌词。','muted'))
         self.build_recognition_entry(l,prepare=True)
-        b=button('素材准备好，生成初稿 →',lambda:self.set_stage(1));b.setObjectName('primary');l.addWidget(b)
+        self.prepare_next_command='draft_options';self.prepare_next=button('继续制作 →',lambda:self.execute_workbench_action(self.prepare_next_command));self.prepare_next.setObjectName('primary');l.addWidget(self.prepare_next)
+        self.prepare_other=QToolButton();self.prepare_other.setText('其他操作');self.prepare_other.setObjectName('textButton');self.prepare_other_menu=QMenu(self.prepare_other);self.prepare_other.setMenu(self.prepare_other_menu);self.prepare_other.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup);l.addWidget(self.prepare_other)
         l.addStretch();l.addWidget(label('第一次使用','heading'));l.addWidget(button('打开离线练习',self.open_demo));l.addWidget(label('练习包含合成音频与示例字幕，可以体验校轴、注音、样式和保存，无需联网。','muted'));l.addWidget(button('打开已有工程／ASS',self.open_dialog))
 
     def build_generate(self):
         l=self.page_layouts[1]
         l.addWidget(label('先做一份可以修改的初稿','heading'))
-        l.addWidget(label('原歌词保持原样，结果先由你审核。选一种方式开始。','muted'))
+        self.generation_context=label('原歌词保持原样，结果先由你审核。选一种方式开始。','muted');l.addWidget(self.generation_context)
         self.build_recognition_entry(l)
         self.continuous_timing=QCheckBox('按时长收拢（旧方式）');self.continuous_timing.setChecked(self.preferences.data.get('legacy_gap_timing',False) is True)
         self.continuous_timing.setToolTip('高级选项：固定 500 ms 规则可能覆盖真正的短休止。默认关闭；推荐初稿后用“按声音检查空白”。')
@@ -955,7 +957,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.path and target.resolve()==self.path.resolve():self.set_stage(2);return
         self.open_path(target)
 
-    def update_workflow(self,dirty=None):
+    def update_workflow(self,dirty=None,*,_snapshot=None):
         p=self.project;summary=p.summary();media_ready=bool(p.media and Path(p.media).is_file());has_lines=bool(p.lines);pending=bool(self.pending and self.pending.get('result',{}).get('suggestions'));idle=not self.api.busy
         self.save_state.setText('有未保存修改' if (self.history.dirty if dirty is None else dirty) else '已保存' if self.path else '新作品')
         self.undo_button.setEnabled(bool(self.history.undo_stack));self.redo_button.setEnabled(bool(self.history.redo_stack))
@@ -997,34 +999,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if empty and self.stage==0:self.left_panel.hide();self.right_panel.hide()
         elif self.stage==0 or has_lines:self.right_panel.show();self.left_panel.setVisible(has_lines and self.width()>=1180 and self.view_choice.currentIndex()==0)
         if self.preview_expanded:self.left_panel.hide();self.right_panel.hide()
-        complete=[media_ready and has_lines,has_lines and all(x.units for x in p.lines),has_lines and summary['timing']==summary['lines'] and summary['readings']==summary['lines'],has_lines and self.stage==4,bool(self.last_output)]
-        for b,done in zip(self.steps,complete):b.set_complete(done)
-        if not media_ready:text,callback='添加视频或音频',self.add_media
-        elif not has_lines:text,callback=('核对识别原文',self.review_recognition) if p.recognition_draft else ('没有歌词？先识别初稿',self.begin_recognition)
-        elif pending:text,callback='审核建议',self.review_pending
-        elif not all(x.units for x in p.lines):text,callback='生成初稿',lambda:self.set_stage(1)
-        elif summary['timing']<summary['lines']:text,callback='去听歌校对',self.go_timing
-        elif summary['readings']<summary['lines']:text,callback='检查待确认读音',lambda:self.show_pending_readings()
-        elif self.stage<3:text,callback='选择字幕样式',lambda:self.set_stage(3)
-        else:text,callback='试压与导出',lambda:self.set_stage(4)
-        show_next=True
-        if media_ready and has_lines and not pending:
-            if self.stage==0:text,callback='下一步：生成字幕',lambda:self.set_stage(1)
-            elif self.stage==1 and all(x.units for x in p.lines):text,callback='下一步：检查假名',self.go_reading
-            elif self.stage==2:
-                if not all(x.units for x in p.lines):text,callback='补全未分词歌词',self.go_missing_segmentation
-                elif summary['timing']==summary['lines'] and summary['readings']==summary['lines']:text,callback='下一步：调整样式',lambda:self.set_stage(3)
-                elif summary['timing']==summary['lines'] and self.calibration_tabs.currentIndex()==0:text,callback='下一步：检查假名',self.go_reading
-                elif summary['readings']==summary['lines'] and self.calibration_tabs.currentIndex()==1:text,callback='下一步：校准时间',self.go_audio_timing
-                else:show_next=False
-            elif self.stage==3:text,callback='下一步：先看样片',lambda:self.set_stage(4)
-            elif self.stage==4 and self.last_output:text,callback='播放成品',lambda:self.open_last_output(False)
-        # Resolve visibility before touching the layout. Showing then hiding
-        # this button makes the wrapped banner resize the entire workbench on
-        # every timing edit, even when the final state is unchanged.
-        self.next_button.setText(text+' →');self.next_callback=callback
-        self.refresh_inline_editor()
-        self.next_button.setVisible(show_next and not self.inline_segment.pending)
+        self.refresh_workbench_flow(summary,media_ready,snapshot=_snapshot)
 
     def go_missing_segmentation(self):
         if not self.flush_edits():return
@@ -1124,14 +1099,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.display_summary.setText((f'本句显示 {time_text(windows[self.current].start)} — {time_text(windows[self.current].end)}\n演唱 {time_text(line.start)} — {time_text(line.end)}' if line else '加入歌词后可预览接唱。'))
             for name,check in self.style_checks.items():check.setChecked(getattr(p.style,name))
             self.compatibility.setVisible(p.source_ass_active);self.compatibility.setText('当前保留原 ASS 的样式与特效。选择声稿模板后使用新的注音排版；原始 ASS 仍保存在工程中。')
-            if not p.media:hint='下一步：添加一段视频或音频。也可以先打开离线练习。'
-            elif not p.lines:hint='下一步：试听并核对识别原文，再加入歌词。' if p.recognition_draft else '下一步：优先粘贴正确原歌词；没有原歌词时可以先识别初稿。'
-            elif self.pending:hint='初稿已返回：请审核建议，再加入工程。'
-            elif not any(x.units for x in p.lines):hint='下一步：生成词组、读音和粗轴，然后逐句试听。'
-            else:
-                s=p.summary();hint=f'{s["lines"]} 句歌词 · 时间确认 {s["timing"]}/{s["lines"]} · 读音确认 {s["readings"]}/{s["lines"]}。'+('可检查样式并试压。' if s['timing']==s['lines'] else '试听当前句，校准后确认并继续。')
-            self.next_hint.setText(hint);self.refresh_font_choice()
-            self.update_workflow(dirty=dirty)
+            self.refresh_font_choice()
+            self.update_workflow(dirty=dirty,_snapshot=snapshot)
         finally:self.refreshing=False
         self.update_timing_scope()
         self.refresh_inline_editor()
@@ -1673,7 +1642,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self._discarding=True
         return True
     def new(self):
-        if self.can_replace():self.clear_media();self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.last_output='';self.timeline.spectrum=None;self.refresh();self.set_stage(0)
+        if self.can_replace():self.clear_media();self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.reset_output_context();self.timeline.spectrum=None;self.refresh();self.set_stage(0)
     def open_dialog(self):
         path,_=QFileDialog.getOpenFileName(self,'打开工程或字幕','','工程与字幕 (*.sgproj *.json *.ass *.ssa *.lrc *.srt);;所有文件 (*)')
         if path:self.open_path(path)
@@ -1682,7 +1651,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         try:p=load_project(path)
         except (ValueError,OSError) as error:self._discarding=False;self.message('打开失败：'+str(error));return False
         self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
-        self.clear_recovery();self.last_output='';self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
+        self.clear_recovery();self.reset_output_context();self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
         self.refresh(True);self.set_stage(2 if p.lines else 0)
         if p.media and Path(p.media).is_file():self.load_media(p.media,edit=False)
         self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。');return True
@@ -2013,9 +1982,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.encode_to(options)
     def encode_to(self,options):
         if self.source_job:self.message('请等待换源完成再压制');return
-        snapshot=Project.from_dict(self.project.to_dict());self.progress.setRange(0,100);self.progress.setValue(0)
+        snapshot=Project.from_dict(self.project.to_dict());output_source_stamp=file_stamp(snapshot.media);self.progress.setRange(0,100);self.progress.setValue(0)
         def done(result):
-            self.local_job=None;self.last_output=result['output'];self.busy_changed();self.output_label.setText('已完成：'+result['output']);self.message('视频已导出，可以播放成品或打开文件夹。');self.record_task('encode','completed',result)
+            self.local_job=None;self.last_output=result['output'];self._last_output_snapshot=snapshot.to_dict();self._last_output_stamp=output_source_stamp;self._last_output_full=options.start==0 and (not options.duration or options.duration>=snapshot.duration);self.busy_changed();self.output_label.setText('已完成：'+result['output']);self.message('视频已导出，可以播放成品或打开文件夹。');self.record_task('encode','completed',result)
         def failed(message):
             self.local_job=None;self.busy_changed();self.message(message);self.record_task('encode','failed',{'message':message})
         def progress(value):
