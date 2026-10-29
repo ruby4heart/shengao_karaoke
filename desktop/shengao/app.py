@@ -60,6 +60,7 @@ from .issues_workflow import IssuesWorkflow
 from .style_workflow import StyleWorkflow
 from .proxy_workflow import ProxyWorkflow
 from .workbench_flow import WorkbenchFlow
+from .audio_shortcut_workflow import AudioShortcutWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -67,7 +68,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -84,7 +85,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.setWindowTitle('声稿 · Karaoke Studio');self.setWindowIcon(QIcon(str(ASSETS/'shengao.svg')));self.resize(1460,940);self.setMinimumSize(900,620);self.setAcceptDrops(True)
         register_qt_fonts();self.build()
         from .action_help import explain_buttons
-        explain_buttons(self);self.connect_signals();self.shortcuts();self.refresh()
+        explain_buttons(self);self.connect_signals();self.shortcuts();self.init_audio_shortcuts();self.refresh();self.refresh_audio_shortcut_help()
         from .fast_snapshot import enable as enable_fast_snapshot
         self.snapshot_accelerator=enable_fast_snapshot()
         self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed)
@@ -92,12 +93,13 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
         if not test:QTimer.singleShot(250,self.offer_recovery)
+        if self.audio_profile_warning:QTimer.singleShot(0,lambda warning=self.audio_profile_warning:self.message(warning))
         saved=self.preferences.data
         volume=saved.get('volume',70)
         if type(volume) is int:self.volume.setValue(max(0,min(100,volume)))
         if type(saved.get('subtitles')) is bool:self.subtitle_toggle.setChecked(saved['subtitles'])
         self.audio_view.setCurrentIndex(0 if saved.get('audio_view','spectrum')=='spectrum' else 1)
-        self.timeline.medusa_hotkeys=saved.get('medusa_hotkeys',False) is True
+        self.timeline.medusa_hotkeys=self.audio_profile.medusa
         speed=saved.get('speed',1.)
         if type(speed) in (int,float) and speed in (.5,.75,1.,1.25):self.speed.setCurrentIndex(self.speed.findData(speed))
         self.volume.valueChanged.connect(lambda value:self.preferences.set('volume',value))
@@ -118,7 +120,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.project_label.setObjectName('projectName');self.save_state=label('尚未保存','saveState',False);row.addWidget(self.save_state)
         project_menu=QMenu(self)
         for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
-        project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
+        project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('打轴快捷键设置…',self.show_audio_shortcuts);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
         project_menu.addAction('新建作品',self.new);self.recent_menu=project_menu.addMenu('最近作品');self.refresh_recent_menu()
         project_button=QPushButton('作品');project_button.setMenu(project_menu);row.addWidget(project_button);row.addStretch()
         self.workflow_toggle=QPushButton('流程');self.workflow_toggle.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown));self.workflow_toggle.setCheckable(True);self.workflow_toggle.setToolTip('展开／收起五步制作流程；默认收起，为视频留出空间。');row.addWidget(self.workflow_toggle)
@@ -820,11 +822,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if advance and self.current+1<len(self.project.lines):
             self.current+=1;self.refresh(True)
             if not line_mode:self.audition_selected()
-        self.message('已提交时间。Enter／G 按原稿顺序进入下一句；音节模式的 Shift+G 同样保留下一句原时间。')
+        self.message('本句时间已确认。'+('已按原稿顺序进入下一句。' if advance and row+1<len(self.project.lines) else '当前句保持。')+'读音需要单独确认；Ctrl+S保存作品。')
 
     def audio_action(self,name):
         if name=='medusa_toggle':
-            self.timeline.medusa_hotkeys=not self.timeline.medusa_hotkeys;self.preferences.set('medusa_hotkeys',self.timeline.medusa_hotkeys);self.message('Medusa 小键盘打轴快捷键：'+('开启' if self.timeline.medusa_hotkeys else '关闭'));return
+            self.set_medusa_mode(not self.timeline.medusa_hotkeys);return
         if name=='toggle':
             from PySide6.QtMultimedia import QMediaPlayer
             if self.playback.player.playbackState()==QMediaPlayer.PlaybackState.PlayingState:self.playback.stop()
@@ -882,19 +884,16 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         averages=QCheckBox('波形同时显示最大值与平均值');averages.setChecked(self.timeline.waveform_averages);l.addWidget(averages)
         keyframes=QCheckBox('显示视频关键帧与吸附参考线');keyframes.setChecked(self.timeline.show_keyframes);l.addWidget(keyframes)
         snap=QCheckBox('吸附到关键帧／邻行边界（Shift 暂时关闭）');snap.setChecked(self.timeline.snap_enabled);l.addWidget(snap)
-        medusa=QCheckBox('启用 Aegisub Medusa 小键盘快捷键（可在其他编辑框生效）');medusa.setChecked(self.timeline.medusa_hotkeys);l.addWidget(medusa)
-        advance=QCheckBox('Enter／G 提交后进入下一句（Aegisub 默认）');advance.setChecked(self.preferences.data.get('audio_next_on_commit',True) is not False);l.addWidget(advance)
-        l.addWidget(button('查看 Aegisub 打轴快捷键',self.show_audio_shortcuts))
+        advance=QCheckBox('提交音频时间后进入下一句');advance.setChecked(self.preferences.data.get('audio_next_on_commit',True) is not False);l.addWidget(advance)
+        l.addWidget(button('快捷键设置（Medusa／输入保护）',self.show_audio_shortcuts))
         l.addWidget(label('鼠标滚轮平移，Ctrl＋滚轮缩放；拖动上方时间刻度平移；右键试听音节，中键定位视频。','muted'))
         controls=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);controls.accepted.connect(dialog.accept);controls.rejected.connect(dialog.reject);l.addWidget(controls)
         if dialog.exec()==QDialog.DialogCode.Accepted:
             self.timeline.quality=quality.currentIndex();self.timeline.curve=curve.currentIndex();self.timeline.amplitude=gain.value();self.timeline.waveform_averages=averages.isChecked();self.timeline.show_keyframes=keyframes.isChecked();self.timeline.snap_enabled=snap.isChecked();self.timeline.set_zoom(zoom.value());self.timeline.invalidate()
-            self.timeline.medusa_hotkeys=medusa.isChecked();self.preferences.set('medusa_hotkeys',medusa.isChecked());self.preferences.set('audio_next_on_commit',advance.isChecked())
+            self.preferences.set('audio_next_on_commit',advance.isChecked())
 
     def show_audio_shortcuts(self):
-        dialog=QDialog(self);dialog.setWindowTitle('Aegisub 3.5.0 · 打轴快捷键');dialog.resize(620,600);layout=vertical(dialog)
-        text=QPlainTextEdit();text.setReadOnly(True);text.setPlainText('光标放在音频时间轴时生效（和 Aegisub Audio 上下文一致）\n\nR：试听整句\nS / 空格：试听所选\nB：试听所选／停止\nH：停止\nQ / W：试听所选前／后 500ms\nE / D：试听所选开头／结尾 500ms\nT：从所选开始一直播放到末尾\nA / F：向左／右滚动 128 像素\n← / Z、→ / X：上一／下一词组或音节，音节模式自动试听\nC / V：整句增加 100ms 引入／350ms 引出\n小键盘 − / +：缩短／延长 10ms\nShift + 小键盘 − / +：同时移动后续内部边界\nEnter / G：提交并顺序进入下一句\nShift+G：提交；整句模式重置下句为 3 秒，音节模式保留原时间\nCtrl+小键盘 *：开关 Medusa 模式\n\nMedusa 开启后，小键盘在主窗口各编辑区生效：\nEnter：提交，5：试听，8：停止\n1 / 3：试听前／后 500ms\n0 / 2：上一／下一音节（整句模式为上一／下一句）\n4 / 6：起点前移／后移 10ms\n7 / 9：缩短／延长 10ms\n\n音节模式不通过这些微调键移动整句的头尾；C/V 或鼠标调整整句范围。\n默认关闭 Medusa，输入假名和数字时不会被小键盘打轴截获。')
-        layout.addWidget(text);layout.addWidget(button('关闭',dialog.accept));dialog.exec()
+        self.show_audio_shortcut_settings()
 
     def shortcuts(self):
         for key,fn in [('Ctrl+S',self.save),('F2',self.save),('Ctrl+Shift+S',self.save_as),('Ctrl+O',self.open_dialog),('Ctrl+N',self.new),('Ctrl+Z',self.undo),('Ctrl+Y',self.redo),('F6',self.audition_line),('Ctrl+Return',self.confirm_next),('Escape',self.cancel_audio),('Ctrl+P',self.playback.toggle),('Ctrl+1',lambda:self.playback.seek(self.line.start) if self.line else None),('Ctrl+2',lambda:self.playback.seek(self.line.end) if self.line else None)]:
@@ -907,13 +906,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if event.type()==QEvent.Type.FocusIn and isinstance(obj,QWidget) and hasattr(self,'confirmation_kind') and not self.refreshing:
             if obj in (self.begin,self.end) or self.begin.isAncestorOf(obj) or self.end.isAncestorOf(obj):self.confirmation_kind.setCurrentIndex(0)
             elif isinstance(obj,QLineEdit) and self.units.isAncestorOf(obj):self.confirmation_kind.setCurrentIndex(1)
-        if event.type() in (QEvent.Type.KeyPress,QEvent.Type.ShortcutOverride) and self.timeline.medusa_hotkeys and isinstance(obj,QWidget) and (obj is self or self.isAncestorOf(obj)) and obj.window() is self:
-            from .aeg_hotkeys import command
-            name=command(event,medusa=True)
-            if name:
-                event.accept()
-                if event.type()==QEvent.Type.KeyPress:self.audio_action(name)
-                return True
+        self.observe_audio_input(obj,event)
+        if self.filter_audio_shortcut(obj,event):return True
         return super().eventFilter(obj,event)
 
     def update_play_button(self,*args):

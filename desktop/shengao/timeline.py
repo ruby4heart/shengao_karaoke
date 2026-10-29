@@ -404,6 +404,7 @@ class Timeline(QWidget):
 
     def keyPressEvent(self,event):
         from .aeg_hotkeys import command
-        name=command(event,audio=True,medusa=self.medusa_hotkeys)
+        handler=getattr(self,'audio_key_handler',None)
+        name=handler(event,audio=True) if handler is not None else command(event,audio=True,medusa=self.medusa_hotkeys)
         if name:self.action.emit(name);event.accept()
         else:super().keyPressEvent(event)

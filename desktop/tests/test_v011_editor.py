@@ -62,7 +62,8 @@ def test_medusa_mode_explicitly_enabled_and_isolated_from_modal_dialog(qapp,tmp_
     w=make_window(qapp,tmp_path,project);calls=[];w.playback.audition=lambda *args:calls.append(args)
     w.calibration_tabs.setCurrentIndex(1);w.translation.setFocus();QTest.keyClick(w.translation,Qt.Key.Key_5,Qt.KeyboardModifier.KeypadModifier)
     assert not calls
-    w.timeline.medusa_hotkeys=True;QTest.keyClick(w.translation,Qt.Key.Key_5,Qt.KeyboardModifier.KeypadModifier)
+    from shengao.audio_shortcuts import Profile
+    w.adopt_audio_profile(Profile.defaults(medusa=True,protect_text=False));QTest.keyClick(w.translation,Qt.Key.Key_5,Qt.KeyboardModifier.KeypadModifier)
     assert calls[-1][:2]==w.selected_times()
     d=SegmentationDialog(w.line,w.playback,w);d.show();qapp.processEvents();field=QLineEdit(d);QTest.keyClick(field,Qt.Key.Key_5,Qt.KeyboardModifier.KeypadModifier)
     assert field.text()=='5' and len(calls)==1;d.close();w.close()
