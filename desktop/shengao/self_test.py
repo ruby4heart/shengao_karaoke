@@ -224,6 +224,8 @@ def main():
         audio_review_workflow(app,StudioWindow,out,check,wait)
         from .style_preview_acceptance import exercise as style_preview_workflow
         style_preview_workflow(app,StudioWindow,out,check,wait)
+        from .workbench_acceptance import exercise as workbench_workflow
+        workbench_workflow(app,StudioWindow,out,check,wait)
         from .video_geometry_acceptance import exercise as video_geometry_workflow
         video_geometry_workflow(app,StudioWindow,out,check,wait)
         original_mora=window.project.to_dict();word_times=[(u.start,u.end,u.kana,u.romaji) for u in window.line.units]

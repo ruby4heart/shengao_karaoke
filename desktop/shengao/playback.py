@@ -29,6 +29,7 @@ class VideoCanvas(QWidget):
         self.first_painted_at_s=None
         self.new_frame_painted_at_s=None
         self._source_frame=None;self._source_frame_size=None;self._gpu_scaler=None;self._converting_frame=False;self._frame_accelerated=False
+        self.gpu_enabled=True
         self.frame_resize_timer=QTimer(self);self.frame_resize_timer.setSingleShot(True);self.frame_resize_timer.timeout.connect(self.resize_frame)
         self.setObjectName('videoPreview');self._wheel=0
         self.setToolTip('滚轮按 12.5% 缩放视频；放大后可用滚动条移动画面。双击恢复适合窗口。')
@@ -40,7 +41,7 @@ class VideoCanvas(QWidget):
         try:
             self._source_frame=QVideoFrame(frame);image=None
             size=preview_size(frame,self.width(),self.height(),self.devicePixelRatioF())
-            if eligible(frame,size):
+            if self.gpu_enabled and eligible(frame,size):
                 if self._gpu_scaler is None:
                     self._gpu_scaler=GpuFrameScaler();self.destroyed.connect(self._gpu_scaler.close)
                 image=self._gpu_scaler.convert(frame,size)
@@ -74,6 +75,15 @@ class VideoCanvas(QWidget):
     def close_frame_scaler(self):
         self.frame_resize_timer.stop();self._source_frame=None
         if self._gpu_scaler is not None:self._gpu_scaler.close()
+
+    def set_gpu_enabled(self,value):
+        if type(value) is not bool:raise ValueError('GPU预览开关无效')
+        self.gpu_enabled=value
+        if not value:
+            if self._source_frame is not None:self.video_frame(self._source_frame,_new_frame=False)
+            if self._gpu_scaler is not None:
+                old=self._gpu_scaler
+                self.destroyed.disconnect(old.close);old.close();self._gpu_scaler=None
 
     def frame_scaler_status(self):return self._gpu_scaler.status() if self._gpu_scaler is not None else {'backend':'Qt image','frames':0,'error':''}
 

@@ -61,6 +61,8 @@ from .style_workflow import StyleWorkflow
 from .proxy_workflow import ProxyWorkflow
 from .workbench_flow import WorkbenchFlow
 from .audio_shortcut_workflow import AudioShortcutWorkflow
+from .tap_timing_dialog import TapTimingWorkflow
+from .preview_preferences import PreviewPreferencesWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -68,7 +70,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -85,7 +87,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.setWindowTitle('声稿 · Karaoke Studio');self.setWindowIcon(QIcon(str(ASSETS/'shengao.svg')));self.resize(1460,940);self.setMinimumSize(900,620);self.setAcceptDrops(True)
         register_qt_fonts();self.build()
         from .action_help import explain_buttons
-        explain_buttons(self);self.connect_signals();self.shortcuts();self.init_audio_shortcuts();self.refresh();self.refresh_audio_shortcut_help()
+        explain_buttons(self);self.connect_signals();self.shortcuts();self.init_audio_shortcuts();self.init_preview_preferences();self.refresh();self.refresh_audio_shortcut_help()
         from .fast_snapshot import enable as enable_fast_snapshot
         self.snapshot_accelerator=enable_fast_snapshot()
         self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed)
@@ -121,6 +123,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         project_menu=QMenu(self)
         for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
         project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('打轴快捷键设置…',self.show_audio_shortcuts);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
+        project_menu.addAction('预览与后台设置…',self.show_preview_preferences)
         project_menu.addAction('新建作品',self.new);self.recent_menu=project_menu.addMenu('最近作品');self.refresh_recent_menu()
         project_button=QPushButton('作品');project_button.setMenu(project_menu);row.addWidget(project_button);row.addStretch()
         self.workflow_toggle=QPushButton('流程');self.workflow_toggle.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown));self.workflow_toggle.setCheckable(True);self.workflow_toggle.setToolTip('展开／收起五步制作流程；默认收起，为视频留出空间。');row.addWidget(self.workflow_toggle)
@@ -274,6 +277,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.range_button=button('整句范围',self.select_entire_line);self.range_button.setToolTip('未匹配时先确定唱词范围；已有词组时只改整句头尾，不重新分词。');self.fill_mora_button=button('补全音节',self.fill_missing_mora);row=QHBoxLayout();row.addWidget(label('演唱音节','sectionTitle'),1);row.addWidget(self.fill_mora_button);row.addWidget(self.range_button);l.addLayout(row);self.mora_strip=MoraStrip();l.addWidget(self.mora_strip)
         self.build_fine_listening(l)
         self.build_mora_editing_tools(l)
+        l.addWidget(button('跟唱打点…（可选）',self.open_tap_timing))
         self.cleanup_gaps_button=button('检查空白…',self.start_sound_gaps);self.cleanup_gaps_button.setToolTip('按当前试听音轨检查声音连续性与已有音素依据；先试听再处理，不按固定时长填平休止。')
         self.build_acoustic_tools(l,secondary=self.cleanup_gaps_button)
         self.sound_gap_review=button('试听并审核空隙建议',self.review_pending);l.addWidget(self.sound_gap_review)
@@ -2124,6 +2128,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def dispose(self):
         if self.closing:return
         self.closing=True;self._source_serial+=1
+        if getattr(self,'tap_dialog',None) is not None:self.tap_dialog.reject()
         self.drop_edited_checkpoint();self.recovery_writer.close()
         if self.issue_dialog is not None:self.issue_dialog.timer.stop();self.issue_dialog.detail_timer.stop();self.issue_dialog.hide()
         self.fine_listener.dispose()

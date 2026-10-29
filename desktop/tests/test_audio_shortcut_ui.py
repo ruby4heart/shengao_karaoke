@@ -4,7 +4,7 @@ import pytest
 from PySide6.QtCore import Qt,QEvent
 from PySide6.QtGui import QKeyEvent,QInputMethodEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QDialog,QApplication,QLineEdit
+from PySide6.QtWidgets import QDialog,QApplication,QLineEdit,QPushButton
 from shengao.app import StudioWindow
 from shengao.project import History
 from shengao.preferences import Preferences
@@ -34,6 +34,7 @@ def test_custom_binding_dispatches_and_is_preserved_after_restart(workbench,qapp
     w=workbench;before=w.project.to_dict();w.adopt_audio_profile(custom_profile(w));actions=spy_actions(w,monkeypatch)
     w.timeline.setFocus();QTest.keyClick(w.timeline,Qt.Key.Key_F9);QTest.keyClick(w.timeline,Qt.Key.Key_R)
     assert actions==['line'] and w.project.to_dict()==before
+    assert all('F9' in b.toolTip() for b in w.findChildren(QPushButton) if b.text()=='试听本句')
     other=StudioWindow(w.home,test=True)
     assert other.audio_profile.to_data()==w.audio_profile.to_data()
     assert Preferences(w.home).data['audio_profile']==w.audio_profile.to_data()

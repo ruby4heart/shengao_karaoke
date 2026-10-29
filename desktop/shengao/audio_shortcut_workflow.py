@@ -81,11 +81,14 @@ class AudioShortcutWorkflow:
     def refresh_audio_shortcut_help(self):
         from PySide6.QtWidgets import QPushButton
         from .audio_shortcut_dialog import display_key
-        keys=[]
+        bindings={}
         for row in self.audio_profile.bindings:
-            if row.context=='Audio' and row.command=='audio/play/line':keys.extend(row.keys)
+            if row.context=='Audio':bindings.setdefault(row.command,[]).extend(row.keys)
+        commands={'试听本句':('audio/play/line','；主窗口固定F6'),'试听所选':('audio/play/selection',''),'停止':('audio/stop','')}
         for button in self.findChildren(QPushButton):
-            if button.text()=='试听本句':button.setToolTip('试听本句；时间轴焦点：'+(' / '.join(map(display_key,keys)) or '未设置')+'；主窗口固定F6')
+            if button.text() in commands:
+                command,extra=commands[button.text()];keys=bindings.get(command,[])
+                button.setToolTip(button.text()+'；时间轴焦点：'+(' / '.join(map(display_key,keys)) or '未设置')+extra)
 
     def show_audio_shortcut_settings(self):
         from .audio_shortcut_dialog import AudioShortcutDialog

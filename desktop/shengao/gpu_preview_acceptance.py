@@ -102,6 +102,14 @@ def main():
         first=pixels(canvas.frame);second=frame_variant(True);canvas.video_frame(second)
         check('controlled_sink_does_not_reuse_previous_pixels',canvas.frame_scaler_status()['frames']==2 and np.mean(np.abs(first.astype(np.int16)-pixels(canvas.frame).astype(np.int16)))>20)
         check('second_frame_has_its_own_actual_paint',wait(lambda:canvas.painted_sequence==2 and canvas.painted_frame_start_us==200000))
+        previous_scaler=canvas._gpu_scaler;sequence=canvas.frame_sequence
+        canvas.set_gpu_enabled(False)
+        check('user_can_disable_gpu_without_changing_frame_identity',not canvas.gpu_enabled and canvas.frame==second.toImage() and canvas.frame_sequence==sequence and canvas.frame_start_us==200000)
+        check('disabled_gpu_releases_owned_context',canvas._gpu_scaler is None and previous_scaler.closed)
+        canvas.video_frame(second)
+        check('disabled_gpu_stays_on_regular_path',canvas._gpu_scaler is None and canvas.frame==second.toImage())
+        canvas.set_gpu_enabled(True);canvas.video_frame(second)
+        check('user_can_reenable_checked_gpu_path',canvas.gpu_enabled and canvas._gpu_scaler is not None and canvas._gpu_scaler is not previous_scaler and canvas._frame_accelerated)
         for name,options in (
             ('yuv420p',{'pixel_format':QVideoFrameFormat.PixelFormat.Format_YUV420P}),
             ('yv12',{'pixel_format':QVideoFrameFormat.PixelFormat.Format_YV12}),
