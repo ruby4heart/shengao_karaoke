@@ -98,7 +98,8 @@ def decide(facts: Facts) -> Decision:
                           '已有歌词与人工校准保留；可以先改字，试听与压制需要可用素材。',
                           RELOCATE_MEDIA, READING if has_lines else ORIGINAL)
         return result('no_media', '先添加视频或音频',
-                      '已有歌词可以保留；也可以先打开工程或离线练习。', ADD_MEDIA, ORIGINAL)
+                      '已有歌词可以保留；添加素材后继续试听和校轴。' if has_lines else
+                      '添加素材后准备原歌词；也可以先打开工程或离线练习。', ADD_MEDIA, ORIGINAL)
     if f.suggestion_count:
         return result('suggestions', '有建议等待审核',
                       f'{f.suggestion_count} 行建议尚未采用；人工内容继续保留。', REVIEW,
