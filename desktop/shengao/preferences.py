@@ -1,5 +1,6 @@
 """Non-secret local workspace preferences, separate from project/API settings."""
 from pathlib import Path
+import copy
 import json
 import os
 import time
@@ -19,6 +20,19 @@ class Preferences:
         self.data[name]=value
         try:self.save()
         except OSError:pass
+
+    def set_many(self,changes):
+        """Adopt related non-secret settings only after the file commits.
+
+        Key profiles and their modes must not become active when a preference
+        write fails. Both the caller's values and the old live state stay owned.
+        Errors deliberately propagate to the settings dialog.
+        """
+        if type(changes) is not dict or any(not isinstance(key,str) for key in changes):
+            raise ValueError('设置更新必须是具名字段')
+        candidate=copy.deepcopy(self.data);candidate.update(copy.deepcopy(changes))
+        atomic_json(self.path,candidate)
+        self.data=candidate
 
     def recent(self):
         values=self.data.get('recent',[])
