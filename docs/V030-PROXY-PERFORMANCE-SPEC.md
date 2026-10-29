@@ -85,3 +85,9 @@ shengao-karaoke.exe --preview-performance-test --source "本机视频路径" --o
 该加速需要原生Windows图形后端；Qt的纯offscreen平台默认软件场景图，不能据其黑屏或未进入GPU路径宣称实际GPU性能。新增`--native-hidden`场景使用Windows Qt和不显示到屏幕的自有窗口，执行相同1000句、50次提交、完整撤销／重做及代理任务，所有数值门槛保持。记录平台与实际加速状态；旧offscreen结果独立保留，不改称通过，也不从两种平台挑选较快项目拼成一轮。正常／150%隐藏原生实例须另验实际颜色、字幕核心像素、PTS、缩放与CPU回退；新的独立包也须验证加速模块完整。
 
 持续播放入口为`desktop/main.py --playback-continuity-test --source ... --output ... --proxy-cache ...`，冻结包使用同名参数。缓存先由同一代理实现核验，准备时间独立于持续播放；是否复用必须记录。五处定位使用带目标位置的静止首帧预览，另有十次普通随机定位压力项，两者不混称。完整播放的正常15秒后台恢复须有实际落盘／重新加载断言。阶段进度只用于观察，以最终报告为准。
+
+## 2026-10-29：视频定位等待与实际事件循环一致
+
+视频定位使用`VideoCanvas.framePainted`与Qt原生事件循环，通知只在真实新帧完成绘制、PTS及序号更新后发出。仍从调用暂停／定位之前计时，到同一请求对应的新绘制帧就绪；500ms门槛、每源十个位置及完整PTS匹配不改。记录实际绘制延迟和观察返回尾差，报告标记`frame-painted-signal/native-qt-event-loop`。其余切句、拖动、提交、首次出画、试听、心跳与内存测量保持原方法和工作量。
+
+旧`processEvents + QTest.qWait`定位循环会在处理事件间主动睡眠，实测画面完成后还可能多等4.8–17.8ms；正常应用运行Qt事件循环。等待修正用于还原真实运行条件，未设置新的系统计时策略。新方法须重新完成源码与两档冻结包完整压力；旧504.1ms等失败全部保留，不能把新旧方法差值直接解释成播放器提速。见[Qt 6.12等待实现](https://raw.githubusercontent.com/qt/qtbase/6.12/src/corelib/kernel/qtestsupport_core.cpp)。

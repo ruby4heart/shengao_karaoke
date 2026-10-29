@@ -19,6 +19,7 @@ import time
 class VideoCanvas(QWidget):
     zoomRequested=Signal(int)
     frameSizeChanged=Signal(int,int)
+    framePainted=Signal()
     def __init__(self,parent=None):
         super().__init__(parent);self.setMinimumSize(1,1)
         self.frame=QImage();self.renderer=AssRenderer();self.position=0;self.aspect=16/9;self.show_subtitles=True;self.audio_only=False
@@ -109,10 +110,12 @@ class VideoCanvas(QWidget):
             p.drawImage(QRectF(x,y,w,h),self.renderer.image(rw,rh,self.position))
         p.end()
         if not self.frame.isNull() and w>0 and h>0:
-            if self.painted_sequence!=self.frame_sequence:self.new_frame_painted_at_s=time.perf_counter()
+            new_frame=self.painted_sequence!=self.frame_sequence
+            if new_frame:self.new_frame_painted_at_s=time.perf_counter()
             self.painted_sequence=self.frame_sequence;self.painted_frame_start_us=self.frame_start_us;self.painted_frame_end_us=self.frame_end_us
             self.painted_at_s=time.perf_counter()
             if self.first_painted_at_s is None:self.first_painted_at_s=self.painted_at_s
+            if new_frame:self.framePainted.emit()
 
 class Playback(QWidget):
     positionChanged=Signal(int)

@@ -60,6 +60,7 @@ def main():
             if fn():return True
         return False
     sizes=[];canvas.frameSizeChanged.connect(lambda w,h:sizes.append((w,h)))
+    painted=[];canvas.framePainted.connect(lambda:painted.append((canvas.painted_sequence,canvas.painted_frame_start_us,canvas.painted_frame_end_us,canvas.new_frame_painted_at_s)))
     try:
         filename='Emerald ⧸ 楽園【OFFICIAL MUSIC VIDEO】';labels=[];font_records=[]
         for role in ('projectName','muted'):
@@ -88,6 +89,7 @@ def main():
         check('gpu_quadrants_match_original_colour',max(differences)<=3)
         check('source_frame_metadata_is_unchanged',original==(frame.startTime(),frame.endTime(),frame.size(),frame.pixelFormat()))
         check('actual_canvas_paint_matches_frame_pts',wait(lambda:canvas.painted_sequence==1 and canvas.painted_frame_start_us==100000 and canvas.painted_frame_end_us==140000))
+        check('actual_gpu_paint_notification_matches_pts',any(sequence==1 and a==100000 and b==140000 and timestamp is not None for sequence,a,b,timestamp in painted))
         from .project import Project
         from .subtitles import compose
         from studio_backend.model import LyricLine

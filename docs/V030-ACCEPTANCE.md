@@ -579,3 +579,37 @@ C模块已按新源码指纹重建（`build/v030-native-origin-build.log`）：�
 两档各50次提交均通过250ms；150%唯一未通过的是原片随机定位，504.1ms仍超过500ms，即使差值较小也不删样本或放宽门槛。两档完整来源素材及5015个运行文件前后保持。`build/v030-record-fields-frozen-pressure-readback.json`再次核对实际13个目标、完整50项数组和两端清单；各自原始报告为`tmp/v030-frozen-record-fields-pressure-normal/run/report.json`与`tmp/v030-frozen-record-fields-pressure-dpi150/run/report.json`。
 
 原串行控制器已因该失败结束，退出码1、总体false；这表示性能门槛未通过，非应用崩溃，旧回执不改写成成功。其后单独启动同一运行包的整首原片／代理连续播放，使用正常轮已核验缓存，输出为`tmp/v030-frozen-record-fields-continuity-normal`；这项不受单次定位未通过影响，不能提前记作已完成。最终源码压力与正式发行仍待核对，七条目标及正式版41条主待办保持。
+
+## 2026-10-29补充：整首15目标通过与定位观测修正
+
+4f65151c冻结包的独立整首补充验收已完整结束，15目标通过、原片及5015个运行文件保持。正常缩放，1000句受控工程、默认15秒恢复、1倍速，原片路径与代理路径均实际打开，分别检查五处真实绘制帧，再各播完整首到EndOfMedia。两次恢复文件均实际落盘、重载并与当前完整DTO相等。
+
+| 项目 | 原片 | 代理 |
+| --- | ---: | ---: |
+| 新画面间隔p95／最长 | 62.0／219.9ms | 49.2／230.1ms |
+| 播放器时钟／绘制帧差p95／最长 | 35／167ms | 38／153ms |
+| 播放耗时与媒体长度差 | 32.5ms | 57.6ms |
+
+原始报告为`tmp/v030-frozen-record-fields-continuity-normal/run/report.json`，SHA256为`5e03baec6e1703c645e3c114f19f297d111436c4464ea616bcede5485e4c3f99`；独立回读为`build/v030-record-fields-continuity-readback.json`。本次直接补充运行的OpenBLAS／OMP／MKL线程环境未设置，区别于两档压力的1／2／2限制；按各自真实条件记录，不跨条件宣称收益。它是正常缩放的播放器时钟／画面与恢复验收，不能代替物理声画、整首歌词精度、150%整首或真人判断。
+
+### 局部事件诊断及未接入的计时实验
+
+当前632项实现的源码局部诊断完整保留：`tmp/v030-seek-events-dpi150-current`与`build/v030-seek-events-analysis.json`。未包装Project序列化器；500ms原片失败没有复现，本次最长336.5ms。实际画面完成至原轮询返回另多4.8–17.8ms，匹配画面前转换约21.8–72.4ms，十次没有完整GC重叠。它不是冻结包504.1ms的直接因果证明，也没有完整代理／整首阶段，不作通过证据。
+
+只给自有实验子进程请求1ms计时后，观测尾差约2.4–4.1ms，原片最长319.3ms；但连续提交仍有一次361.8ms。源码路径同一素材与相同十个目标，计时请求、PowerThrottling均已恢复，CPU优先级32保持，未改执行QoS、其他进程、全局电源或注册表。证据为`tmp/v030-seek-events-dpi150-timer/timer-experiment.json`和`build/v030-seek-events-analysis-timer.json`。此实验**未接入产品**，不将测试等待缩短当成用户界面提速证明。Windows接口条件见[Microsoft timeBeginPeriod文档](https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod)。
+
+### 新634项源码：按真实绘制通知运行Qt事件循环
+
+Qt 6.12的`qWait`循环在处理事件后调用`sleep_for`，而实际程序由Qt事件分派器持续处理解码／绘制。先前定位观测在真实画面完成后仍等待轮询，且睡眠可延后新事件处理；依据为[Qt 6.12实现](https://raw.githubusercontent.com/qt/qtbase/6.12/src/corelib/kernel/qtestsupport_core.cpp)。
+
+新增`VideoCanvas.framePainted`仅在真实新帧完成QPainter绘制并写入PTS／序号／时间后通知。普通重绘、窗口变化、字幕时钟更新或清空不冒充新帧。定位等待使用Qt原生事件循环，保留超时与完整匹配谓词；单有通知不代表所请求帧已就绪。异常清理、发送者销毁及断开自有观察者均回归。原片／代理各十个定位位置、素材、窗口、500ms门槛与其他全部门槛不改；每次保留`paint_latency_ms`与`completion_observation_ms`，报告以`frame-painted-signal/native-qt-event-loop`区分方法。历史504.1ms仍是原方法未通过，不与新方法直接作提速对照。
+
+11项针对性回归通过；两档原生GPU检查各由30扩为31项，新增真实GPU绘制通知与PTS对应。完整1268项回归正在运行，对应新包与完整压力尚未完成，旧632项包与新634项源码不混用。七条目标及正式版41条主待办保持。
+
+### 634项来源的完整回归已通过；中断压力保留
+
+**1268项完整源码回归通过，336.77秒，无失败、错误或跳过**。空参数全量调用及前后634项来源一致，日志SHA256为`a07aa348698ca80de9b0d339f5923ee1ce805fc1fa4bd6779f40b44102aa2db9`，来源映射SHA256为`8ee27c1855ce3a5658525bfd266a228f22553e1e0d5b18d65f23233ec7976d1b`。回读、日志、映射分别为`build/v030-source-full-frame-signal-readback.json`、`build/v030-source-full-frame-signal.log`、`build/v030-source-full-frame-signal-sources.json`。
+
+完整回归首次启动曾因自动审批额度不足未执行；恢复时间过后按相同审批流程启动成功，没有换通道执行。之后的首轮634项压力在会话中断时停止：旧执行句柄已消失，实际相关进程确认不存在，首轮没有完整`report.json`，控制器`stages`为空。日志中的150%原片491.1ms只是未结束轮次中的局部结果，不算整轮通过。
+
+保留`build/v030-frame-signal-pressure.json`及`tmp/v030-preview-frame-signal-dpi150`原输出后，在新目录重新串行执行两档完整压力；新控制器为`build/v030-frame-signal-pressure-resume1.json`，输出前缀`tmp/v030-preview-frame-signal-resume1-`。未重跑已通过的1268项回归，也未将中断视为完成。当前仍未重建634项运行包，0.30与七条目标不提前宣告完成。

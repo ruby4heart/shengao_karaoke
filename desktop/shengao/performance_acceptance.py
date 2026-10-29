@@ -142,12 +142,18 @@ def main():
         w.view_choice.setCurrentIndex(2);w.reveal_center_widget(w.playback)
         assert wait(lambda:w.playback.visibleRegion().boundingRect().height()==w.playback.height(),5)
         def seeks(label):
-            values=[];observations=[]
+            from .event_wait import wait_for_signal
+            canvas=w.playback.canvas;values=[];observations=[]
             for fraction in (.05,.75,.25,.9,.5,.15,.65,.35,.8,.45):
                 target=round((w.project.duration-1000)*fraction);count=len(frames);sequence=w.playback.canvas.painted_sequence;began=time.perf_counter();w.playback.stop();w.playback.seek(target)
-                found=wait(lambda:presented(sequence,target),4)
-                values.append((time.perf_counter()-began)*1000);observations.append({'target_ms':target,'matched_painted_frame':found,'painted_start_us':w.playback.canvas.painted_frame_start_us,'painted_end_us':w.playback.canvas.painted_frame_end_us,'decoder_frames':frames[count:]})
+                found=wait_for_signal(canvas.framePainted,lambda:presented(sequence,target),4000)
+                elapsed=(time.perf_counter()-began)*1000
+                painted=canvas.new_frame_painted_at_s
+                paint_latency=None if not found or painted is None else (painted-began)*1000
+                values.append(elapsed);observations.append({'target_ms':target,'matched_painted_frame':found,'painted_start_us':canvas.painted_frame_start_us,'painted_end_us':canvas.painted_frame_end_us,'decoder_frames':frames[count:],
+                    'paint_latency_ms':paint_latency,'completion_observation_ms':None if paint_latency is None else elapsed-paint_latency})
             record(label,values,500);report['measurements'][label]['observations']=observations;report['targets'][label]=report['targets'][label] and all(v['matched_painted_frame'] for v in observations)
+            report['measurements'][label]['wait_method']='frame-painted-signal/native-qt-event-loop'
         seeks('original_random_seek_10')
         values=[]
         for fraction in (.1,.4,.2,.6,.3,.8,.45,.7,.15,.55):
