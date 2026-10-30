@@ -1,5 +1,5 @@
 project('shengao-engine', 'c', 'cpp', version: '0.8.0',
-  meson_version: '>=1.0.0', license: ['MIT', 'BSD-3-Clause', 'ISC'],
+  meson_version: '>=1.0.0', license: 'MIT',
   subproject_dir: 'vendor/aegisub/subprojects',
   default_options: ['buildtype=release', 'default_library=static', 'c_std=c11', 'cpp_std=c++17', 'b_ndebug=true',
     'harfbuzz:icu=disabled', 'harfbuzz:utilities=disabled', 'harfbuzz:introspection=disabled', 'harfbuzz:docs=disabled'])
