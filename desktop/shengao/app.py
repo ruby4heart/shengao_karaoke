@@ -63,6 +63,7 @@ from .workbench_flow import WorkbenchFlow
 from .audio_shortcut_workflow import AudioShortcutWorkflow
 from .tap_timing_dialog import TapTimingWorkflow
 from .preview_preferences import PreviewPreferencesWorkflow
+from .version_history_dialog import VersionWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -70,7 +71,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -90,7 +91,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         explain_buttons(self);self.connect_signals();self.shortcuts();self.init_audio_shortcuts();self.init_preview_preferences();self.refresh();self.refresh_audio_shortcut_help()
         from .fast_snapshot import enable as enable_fast_snapshot
         self.snapshot_accelerator=enable_fast_snapshot()
-        self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed)
+        self.recovery_writer=RecoveryWriter(self.recovery_path(),self.recovery_failed);self.init_version_history()
         self._edited_recovery=None;self.edited_recovery_timer=QTimer(self);self.edited_recovery_timer.setSingleShot(True);self.edited_recovery_timer.setInterval(1000);self.edited_recovery_timer.timeout.connect(self.publish_edited_checkpoint)
         self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
@@ -121,7 +122,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.project_label.setMaximumWidth(220);self.project_label.setMinimumWidth(0);self.project_label.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred)
         self.project_label.setObjectName('projectName');self.save_state=label('尚未保存','saveState',False);row.addWidget(self.save_state)
         project_menu=QMenu(self)
-        for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
+        for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('版本历史…',self.open_version_history),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
         project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('打轴快捷键设置…',self.show_audio_shortcuts);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
         project_menu.addAction('预览与后台设置…',self.show_preview_preferences)
         project_menu.addAction('导出诊断报告…',self.export_diagnostics)
@@ -1642,7 +1643,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self._discarding=True
         return True
     def new(self):
-        if self.can_replace():self.clear_media();self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.reset_output_context();self.timeline.spectrum=None;self.refresh();self.set_stage(0)
+        if self.can_replace():self.clear_media();self.kept_drafts=[];self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.reset_output_context();self.timeline.spectrum=None;self.refresh();self.set_stage(0)
     def open_dialog(self):
         path,_=QFileDialog.getOpenFileName(self,'打开工程或字幕','','工程与字幕 (*.sgproj *.json *.ass *.ssa *.lrc *.srt);;所有文件 (*)')
         if path:self.open_path(path)
@@ -1653,9 +1654,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if p is None:self._discarding=False;self.message('已取消打开。');return False
         self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
         self.clear_recovery();self.reset_output_context();self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
+        self.kept_drafts=[r for r in self.kept_drafts if r.get('project_uid')==p.uid]
         self.refresh(True);self.set_stage(2 if p.lines else 0)
+        relocated=self.relocate_missing_media(path);p=self.project
         if p.media and Path(p.media).is_file():self.load_media(p.media,edit=False)
-        self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。')
+        if not relocated:self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。')
         if report is not None:self.apply_external_ass(report)
         return True
     def review_external_ass(self,path,project):
@@ -1697,7 +1700,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if path.suffix.lower()!='.sgproj':path=path.with_suffix('.sgproj')
         try:save_project(self.project,path)
         except (ValueError,OSError) as error:self.message('保存失败：'+str(error));return False
-        self.path=path;self.history.mark_saved();self.clear_recovery();self.remember_project();self.refresh();self.message('作品已保存：'+str(path));return True
+        self.path=path;self.history.mark_saved();self.clear_recovery();self.record_version('save');self.remember_project();self.refresh();self.message('作品已保存：'+str(path));return True
     def paste_lyrics(self):
         if not self.flush_edits():return
         dialog=LyricsDialog(self)
@@ -2097,7 +2100,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not self.closing:self.message('自动恢复文件无法写入，请及时保存工程：'+str(error))
     def recovery_record(self,snapshot):
         # Workers never read the live project or a mutable pending API result.
-        return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending)}
+        return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending),'drafts':self.unapplied_drafts()}
     def checkpoint_edited_snapshot(self,snapshot):
         # Only the successful synchronous History transaction calls this.
         # Its detached snapshot is immutable to all internal readers. Exact
@@ -2109,7 +2112,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if snapshot!=self.history.saved:
             self._edited_recovery=(self.project.uid,self.recovery_record(snapshot))
             if not self.edited_recovery_timer.isActive():self.edited_recovery_timer.start()
-        else:self.clear_recovery()
+        elif not self.unapplied_drafts():self.clear_recovery()
         self.autosave.start()
         return True
     def drop_edited_checkpoint(self):
@@ -2122,14 +2125,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         else:self.recovery_writer.queue_owned(record)
     def queue_recovery(self):
         if self.closing:return
-        self.drop_edited_checkpoint()
+        self.drop_edited_checkpoint();self.maybe_auto_version()
         snapshot=self.project.to_dict()
-        if snapshot!=self.history.saved or self.pending:self.recovery_writer.queue_owned(self.recovery_record(snapshot))
+        if snapshot!=self.history.saved or self.pending or self.unapplied_drafts():self.recovery_writer.queue_owned(self.recovery_record(snapshot))
         else:self.clear_recovery()
     def save_recovery(self):
         self.drop_edited_checkpoint()
         snapshot=self.project.to_dict()
-        if snapshot!=self.history.saved or self.pending:
+        if snapshot!=self.history.saved or self.pending or self.unapplied_drafts():
             try:self.recovery_writer.write_now(self.recovery_record(snapshot))
             except (OSError,ValueError) as error:self.recovery_failed(error)
         else:self.clear_recovery()
@@ -2140,11 +2143,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def offer_recovery(self):
         path=self.recovery_path()
         if not path.exists():return
-        if QMessageBox.question(self,'恢复上次制作','发现上次未保存的工程或待审核结果，是否恢复？')!=QMessageBox.StandardButton.Yes:return
+        if QMessageBox.question(self,'恢复上次制作','发现上次未保存的工程、待审核结果或未应用的草稿，是否恢复？')!=QMessageBox.StandardButton.Yes:return
         try:
             data=json.loads(path.read_text(encoding='utf-8'));self.history=History(Project.from_dict(data['project']));self.history.saved={};self.path=Path(data['path']) if data.get('path') else None;self.pending=data.get('pending');self.current=0;self.refresh(True)
+            self.relocate_missing_media(self.path)
             if self.project.media and Path(self.project.media).exists():self.load_media(self.project.media,False)
-        except (OSError,ValueError) as error:self.message('恢复失败：'+str(error))
+        except (OSError,ValueError) as error:self.message('恢复失败：'+str(error));return
+        drafts=data.get('drafts') if isinstance(data,dict) else None
+        if isinstance(drafts,list) and drafts:self.offer_drafts(drafts)
     def dragEnterEvent(self,event):
         if event.mimeData().hasUrls():event.acceptProposedAction()
     def dropEvent(self,event):
