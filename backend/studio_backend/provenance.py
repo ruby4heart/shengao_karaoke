@@ -179,6 +179,8 @@ def summary(item,confirmed=False,mora=False):
     if value['method']=='legacy':detail.append('旧记录未保留完整来源；不推断缺失的字／词粒度。')
     if value['method']=='legacy' and kind=='manual':detail.append('旧版人工标记也用于整体移动，无法据此判断是否曾逐音校准。')
     if value['method']=='lrc_end_estimate':detail.append('LRC 提供起点；本句结束按下一标签或默认 5 秒推算。')
+    if value['method']=='lrc_word_tags':detail.append('增强 LRC 的逐字标签给出起点和结束标签。')
+    if value['method']=='word_tags':detail.append('来自增强 LRC 的逐字时间标签。')
     if value['method']=='phrase_transcription':title='整句时间参考';detail.append('服务只返回整句范围，内部词组与音节需要另行估算或对齐。')
     if value['method']=='restored_legacy_voice':detail.append('旧工程保留的音素区间与原始参考范围逐项对应；仅读取依据，不改写旧记录。')
     if value.get('parent_kinds'):detail.append('上级时间依据：'+'、'.join(names[k] for k in value['parent_kinds'])+'。')

@@ -124,6 +124,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         for title,fn in [('另存工程…',self.save_as),('重命名作品…',self.rename_project),('重新定位媒体…',self.add_media)]:project_menu.addAction(title).triggered.connect(fn)
         project_menu.addSeparator();project_menu.addAction('快速上手',self.show_guide);project_menu.addAction('打轴快捷键设置…',self.show_audio_shortcuts);project_menu.addAction('轻量视频预览…',self.open_proxy_settings)
         project_menu.addAction('预览与后台设置…',self.show_preview_preferences)
+        project_menu.addAction('导出诊断报告…',self.export_diagnostics)
         project_menu.addAction('新建作品',self.new);self.recent_menu=project_menu.addMenu('最近作品');self.refresh_recent_menu()
         project_button=QPushButton('作品');project_button.setMenu(project_menu);row.addWidget(project_button);row.addStretch()
         self.workflow_toggle=QPushButton('流程');self.workflow_toggle.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown));self.workflow_toggle.setCheckable(True);self.workflow_toggle.setToolTip('展开／收起五步制作流程；默认收起，为视频留出空间。');row.addWidget(self.workflow_toggle)
@@ -1647,13 +1648,45 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if path:self.open_path(path)
     def open_path(self,path,guard=True):
         if guard and not self.can_replace():return False
-        try:p=load_project(path)
+        try:p=load_project(path);p,report=self.review_external_ass(path,p)
         except (ValueError,OSError) as error:self._discarding=False;self.message('打开失败：'+str(error));return False
+        if p is None:self._discarding=False;self.message('已取消打开。');return False
         self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
         self.clear_recovery();self.reset_output_context();self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
         self.refresh(True);self.set_stage(2 if p.lines else 0)
         if p.media and Path(p.media).is_file():self.load_media(p.media,edit=False)
-        self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。');return True
+        self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。')
+        if report is not None:self.apply_external_ass(report)
+        return True
+    def review_external_ass(self,path,project):
+        """Shengao-exported ASS edited elsewhere: returns (project or None, edits)."""
+        if Path(path).suffix.lower() not in {'.ass','.ssa'}:return project,None
+        from .ass_roundtrip import inspect
+        text=Path(path).read_text(encoding='utf-8-sig');report=inspect(text,project)
+        if not report.any:return project,None
+        if not report.display_changed:return project,report
+        box=QMessageBox(self);box.setWindowTitle('字幕在其他软件中修改过');box.setIcon(QMessageBox.Icon.Question)
+        box.setText(report.summary()+'。')
+        box.setInformativeText('按声稿工程打开会重新生成样式和显示事件，外部的样式修改不保留'+('；逐音时间修改会作为一步可撤销操作应用' if report.changes else '')+'。作为外部 ASS 导入会保留其样式与特效，并进入兼容模式。')
+        keep=box.addButton('按声稿工程打开',QMessageBox.ButtonRole.AcceptRole)
+        external=box.addButton('作为外部 ASS 导入',QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QMessageBox.StandardButton.Cancel);box.setDefaultButton(keep);box.exec()
+        if box.clickedButton() is keep:return project,report
+        if box.clickedButton() is external:
+            from .subtitle_import import import_ass
+            return import_ass(text,Path(path)),None
+        return None,None
+    def apply_external_ass(self,report):
+        from .ass_roundtrip import apply
+        skipped=[]
+        if report.changes:
+            try:self.history.apply('应用外部 ASS 时间修改',lambda project:skipped.extend(apply(project,report)))
+            except ValueError as error:skipped.append(str(error))
+            else:self.refresh(True)
+        applied=len(report.changes)-len(skipped)
+        problems=report.conflicts+skipped
+        if applied>0:self.message(f'已应用其他软件修改的 {applied} 句时间，可撤销。')
+        if problems:QMessageBox.information(self,'部分外部修改未应用','原歌词始终保留，以下修改没有应用：\n'+'\n'.join(problems[:20])+('\n……' if len(problems)>20 else ''))
     def save(self):
         if not self.flush_edits():return False
         path=self.path
@@ -1960,12 +1993,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def export_ass(self):
         if not self.flush_edits():return
         if not self.project.lines:self.message('请先加入歌词');return
-        path,selected_filter=QFileDialog.getSaveFileName(self,'导出字幕',self.project.title+'.ass','ASS 字幕 (*.ass);;SRT 字幕 (*.srt);;纯文本歌词 (*.txt)')
+        from .subtitle_files import export_subtitle,format_filter,format_kind,format_note
+        path,selected_filter=QFileDialog.getSaveFileName(self,'导出字幕',self.project.title+'.ass',format_filter())
         if not path:return
         try:
-            from .subtitle_files import export_subtitle
-            kind='srt' if 'SRT' in selected_filter else 'txt' if '*.txt' in selected_filter else 'ass'
-            destination=Path(path).with_suffix('.'+kind);export_subtitle(self.project,destination,kind);self.message('字幕已导出：'+str(destination))
+            kind=format_kind(selected_filter,path)
+            destination=Path(path).with_suffix('.'+kind);export_subtitle(self.project,destination,kind);self.message('字幕已导出：'+str(destination)+'。'+format_note(kind))
         except (ValueError,OSError) as error:self.message(str(error))
     def start_encode(self,sample):
         if not self.flush_edits():return
@@ -1994,6 +2027,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         record={'kind':kind,'state':state,'created':time.time(),'title':self.project.title,**data}
         try:atomic_json(self.home/'desktop-renders'/(uuid.uuid4().hex+'.json'),record)
         except OSError:self.message('任务已结束，但任务记录无法保存，请记录输出位置。')
+    def export_diagnostics(self):
+        import time
+        from .diagnostics import write
+        name='声稿诊断报告-'+time.strftime('%Y%m%d-%H%M')+'.txt'
+        path,_=QFileDialog.getSaveFileName(self,'导出诊断报告',str(Path.home()/name),'文本文件 (*.txt)')
+        if not path:return
+        try:write(path,self.home,self.project);self.message('诊断报告已导出：'+path+'。报告不含密钥、歌词和素材文件名，发送前可打开检查。')
+        except OSError as error:self.message('诊断报告导出失败：'+str(error))
     def task_history(self):
         dialog=QDialog(self);dialog.setWindowTitle('任务记录与结果恢复');dialog.resize(800,520);l=vertical(dialog)
         items=QListWidget();l.addWidget(items);entries=[]

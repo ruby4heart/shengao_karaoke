@@ -211,7 +211,7 @@ async def operation(request, root, report):
         payloads=[annotation_input(line,[],('','')) if line.units else {'id':line.id,'text':line.text} for line in lines]
         annotations=await api.deepseek_annotate(payloads,key,
                                                config.get('model') or 'deepseek-flash',diagnostics)
-        suggestions=[annotation_suggestion(line,annotation,request.get('romanization_rules')).to_dict() for line,annotation in zip(lines,annotations)]
+        suggestions=_converted(lambda:[annotation_suggestion(line,annotation,request.get('romanization_rules')).to_dict() for line,annotation in zip(lines,annotations)],annotations,diagnostics,report)
         return {'suggestions':suggestions,'annotations':annotations,'diagnostics':diagnostics,'review_required':True}
     media=Path(request['media'])
     if not media.is_file():
@@ -255,22 +255,35 @@ async def operation(request, root, report):
             text='\n'.join(line.text for line in lines)
             report('aligning','ElevenLabs 正在将所选歌词对齐到音频')
             raw=await api.eleven_align(audio,text,key,diagnostics)
-            suggestions=alignment_suggestions(lines,raw,start)
+            suggestions=_converted(lambda:alignment_suggestions(lines,raw,start),raw,diagnostics,report)
         else:
             await extract(media,audio)
             report('transcribing','正在上传音频并等待识别结果')
             if provider=='elevenlabs':
                 raw=await api.eleven_transcribe(audio,key,request.get('language','ja'),diagnostics)
-                suggestions=[line.to_dict() for line in eleven_lines(raw)]
+                suggestions=_converted(lambda:[line.to_dict() for line in eleven_lines(raw)],raw,diagnostics,report)
             elif provider=='mai':
                 raw=await api.mai_transcribe(audio,key,config.get('endpoint',''),request.get('language','ja'),diagnostics)
-                suggestions=[line.to_dict() for line in mai_lines(raw)]
+                suggestions=_converted(lambda:[line.to_dict() for line in mai_lines(raw)],raw,diagnostics,report)
             else:
                 raise ValueError('不支持的识别服务')
         result={'suggestions':suggestions,'original_api_result':raw,'diagnostics':diagnostics,
                 'review_required':True,'cached':False,'media_fingerprint':audio_hash}
         atomic_json(cache,result)
         return timing_result(result,request) if action=='align' else result
+
+
+def _converted(convert,raw,diagnostics,report):
+    """Turn a paid response into suggestions; never lose it on a format surprise."""
+    try:return convert()
+    except api.ApiError:raise
+    except (KeyError,IndexError,TypeError,AttributeError,ValueError) as error:
+        folder=getattr(report,'task_dir',None)
+        if folder is not None:
+            try:atomic_json(Path(folder)/'api-response.json',raw);diagnostics['response_saved']='api-response.json'
+            except (OSError,TypeError,ValueError):pass
+        diagnostics['exception']=type(error).__name__
+        raise api.failure('服务已返回结果，但内容结构无法识别；未应用结果'+('，原始返回已保留在任务目录' if diagnostics.get('response_saved') else '')+'。',diagnostics,'parsing') from error
 
 
 async def execute(request, root, result_path):
@@ -305,8 +318,10 @@ async def execute(request, root, result_path):
     except (ValueError,KeyError,TypeError,OSError) as error:
         # ApiError messages are deliberately sanitized; never dump HTTP headers.
         message=str(error) if isinstance(error,ValueError) else '文件、配置或接口返回结构无效，请检查后重试'
+        diagnostics=dict(getattr(error,'diagnostics',None) or {})
+        api.stamp(diagnostics)  # no recorded request phase: failed locally, nothing sent
         atomic_json(result_path,{'ok':False,'message':message,'exception':type(error).__name__,
-                                'diagnostics':getattr(error,'diagnostics',{}),
+                                'diagnostics':diagnostics,
                                 **({'transcript':error.transcript} if hasattr(error,'transcript') else {})})
         report('error',message)
     except Exception as error:
