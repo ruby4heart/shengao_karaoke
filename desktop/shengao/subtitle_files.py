@@ -140,30 +140,37 @@ def lrc_text(project,words=True):
     return '\n'.join(rows)+'\n'
 
 def export_subtitle(project,path,kind='ass'):
+    """Write the subtitle file; for ASS also carry every font it is drawn with.
+
+    Returns ``{'path','fonts','missing'}``: the font files carried beside the
+    ASS, and the fonts that could not be carried (their files are gone)."""
     path=Path(path);project.validate()
     if not project.lines:raise ValueError('工程没有歌词')
+    carried=[];skipped=[]
     if kind=='ass':
         value=copy.deepcopy(project)
         resources=path.parent/(path.stem+'.assets')/'fonts';resources.mkdir(parents=True,exist_ok=True)
         for name,family in [('font_file','font'),('ruby_font_file','ruby_font'),('translation_font_file','translation_font')]:
-            source=resolve_font(getattr(value.style,name),getattr(value.style,family));digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12];destination=resources/(digest+source.suffix)
+            chosen=getattr(value.style,name)
+            if chosen and not Path(chosen).is_file():skipped.append(Path(chosen).name)
+            source=resolve_font(chosen,getattr(value.style,family));digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12];destination=resources/(digest+source.suffix)
             if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
-            setattr(value.style,name,str(destination))
+            setattr(value.style,name,str(destination));carried.append(destination.name)
         # Embed relative resource paths so an exported ASS can reopen elsewhere.
         data=value.to_dict()
         if value.song_info.get('font') or value.song_info.get('font_file'):
             from .song_info import font_path
             source=font_path(value);destination=resources/(hashlib.sha256(source.read_bytes()).hexdigest()[:12]+source.suffix)
             if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
-            value.song_info['font_file']=str(destination)
+            value.song_info['font_file']=str(destination);carried.append(destination.name)
             data['song_info']['font_file']=str(destination.relative_to(path.parent))
         for name in ('font_file','ruby_font_file','translation_font_file'):data['style'][name]=os.path.relpath(getattr(value.style,name),path.parent)
         for family,source_name in value.font_assets.items():
             source=Path(source_name)
-            if not source.is_file():continue
+            if not source.is_file():skipped.append(family);continue
             destination=resources/(hashlib.sha256(source.read_bytes()).hexdigest()[:12]+source.suffix)
             if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
-            data['font_assets'][family]=str(destination.relative_to(path.parent))
+            data['font_assets'][family]=str(destination.relative_to(path.parent));carried.append(destination.name)
         if value.media:
             try:data['media']=os.path.relpath(value.media,path.parent)
             except ValueError:pass
@@ -174,7 +181,7 @@ def export_subtitle(project,path,kind='ass'):
         # Lets a reopen notice timing edits made in Aegisub and similar tools.
         from .ass_roundtrip import mark
         text=mark(text,value).rstrip('\n')+'\n'
-        for license in (ASSETS/'fonts').glob('*LICENSE.txt'):shutil.copy2(license,resources/license.name)
+        for license in (ASSETS/'fonts').glob('*LICENSE.txt'):shutil.copy2(license,resources.parent/license.name)
         (path.parent/(path.stem+'-字体说明.txt')).write_text('本 ASS 使用同名 .assets/fonts 中的字体。声稿重开时会自动读取。使用其他字幕播放器时请自行配置该字体目录，或安装所选字体；直接交付视频可使用内置压制。\n',encoding='utf-8-sig')
     elif kind=='srt':text='\n\n'.join(f'{i}\n{srt_time(line.start)} --> {srt_time(line.end)}\n{line.text}' for i,line in enumerate(project.lines,1))+'\n'
     elif kind=='lrc':text=lrc_text(project)
@@ -185,3 +192,4 @@ def export_subtitle(project,path,kind='ass'):
         with os.fdopen(fd,'w',encoding='utf-8-sig' if kind=='ass' else 'utf-8',newline='\n') as stream:stream.write(text)
         os.replace(temporary,path)
     finally:Path(temporary).unlink(missing_ok=True)
+    return {'path':str(path),'fonts':list(dict.fromkeys(carried)),'missing':list(dict.fromkeys(skipped))}

@@ -26,7 +26,7 @@ from .timeline_context import PreviousContext
 from .timing import set_time,edit_reading,merge_words,split_word,shift_following
 from .api_jobs import ApiJob
 from . import jobs,media
-from .encode import encode,EncodeOptions,capabilities
+from .encode import encode,EncodeOptions,capabilities,capability_text
 from .dialogs import LyricsDialog,PauseDialog,ReviewDialog,SettingsDialog,button
 from .paths import ROOT,ASSETS
 from .theme import STYLE
@@ -66,6 +66,7 @@ from .tap_timing_dialog import TapTimingWorkflow
 from .preview_preferences import PreviewPreferencesWorkflow
 from .version_history_dialog import VersionWorkflow
 from .edit_position import EditPositionWorkflow
+from .render_workflow import RenderWorkflow,font_export_note
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -73,7 +74,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow,EditPositionWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow,EditPositionWorkflow,RenderWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -81,7 +82,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.api=ApiJob(self,self.home);self.local_job=None;self.analysis_job=None;self.extra_fonts=[];self.snapshots={}
         self.analysis_generation=0;self.closing=False
         self.init_proxy_workflow()
-        self.encoder_capabilities=None;self.capability_job=None
+        self.encoder_capabilities=None;self.capability_job=None;self.init_render_workflow()
         self._render_snapshot=None;self._render_font_stamp=None;self._render_text=None
         from .subtitles import CompositionCache
         self._composition_cache=CompositionCache()
@@ -97,7 +98,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self._edited_recovery=None;self.edited_recovery_timer=QTimer(self);self.edited_recovery_timer.setSingleShot(True);self.edited_recovery_timer.setInterval(1000);self.edited_recovery_timer.timeout.connect(self.publish_edited_checkpoint)
         self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
-        if not test:QTimer.singleShot(250,self.offer_recovery)
+        if not test:QTimer.singleShot(0,self.recover_interrupted_renders);QTimer.singleShot(250,self.offer_recovery)
         if self.audio_profile_warning:QTimer.singleShot(0,lambda warning=self.audio_profile_warning:self.message(warning))
         saved=self.preferences.data
         volume=saved.get('volume',70)
@@ -375,7 +376,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.output_size=QComboBox();self.output_size.addItem('分辨率跟随原视频','source');self.output_size.addItem('1920 × 1080','1080p');self.output_size.addItem('1280 × 720','720p');l.addWidget(self.output_size)
         self.quality=QComboBox();self.quality.addItem('标准画质 · 6 Mbps','standard');self.quality.addItem('较高画质 · 12 Mbps','high');l.addWidget(self.quality)
         self.encoder=QComboBox();self.encoder.addItem('CPU 编码 · H.264 / AAC','cpu');self.encoder.addItem('显卡编码 · 需要硬件与驱动支持','hardware');l.addWidget(self.encoder)
-        self.output_label=label('输出帧率跟随原视频。压制在后台运行，工程可以继续编辑；任务使用开始时的工程快照。','muted');l.addWidget(self.output_label);l.addStretch()
+        self.build_render_controls(l)
+        self.output_label=label('输出帧率跟随原视频。压制在后台运行，工程可以继续编辑；任务使用开始时的工程快照。','muted');l.addWidget(self.output_label);self.build_render_queue(l);l.addStretch()
         row=QHBoxLayout();self.play_output_button=button('播放成品',lambda:self.open_last_output(False));self.folder_output_button=button('打开文件夹',lambda:self.open_last_output(True));row.addWidget(self.play_output_button);row.addWidget(self.folder_output_button);l.addLayout(row)
 
     def connect_signals(self):
@@ -991,12 +993,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.play_output_button.setEnabled(bool(self.last_output and Path(self.last_output).is_file()));self.folder_output_button.setEnabled(self.play_output_button.isEnabled())
         if hasattr(self,'output_actions'):
             self.output_actions.setVisible(self.play_output_button.isEnabled())
-            available=bool(media_ready and p.duration>0 and has_lines and not self.local_job)
+            # A running export no longer blocks: new videos join the render queue.
+            available=bool(media_ready and p.duration>0 and has_lines)
             self.sample_button.setEnabled(available);self.encode_button.setEnabled(available)
             if not available:
-                tip='先添加素材、歌词并等待读取完成；已有导出任务时请等待或取消。'
+                tip='先添加素材、歌词并等待读取完成。'
                 self.sample_button.setToolTip(tip);self.encode_button.setToolTip(tip)
-            else:self.sample_button.setToolTip('试听／检查当前句附近的 12 秒样片');self.encode_button.setToolTip('将字幕写入完整视频；音频素材使用纯色背景')
+            else:self.sample_button.setToolTip('按导出页的“样片范围”压制一段样片，检查字幕效果；已有任务时加入队列');self.encode_button.setToolTip('将字幕写入完整视频；音频素材使用纯色背景；已有任务时加入队列')
+            self.refresh_sample_range()
         empty=not p.media and not has_lines;self.center_pages.setCurrentIndex(0 if empty else 1)
         if empty and self.stage==0:self.left_panel.hide();self.right_panel.hide()
         elif self.stage==0 or has_lines:self.right_panel.show();self.left_panel.setVisible(has_lines and self.width()>=1180 and self.view_choice.currentIndex()==0)
@@ -1327,7 +1331,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.encoder_capabilities=value
             for index,key in enumerate(['cpu','hardware']):self.encoder.model().item(index).setEnabled(value[key])
             if not value['cpu'] and value['hardware']:self.encoder.setCurrentIndex(1)
-            self.output_label.setText('本机编码检查：'+('CPU 可用' if value['cpu'] else 'CPU 不可用')+'；'+('显卡可用' if value['hardware'] else '显卡不可用')+('。音频将生成深色背景的字幕视频。' if self.project.has_video is False else '。输出帧率跟随源视频。'))
+            elif value['cpu'] and not value['hardware'] and self.encoder.currentData()=='hardware':self.encoder.setCurrentIndex(0)
+            if value.get('cpu_codec')=='libx264':self.encoder.setItemText(0,'CPU 编码 · H.264 (libx264) / AAC')
+            self.output_label.setText(capability_text(value,self.project.has_video is False))
         def failed(message):
             self.capability_job=None
             if not self.closing:self.message('编码能力检查未完成：'+message)
@@ -1506,15 +1512,16 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def render_unchanged(self,snapshot):
         if snapshot!=self._render_snapshot or self.playback.canvas.renderer.text!=self._render_text:return False
-        from .fonts import project_font_files
-        return [file_stamp(path) for path in project_font_files(self.project)]==self._render_font_stamp
+        from .render_plan import render_fonts
+        return [file_stamp(path) for path in render_fonts(self.project)]==self._render_font_stamp
 
     def render_subtitles(self,*,_snapshot=None,_windows=None,_after_edit=False):
         if self.closing:return
         if hasattr(self,'render_timer'):self.render_timer.stop()
         try:
-            from .fonts import project_font_files
-            fonts=project_font_files(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict() if _snapshot is None else _snapshot;renderer=self.playback.canvas.renderer
+            # The exact font files the encoder and the ASS export use (render_plan).
+            from .render_plan import render_fonts
+            fonts=render_fonts(self.project);font_stamp=[file_stamp(path) for path in fonts];snapshot=self.project.to_dict() if _snapshot is None else _snapshot;renderer=self.playback.canvas.renderer
             renderer.add_fonts(fonts)
             if snapshot!=self._render_snapshot or font_stamp!=self._render_font_stamp or renderer.text!=self._render_text:
                 composer=_compose_after_edit if _after_edit else compose
@@ -1661,6 +1668,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         relocated=self.relocate_missing_media(path);p=self.project
         if p.media and Path(p.media).is_file():self.load_media(p.media,edit=False)
         if not relocated:self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。')
+        self.note_font_problems()
         self.restore_edit_position(lead=self.status.text())
         if report is not None:self.apply_external_ass(report)
         return True
@@ -1956,13 +1964,13 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.message(f'已采用 {len(accepted)} 行建议。'+(f'{len(skipped)} 行已修改或锁定，保留当前内容；未采用的建议仍可审核。' if skipped else '其余建议仍可继续审核。' if self.pending else '请试听并确认时间与读音。'))
 
     def busy_changed(self):
-        busy=self.api.busy or bool(self.local_job) or bool(self.source_job) or bool(self.proxy_job);self.cancel_button.setVisible(busy);self.progress.setVisible(busy)
+        busy=self.api.busy or bool(self.local_job) or self.render_queue.busy or bool(self.source_job) or bool(self.proxy_job);self.cancel_button.setVisible(busy);self.progress.setVisible(busy)
         if self.api.busy or self.source_job or self.proxy_job:self.progress.setRange(0,0)
         else:self.progress.setRange(0,100)
         self.update_workflow();self.refresh_media_source();self.refresh_vocal_tools();self.refresh_proxy_tools()
     def cancel_task(self):
         if self.api.busy:self.api.cancel()
-        if self.local_job:self.local_job.cancel.set();self.message('正在取消压制任务。')
+        if self.local_job or self.render_queue.busy:self.render_queue.cancel_all();self.message('正在取消压制任务，等待中的任务也已取消；不会留下半成品。')
         if self.proxy_job:self.cancel_proxy_request();self.message('正在取消轻量预览任务，当前素材与字幕保持。')
         if self.source_job:self.source_job.cancel.set();self.message('正在取消声音空隙检查，原时间保留。' if self.source_job_kind=='sound_gaps' else '正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
 
@@ -2000,35 +2008,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not path:return
         try:
             kind=format_kind(selected_filter,path)
-            destination=Path(path).with_suffix('.'+kind);export_subtitle(self.project,destination,kind);self.message('字幕已导出：'+str(destination)+'。'+format_note(kind))
+            if kind=='ass' and not self.confirm_fonts('导出 ASS'):return
+            destination=Path(path).with_suffix('.'+kind);report=export_subtitle(self.project,destination,kind);self.message('字幕已导出：'+str(destination)+'。'+format_note(kind)+font_export_note(report,kind))
         except (ValueError,OSError) as error:self.message(str(error))
-    def start_encode(self,sample):
-        if not self.flush_edits():return
-        if self.local_job or self.source_job:self.message('请等待当前压制或换源任务完成');return
-        if not self.project.duration:self.message('请先添加视频或音频，等待素材读取完成');return
-        version='-'+ROLES[self.project.media_role] if len(self.project.media_versions)>1 else ''
-        suffix=version+('-试压.mp4' if sample else '-字幕成品.mp4')
-        path,_=QFileDialog.getSaveFileName(self,'试压视频' if sample else '压制成品视频',self.project.title+suffix,'MP4 视频 (*.mp4)')
-        if not path:return
-        start=max(0,self.line.start-1000) if sample and self.line else 0
-        duration=min(12000,self.project.duration-start) if sample else 0
-        options=EncodeOptions(path,start,duration,self.output_size.currentData(),self.quality.currentData(),self.encoder.currentData())
-        self.encode_to(options)
-    def encode_to(self,options):
-        if self.source_job:self.message('请等待换源完成再压制');return
-        snapshot=Project.from_dict(self.project.to_dict());output_source_stamp=file_stamp(snapshot.media);self.progress.setRange(0,100);self.progress.setValue(0)
-        def done(result):
-            self.local_job=None;self.last_output=result['output'];self._last_output_snapshot=snapshot.to_dict();self._last_output_stamp=output_source_stamp;self._last_output_full=options.start==0 and (not options.duration or options.duration>=snapshot.duration);self.busy_changed();self.output_label.setText('已完成：'+result['output']);self.message('视频已导出，可以播放成品或打开文件夹。');self.record_task('encode','completed',result)
-        def failed(message):
-            self.local_job=None;self.busy_changed();self.message(message);self.record_task('encode','failed',{'message':message})
-        def progress(value):
-            self.progress.setValue(round(value['ratio']*100));remaining=value.get('remaining');self.message(f'正在压制 {value["ratio"]:.0%}'+(f' · 预计剩余 {remaining:.0f} 秒' if remaining is not None else ''))
-        self.local_job=jobs.run(lambda cancel,report:encode(snapshot,options,cancel,report),done,failed,progress);self.busy_changed();self.message('压制任务已开始，使用当前工程的独立快照。')
-    def record_task(self,kind,state,data):
-        import uuid,time
-        record={'kind':kind,'state':state,'created':time.time(),'title':self.project.title,**data}
-        try:atomic_json(self.home/'desktop-renders'/(uuid.uuid4().hex+'.json'),record)
-        except OSError:self.message('任务已结束，但任务记录无法保存，请记录输出位置。')
     def export_diagnostics(self):
         import time
         from .diagnostics import write
@@ -2041,9 +2023,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         dialog=QDialog(self);dialog.setWindowTitle('任务记录与结果恢复');dialog.resize(800,520);l=vertical(dialog)
         items=QListWidget();l.addWidget(items);entries=[]
         render_root=self.home/'desktop-renders'
+        from .render_queue import history_text as render_history_text
         for file in sorted(render_root.glob('*.json'),key=lambda p:p.stat().st_mtime,reverse=True)[:50] if render_root.exists() else []:
             try:
-                value=json.loads(file.read_text(encoding='utf-8'));entries.append((None,{'action':'encode'},value));items.addItem('视频压制 · '+('完成 · '+str(value.get('output','')) if value.get('state')=='completed' else value.get('message','未完成')))
+                value=json.loads(file.read_text(encoding='utf-8'));entries.append((None,{'action':'encode'},value));items.addItem(render_history_text(value))
             except (ValueError,OSError):continue
         root=self.home/'desktop-tasks'
         for folder in sorted(root.iterdir(),key=lambda x:x.stat().st_mtime,reverse=True)[:100] if root.exists() else []:
@@ -2166,7 +2149,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def closeEvent(self,event):
         if self.test:
             self.api.abandon();self.dispose();event.accept();return
-        if self.api.busy or self.local_job or self.source_job or self.proxy_job:
+        if self.api.busy or self.local_job or self.render_queue.busy or self.source_job or self.proxy_job:
             QMessageBox.information(self,'任务仍在运行','请等待任务完成，或点击“取消任务”后再关闭。');event.ignore();return
         if not self.can_replace():event.ignore();return
         if getattr(self,'_discarding',False):self.clear_recovery()
@@ -2182,6 +2165,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.fine_listener.dispose()
         self.cancel_proxy_request(False)
         if self.source_job:self.source_job.cancel.set()
+        if self.render_queue.busy:self.render_queue.cancel_all()
         self.center_reveal_timer.stop();self._center_reveal_widget=None
         QApplication.instance().removeEventFilter(self);self.autosave.stop();self.render_timer.stop();self.playback.timer.stop();self.clear_media();self.playback.canvas.close_frame_scaler();self.playback.canvas.renderer.close()
         if self.cards_renderer:self.cards_renderer.close()
