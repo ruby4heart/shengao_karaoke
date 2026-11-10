@@ -73,7 +73,8 @@ class ResumeDraftDialog(QDialog):
         self.table=QTableWidget(len(state['stages']),3);self.table.setHorizontalHeaderLabels(['步骤','状态','处理位置']);self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch);self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         for row,stage in enumerate(state['stages']):
             status='上次未返回／状态待查' if stage['state']=='running' else draft.STATES.get(stage['state'],'未知')
-            for col,text in enumerate([stage['title'],status,'联网服务' if stage['paid'] else '本机／已有结果']):
+            where='复用此前结果（未重新提交）' if stage.get('reused_from') else '联网服务' if stage['paid'] else '本机／已有结果'
+            for col,text in enumerate([stage['title'],status,where]):
                 self.table.setItem(row,col,QTableWidgetItem(text))
         layout.addWidget(self.table);layout.addWidget(note(state.get('message','') or '结果先审核，不会自动写入工程。'))
         incomplete=next((s for s in state['stages'] if s['state'] not in {'completed','skipped'}),None)
@@ -100,7 +101,7 @@ class DraftWorkflow:
         if value.get('context',{}).get('project')!=self.project.uid:return
         self._draft_summary=value
         def text(s):
-            message=f'{s["title"]}：{draft.STATES.get(s["state"],s["state"])}';a=s.get('acoustic')
+            message=f'{s["title"]}：{draft.STATES.get(s["state"],s["state"])}'+('（复用此前结果）' if s.get('reused') else '');a=s.get('acoustic')
             return message+(f' · {a["processed"]}/{a["total"]} 句，{a["aligned"]} 候选，{a["needs_manual"]} 待手工' if a else '')
         self.draft_status.setText('\n'.join(text(s) for s in value['stages']))
         if value.get('status')=='paused' and value.get('message'):

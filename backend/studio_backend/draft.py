@@ -5,6 +5,7 @@ uniform mora splits into acoustic phoneme evidence.
 """
 import asyncio
 import copy
+import functools
 import hashlib
 import json
 import os
@@ -19,6 +20,9 @@ from .settings import Settings, atomic_json
 
 STAGES = [('transcript', '准备转录'), ('matching', '按原歌词匹配'),
           ('readings', '生成读音建议'), ('alignment', '文字对齐'), ('preview', '准备审核')]
+# Finished stage results kept for reuse by later workflows with identical inputs.
+STAGE_CACHE_VERSION = 1
+STAGE_CACHE_KEEP = 120
 STATES = {'pending': '等待', 'running': '处理中', 'completed': '已完成',
           'skipped': '跳过', 'failed': '未完成', 'cancelled': '已取消', 'partial': '部分完成'}
 
@@ -95,7 +99,8 @@ def latest(root, project_id):
 def summary(state):
     return {'id': state['id'], 'status': state['status'], 'message': state.get('message', ''),
             'stages': [{**{k: s[k] for k in ('key', 'title', 'state', 'paid')},
-                        **({'acoustic':s['result']['acoustic']} if s.get('result',{}).get('acoustic') else {})}
+                        **({'acoustic':s['result']['acoustic']} if s.get('result',{}).get('acoustic') else {}),
+                        **({'reused':True} if s.get('reused_from') else {})}
                        for s in state['stages']], 'lines': len(state['request']['lines']),
             'context': state['request'].get('_studio_context', {})}
 
@@ -153,6 +158,83 @@ def mark_stopped(root,workflow_id):
 def digest(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
                                      allow_nan=False).encode()).hexdigest()
+
+
+@functools.lru_cache(maxsize=1)
+def code_version():
+    """Stage results are reused only by the same backend code."""
+    import sys
+    value = hashlib.sha256(); files = sorted(Path(__file__).resolve().parent.glob('*.py'))
+    for path in files: value.update(path.name.encode() + b'\0' + path.read_bytes())
+    if not files:  # packaged build: the program file identifies the build
+        stat = Path(sys.executable).stat(); value.update(f'{sys.executable}|{stat.st_size}|{stat.st_mtime_ns}'.encode())
+    return value.hexdigest()
+
+
+def stage_inputs(key, supplied, opt, media_hash, services, values, transcript):
+    """Version of everything a stage reads, recorded with its result."""
+    common = {'stage': key, 'version': STAGE_CACHE_VERSION, 'code': code_version()}
+    if key == 'transcript':
+        if opt['source'] == 'cloud':
+            return digest({**common, 'source': 'cloud', 'media': media_hash, 'provider': opt['provider'],
+                           'service': services.get(opt['provider'], {}), 'language': supplied.get('language', 'ja')})
+        return digest({**common, 'source': opt['source'], 'transcript': digest(transcript)})
+    value = {**common, 'lines': digest(values), 'original': digest(supplied['lines']), 'transcript': digest(transcript),
+             'confirmed': sorted(supplied.get('reading_confirmed_ids', [])), 'rules': supplied.get('romanization_rules'),
+             'gap_ms': supplied.get('gap_ms', 0), 'join_lines': supplied.get('join_lines', False),
+             'language': supplied.get('language', 'ja')}
+    if key == 'matching':
+        value.update(mode='segment' if opt['source'] == 'offline' else 'match',
+                     acoustic_offline=bool(opt.get('acoustic')) and opt['source'] == 'offline')
+    elif key == 'readings':
+        value.update(readings=opt['readings'], verified=bool(media_hash),
+                     service=services.get('deepseek', {}) if opt['readings'] == 'deepseek' else {})
+    elif key == 'alignment':
+        value.update(align=opt['align'], media=media_hash, service=services.get('elevenlabs', {}) if opt['align'] else {})
+    elif key == 'acoustic':
+        value.update(media=media_hash, options={k: opt.get(k) for k in ('acoustic', 'acoustic_audio', 'fit_range')},
+                     vocal_track=supplied.get('vocal_track', {}))
+    return digest(value)
+
+
+def reusable(key, opt):
+    # A reading-source transcript is already local; the singing stage keeps
+    # its own per-workflow checkpoint and preview is cheap to rebuild.
+    return (key == 'transcript' and opt['source'] == 'cloud' or key in {'matching', 'readings'}
+            or key == 'alignment' and opt['align'])
+
+
+def stage_cache_path(root, key, version):
+    if not re.fullmatch('[a-f0-9]{64}', version or ''): raise ValueError('阶段输入版本无效')
+    return Settings(root).root / 'draft-stages' / f'{key}-{version}.json'
+
+
+def cached_stage(root, key, version, original):
+    """A finished stage from any workflow with exactly these inputs, or None."""
+    try:
+        record = json.loads(stage_cache_path(root, key, version).read_text(encoding='utf-8'))
+        data = record['result']
+        if (record.get('version') != STAGE_CACHE_VERSION or record.get('key') != key or record.get('inputs') != version
+                or not isinstance(data, dict) or data.get('partial') or record.get('result_hash') != digest(data)):
+            return None
+        if key == 'transcript':
+            for row in data['suggestions']: LyricLine.from_dict(row)
+        else: verify_rows(data['suggestions'], original)
+        return record
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def store_stage(root, key, version, data, workflow_id):
+    if data.get('partial'): return
+    try:
+        path = stage_cache_path(root, key, version)
+        atomic_json(path, {'version': STAGE_CACHE_VERSION, 'key': key, 'inputs': version, 'result': data,
+                           'result_hash': digest(data), 'workflow': workflow_id, 'created': time.time()})
+        files = sorted(path.parent.glob('*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in files[STAGE_CACHE_KEEP:]: old.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        pass  # the workflow checkpoint still holds the result
 
 
 def inputs(request):
@@ -215,7 +297,7 @@ def keep_readings(row,original,confirmed=False):
 
 
 @contextmanager
-def exclusive(path):
+def exclusive(path, busy='这个初稿流程已在另一个进程运行，请等待原任务结束'):
     """OS lock is released even after a worker crash; no stale PID guessing."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a+b') as stream:
@@ -229,7 +311,7 @@ def exclusive(path):
                 import fcntl
                 fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
-            raise ValueError('这个初稿流程已在另一个进程运行，请等待原任务结束') from error
+            raise ValueError(busy) from error
         try:
             yield
         finally:
@@ -270,7 +352,7 @@ async def _run(request, root, report, operation):
     if path.exists():
         state = load(root, workflow_id)
         if state.get('signature') != signature or digest(state.get('request')) != digest(supplied):
-            raise ValueError('素材、流程输入或服务配置已变化；原检查点保留，请建立新流程')
+            raise ValueError('素材、流程输入或服务配置已变化；原检查点保留，请建立新流程。新流程会复用输入未变的已完成阶段，不会重新提交这些阶段')
         if [s.get('key') for s in state['stages']] != [key for key, _ in stage_plan(opt,state['version'])]:
             raise ValueError('阶段检查点损坏；没有自动重新提交请求')
         for stage in state['stages']:
@@ -321,6 +403,19 @@ async def _run(request, root, report, operation):
             elif previous == 'completed': values = copy.deepcopy(stage['result']['suggestions'])
             report('draft_cached', f'{number}/{len(state["stages"])} {stage["title"]}：复用已完成阶段')
             continue
+        version = stage_inputs(key, supplied, opt, media_hash, config, values, transcript)
+        reuse = cached_stage(root, key, version, supplied['lines']) if reusable(key, opt) else None
+        if reuse:
+            # Same inputs and same code already finished elsewhere: nothing is sent again.
+            data = copy.deepcopy(reuse['result'])
+            if key == 'transcript': transcript = data['suggestions']
+            else: values = copy.deepcopy(data['suggestions'])
+            stage.pop('diagnostics', None)
+            stage.update(result=data, result_hash=digest(data), state='completed', inputs=version,
+                         reused_from={'workflow': reuse.get('workflow', ''), 'created': reuse.get('created', 0)})
+            save()
+            report('draft_cached', f'{number}/{len(state["stages"])} {stage["title"]}：输入未变，复用此前完成的结果，没有重新提交')
+            continue
         if stage['paid'] and previous in {'running', 'failed', 'cancelled', 'partial'} and request.get('retry_stage') != key:
             save('该联网阶段上次未完整返回。请先检查服务记录，再选择是否手动重试；已完成阶段不会重复运行。', 'paused')
             return result(state)
@@ -349,6 +444,8 @@ async def _run(request, root, report, operation):
             base = {'media': supplied.get('media', ''), 'language': supplied.get('language', 'ja'),
                     'gap_ms': supplied.get('gap_ms', 0), 'join_lines': supplied.get('join_lines', False)}
             if 'romanization_rules' in supplied:base['romanization_rules']=copy.deepcopy(supplied['romanization_rules'])
+            # Only the person's explicit retry of this stage may resend an interrupted paid request.
+            if request.get('retry_stage') == key: base['confirm_resubmit'] = True
             if key == 'transcript':
                 if opt['source'] == 'cloud':
                     data = await operation({**base, 'action': 'transcribe', 'provider': opt['provider'], 'lines': []}, root, report)
@@ -405,9 +502,11 @@ async def _run(request, root, report, operation):
                 data['suggestions']=[keep_readings(v,originals[v['id']],v['id'] in confirmed) for v in data['suggestions']]
             if key != 'transcript':
                 verify_rows(data['suggestions'], supplied['lines']); values = copy.deepcopy(data['suggestions'])
-            stage['result'] = data; stage['result_hash'] = digest(data)
+            stage['result'] = data; stage['result_hash'] = digest(data); stage['inputs'] = version
             stage['state'] = 'partial' if data.get('partial') else 'completed'
+            stage.pop('reused_from', None)
             save()
+            if stage['state'] == 'completed' and reusable(key, opt): store_stage(root, key, version, data, workflow_id)
             if stage['state'] == 'partial':
                 save(data.get('message', '该阶段仅完成一部分；结果已保留'), 'paused'); return result(state)
         except asyncio.CancelledError:

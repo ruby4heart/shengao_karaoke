@@ -17,7 +17,7 @@ class ApiJob(QObject):
     def __init__(self,parent=None,home=None):
         super().__init__(parent);self.home=Path(home) if home else default_home();self.process=None
         self.folder=None;self.result=None;self.request={};self.stopping=False
-        self.child_job=None;self.start_error=''
+        self.child_job=None;self.start_error='';self.failure={}
         self.timer=QTimer(self);self.timer.setInterval(250);self.timer.timeout.connect(self.poll)
 
     @property
@@ -26,7 +26,7 @@ class ApiJob(QObject):
     def start(self,request):
         if self.busy:raise ValueError('已有任务正在执行，请等待或取消')
         self.folder=self.home/'desktop-tasks'/uuid.uuid4().hex;self.folder.mkdir(parents=True)
-        self.result=self.folder/'result.json';self.request=request;self.stopping=False;self.start_error=''
+        self.result=self.folder/'result.json';self.request=request;self.stopping=False;self.start_error='';self.failure={}
         # Config keys are stdin only. No key or environment snapshot is persisted.
         if request.get('action')!='configure':atomic_json(self.folder/'request.json',request)
         args=['--worker','--request','-','--result',str(self.result),'--home',str(self.home)]
@@ -88,7 +88,7 @@ class ApiJob(QObject):
                 try:data=json.loads(self.result.read_text(encoding='utf-8'))
                 except (OSError,ValueError):self.failed.emit('后台结果文件不完整，请查看任务记录');return
                 if data.get('ok'):self.completed.emit(data)
-                else:self.failed.emit(data.get('message','后台任务未完成'))
+                else:self.failure=data;self.failed.emit(data.get('message','后台任务未完成'))
             elif recovery:self.completed.emit({'ok':True,**recovery})
             else:self.failed.emit('后台进程结束但未返回结果；任务目录保留，可从任务记录检查')
         finally:self.changed.emit()

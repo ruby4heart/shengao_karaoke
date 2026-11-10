@@ -1852,7 +1852,10 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 try:self.history.apply('保留原始转录',keep)
                 except ValueError:self.message('转录已保存在任务记录；当前工程输入需要修正后再复用。')
             else:self.edit('保留原始转录',keep)
-    def api_failed(self,message):self.message(message)
+    def api_failed(self,message):
+        self.message(message)
+        from .paid_retry import offer_resubmit
+        offer_resubmit(self)
     def review_pending(self):
         if not self.pending:self.message('目前没有待审核结果，可从任务记录恢复以前的结果。');return
         if self.pending.get('action')=='sound_gaps':self.review_sound_gaps();return

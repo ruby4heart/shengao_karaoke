@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import sys
 
-from . import api
+from . import api, paid_requests
 from .convert import annotation_suggestion, eleven_lines, mai_lines
 from .media import extract
 from .model import LyricLine,Unit, align_characters, plain_ass
@@ -140,8 +140,10 @@ async def operation(request, root, report):
                 try:
                     if cache.is_file():annotations=api.validate_annotations(json.loads(cache.read_text(encoding='utf-8')),payloads)
                     else:
-                        annotations=await api.deepseek_annotate(payloads,key,model,diagnostics)
-                        cache.parent.mkdir(parents=True,exist_ok=True);atomic_json(cache,{'lines':annotations})
+                        # An interrupted batch is never sent again without the person's confirmation.
+                        async with paid_requests.guard(root,signature,'refine','deepseek',diagnostics,request.get('confirm_resubmit') is True):
+                            annotations=await api.deepseek_annotate(payloads,key,model,diagnostics)
+                            cache.parent.mkdir(parents=True,exist_ok=True);atomic_json(cache,{'lines':annotations})
                 except api.ApiError as error:
                     if not completed:raise
                     warnings.append('后续批次失败：'+str(error)+'；已完成结果已保留，未自动重试。')
@@ -209,9 +211,11 @@ async def operation(request, root, report):
         report('annotating','DeepSeek 正在生成假名、罗马音和中文翻译；完成后需人工审核')
         from .analysis import annotation_input
         payloads=[annotation_input(line,[],('','')) if line.units else {'id':line.id,'text':line.text} for line in lines]
-        annotations=await api.deepseek_annotate(payloads,key,
-                                               config.get('model') or 'deepseek-flash',diagnostics)
-        suggestions=_converted(lambda:[annotation_suggestion(line,annotation,request.get('romanization_rules')).to_dict() for line,annotation in zip(lines,annotations)],annotations,diagnostics,report)
+        model=config.get('model') or 'deepseek-flash'
+        guard=paid_requests.signature({'action':'annotate','model':model,'lines':payloads})
+        async with paid_requests.guard(root,guard,'annotate','deepseek',diagnostics,request.get('confirm_resubmit') is True):
+            annotations=await api.deepseek_annotate(payloads,key,model,diagnostics)
+            suggestions=_converted(lambda:[annotation_suggestion(line,annotation,request.get('romanization_rules')).to_dict() for line,annotation in zip(lines,annotations)],annotations,diagnostics,report)
         return {'suggestions':suggestions,'annotations':annotations,'diagnostics':diagnostics,'review_required':True}
     media=Path(request['media'])
     if not media.is_file():
@@ -240,37 +244,42 @@ async def operation(request, root, report):
             return timing_result(result,request)
         return result
     settings.root.mkdir(parents=True,exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='audio-',dir=settings.root) as folder:
-        audio=Path(folder)/'audio.flac'
-        report('extracting','正在本机提取音轨')
-        if action=='align':
-            # Local range alignment prevents repeated chorus sections being confused.
-            if request.get('range_mode','full')=='selection':
-                start=min(line.start for line in lines)
-                end=max(line.end for line in lines)
-                await extract(media,audio,start,end)
+    if action=='transcribe' and provider not in {'elevenlabs','mai'}:raise ValueError('不支持的识别服务')
+    # Held from before extraction: a second task with the same request stops at once,
+    # and one that timed out after uploading is never resent without confirmation.
+    async with paid_requests.guard(root,cache_id,action,provider,diagnostics,request.get('confirm_resubmit') is True):
+        with tempfile.TemporaryDirectory(prefix='audio-',dir=settings.root) as folder:
+            audio=Path(folder)/'audio.flac'
+            report('extracting','正在本机提取音轨')
+            if action=='align':
+                # Local range alignment prevents repeated chorus sections being confused.
+                if request.get('range_mode','full')=='selection':
+                    start=min(line.start for line in lines)
+                    end=max(line.end for line in lines)
+                    await extract(media,audio,start,end)
+                else:
+                    start=0
+                    await extract(media,audio)
+                text='\n'.join(line.text for line in lines)
+                report('aligning','ElevenLabs 正在将所选歌词对齐到音频')
+                raw=await api.eleven_align(audio,text,key,diagnostics)
+                suggestions=_converted(lambda:alignment_suggestions(lines,raw,start),raw,diagnostics,report)
             else:
-                start=0
                 await extract(media,audio)
-            text='\n'.join(line.text for line in lines)
-            report('aligning','ElevenLabs 正在将所选歌词对齐到音频')
-            raw=await api.eleven_align(audio,text,key,diagnostics)
-            suggestions=_converted(lambda:alignment_suggestions(lines,raw,start),raw,diagnostics,report)
-        else:
-            await extract(media,audio)
-            report('transcribing','正在上传音频并等待识别结果')
-            if provider=='elevenlabs':
-                raw=await api.eleven_transcribe(audio,key,request.get('language','ja'),diagnostics)
-                suggestions=_converted(lambda:[line.to_dict() for line in eleven_lines(raw)],raw,diagnostics,report)
-            elif provider=='mai':
-                raw=await api.mai_transcribe(audio,key,config.get('endpoint',''),request.get('language','ja'),diagnostics)
-                suggestions=_converted(lambda:[line.to_dict() for line in mai_lines(raw)],raw,diagnostics,report)
-            else:
-                raise ValueError('不支持的识别服务')
-        result={'suggestions':suggestions,'original_api_result':raw,'diagnostics':diagnostics,
-                'review_required':True,'cached':False,'media_fingerprint':audio_hash}
-        atomic_json(cache,result)
-        return timing_result(result,request) if action=='align' else result
+                report('transcribing','正在上传音频并等待识别结果')
+                if provider=='elevenlabs':
+                    raw=await api.eleven_transcribe(audio,key,request.get('language','ja'),diagnostics)
+                    suggestions=_converted(lambda:[line.to_dict() for line in eleven_lines(raw)],raw,diagnostics,report)
+                elif provider=='mai':
+                    raw=await api.mai_transcribe(audio,key,config.get('endpoint',''),request.get('language','ja'),diagnostics)
+                    suggestions=_converted(lambda:[line.to_dict() for line in mai_lines(raw)],raw,diagnostics,report)
+                else:
+                    raise ValueError('不支持的识别服务')
+            result={'suggestions':suggestions,'original_api_result':raw,'diagnostics':diagnostics,
+                    'review_required':True,'cached':False,'media_fingerprint':audio_hash}
+            atomic_json(cache,result)
+    # Local timing preferences run after the paid result is safely cached.
+    return timing_result(result,request) if action=='align' else result
 
 
 def _converted(convert,raw,diagnostics,report):
@@ -322,7 +331,8 @@ async def execute(request, root, result_path):
         api.stamp(diagnostics)  # no recorded request phase: failed locally, nothing sent
         atomic_json(result_path,{'ok':False,'message':message,'exception':type(error).__name__,
                                 'diagnostics':diagnostics,
-                                **({'transcript':error.transcript} if hasattr(error,'transcript') else {})})
+                                **({'transcript':error.transcript} if hasattr(error,'transcript') else {}),
+                                **({'resubmit_required':error.record} if isinstance(error,paid_requests.ResubmitRequired) else {})})
         report('error',message)
     except Exception as error:
         atomic_json(result_path,{'ok':False,'message':'后台处理失败，请检查文件与配置','exception':type(error).__name__})
