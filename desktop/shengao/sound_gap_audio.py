@@ -30,7 +30,8 @@ def verify(source,track,binding,cancel):
     return stamp
 
 
-def generate(lines,source,track,role,home,cancel,progress=lambda value:None,maximum=2000,join_lines=True,indices=None):
+def prepare(source,track,role,home,cancel,progress=lambda value:None):
+    """Local 48 kHz PCM bound to the exact source and analysis track fingerprints."""
     progress('正在核对当前素材和分析音轨指纹…')
     audio,stamp,binding=input_audio(source,track,role,cancel)
     folder=Path(home)/'sound-gap-audio'/binding['audio_sha256'];folder.mkdir(parents=True,exist_ok=True)
@@ -50,9 +51,27 @@ def generate(lines,source,track,role,home,cancel,progress=lambda value:None,maxi
             saved={'audio_sha256':binding['audio_sha256'],'sample_rate':rate,'frames':pending.stat().st_size//2,'pcm_sha256':digest(pending,cancel)}
             cancelled(cancel);os.replace(pending,pcm);atomic_json(metadata,saved)
     cancelled(cancel);binding.update(pcm_sha256=saved['pcm_sha256'],sample_rate=rate)
-    progress('正在检查声音连续性与已有音素边界…')
-    report=analyze(lines,pcm,rate,binding,maximum,join_lines,cancel,progress,indices)
+    return pcm,rate,binding,stamp
+
+
+def finish(pcm,source,track,binding,stamp,cancel):
     if digest(pcm,cancel)!=binding['pcm_sha256']:raise ValueError('分析声音缓存在处理期间已变化，原时间保留')
     if file_stamp(source)!=stamp:raise ValueError('分析期间素材已变化，原时间保留')
     verify(source,track,binding,cancel);cancelled(cancel)
+
+
+def generate(lines,source,track,role,home,cancel,progress=lambda value:None,maximum=2000,join_lines=True,indices=None):
+    pcm,rate,binding,stamp=prepare(source,track,role,home,cancel,progress)
+    progress('正在检查声音连续性与已有音素边界…')
+    report=analyze(lines,pcm,rate,binding,maximum,join_lines,cancel,progress,indices)
+    finish(pcm,source,track,binding,stamp,cancel)
+    return report
+
+
+def generate_tails(lines,source,track,role,home,cancel,progress=lambda value:None,indices=None):
+    from studio_backend import line_tails
+    pcm,rate,binding,stamp=prepare(source,track,role,home,cancel,progress)
+    progress('正在检查句尾声音与收尾方式…')
+    report=line_tails.analyze(lines,pcm,rate,binding,indices,cancel,progress)
+    finish(pcm,source,track,binding,stamp,cancel)
     return report

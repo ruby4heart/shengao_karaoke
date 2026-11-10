@@ -9,9 +9,10 @@ from studio_backend.model import LyricLine
 from studio_backend.analysis import kana_only,recognition_for
 from studio_backend.reading_candidates import _transcript_word
 from studio_backend import translation
+from studio_backend import line_tails
 
 
-KINDS={'media':'素材','match':'匹配／错段','reading':'读音分歧','missing':'缺少词组／音节','duration':'异常时长','gap':'音节间隔','range':'范围','layout':'排版','translation':'译文','confirmation':'待确认','proposal':'待审任务建议'}
+KINDS={'media':'素材','match':'匹配／错段','reading':'读音分歧','missing':'缺少词组／音节','duration':'异常时长','gap':'音节间隔','tail':'句尾','range':'范围','layout':'排版','translation':'译文','confirmation':'待确认','proposal':'待审任务建议'}
 SEVERITIES={'error':'需处理','warning':'需检查','notice':'参考提示'}
 DECISIONS={'keep','defer','adopted'}
 
@@ -142,8 +143,34 @@ def collect(project,include_layout=True,pending=None):
         if not line.reviewed:add('confirmation','notice',row,-1,-1,'timing','本句时间尚未确认','自动生成、采用建议、保留疑点都不等于已听过并确认时间。',f'{line.start}–{line.end} ms','试听并校准后，用本句时间确认按钮确认',basis=[line.start,line.end,line.reviewed])
         if not project.checks.get(line.id,{}).get('reading'):
             add('confirmation','notice',row,-1,-1,'reading','本句读音尚未确认','文字建议与声音对齐均不会自动完成读音确认。',line.kana or ''.join(u.kana for u in line.units),'核对实际唱法后，用本句读音确认按钮确认',basis=[line.text,[(u.text,u.kana) for u in line.units],project.checks.get(line.id,{})])
-    if pending:
-        task=pending if isinstance(pending,dict) else {};result=task.get('result',{});result=result if isinstance(result,dict) else {}
+    task=pending if isinstance(pending,dict) else {}
+    report=tail_report(task)
+    checked=set();where=task.get('context',{}) if isinstance(task.get('context'),dict) else {}
+    if report is not None and where and (where.get('project')!=project.uid or where.get('media')!=stamp):
+        add('proposal','warning',-1,-1,-1,'tail-elsewhere','句尾检查属于另一素材或工程','旧结果保留在任务记录，不能用于当前时间轴。','当前工程保持','切回原素材后审核，或重新检查句尾',basis=where)
+    elif report is not None:
+        changed=line_tails.stale_rows(project.lines,report);by_id={line.id:row for row,line in enumerate(project.lines)}
+        for value in report['tails']:
+            row=by_id.get(value['line_id'])
+            if row is None or value['key'] in changed:continue
+            checked.add(row)
+            if value['status']!='flagged':continue
+            word,part=value['position'][1],value['position'][2];options=value.get('candidates',[])
+            pick=next((v for v in options if v['name']==value.get('recommended')),None)
+            listing='；'.join(f'{v["label"]} {v["end"]} ms（{v["delta"]:+d} ms）' for v in options)
+            suggested=(f'{pick["label"]} {pick["end"]} ms（{pick["delta"]:+d} ms），与疑点方向一致，试听后决定' if pick else '保持当前句尾，试听确认；或在句尾检查里手选候选')+(f'\n全部候选：{listing}' if listing else '')
+            add('tail','warning',row,word,-1 if part is None else part,'tail-check','句尾需要试听：'+'、'.join(TAIL_TITLES.get(f['code'],f['code']) for f in value['flags']),
+                value['reason']+' 声音候选只是参考位置，不是逐音识别；采用后句尾记为按声音调整，起点不动，仍需确认时间。',
+                f'{value["text"]}：{value["start"]}–{value["end"]} ms（{line_tails.TYPES.get(value.get("type"),"—")}）',suggested,
+                {'kind':'tail','key':value['key'],'choice':pick['name']} if pick else None,basis={'report':report['result_sha256'],'tail':value})
+    for target,quick in line_tails.quick_flags(project.lines):
+        if target['row'] in checked:continue
+        word,part=target['position'][1],target['position'][2]
+        add('tail','notice',target['row'],word,-1 if part is None else part,'tail-quick','句尾可能被压缩',
+            '；'.join(f['message'] for f in quick)+' 仅按时间判断，未听声音；可用“检查句尾”结合人声比较候选。',
+            f'{target["text"]}：{target["start"]}–{target["end"]} ms；整句到 {target["line_end"]} ms','打开句尾检查，试听后保持或选择候选',basis=[target['start'],target['end'],target['line_end'],target['limit'],[f['code'] for f in quick]])
+    if pending and report is None:
+        result=task.get('result',{});result=result if isinstance(result,dict) else {}
         snapshots=task.get('snapshots',{});snapshots=snapshots if isinstance(snapshots,dict) else {};task_context=task.get('context',{});task_context=task_context if isinstance(task_context,dict) else {}
         by_id={line.id:row for row,line in enumerate(project.lines)};suggestions=result.get('suggestions',[])
         if not isinstance(suggestions,list):suggestions=[]
@@ -173,17 +200,34 @@ def collect(project,include_layout=True,pending=None):
     return found
 
 
+TAIL_TITLES={'short':'可能被压缩','edge':'顶到范围末端','silent':'拖进静音','cut':'可能被截短','repeat':'与重复句收法不一致'}
+
+
+def tail_report(task):
+    if task.get('action')!='line_tails':return None
+    result=task.get('result');result=result if isinstance(result,dict) else {}
+    try:line_tails.validate_report(result.get('tail_report'))
+    except ValueError:return None
+    return result['tail_report']
+
+
 def current_issue(project,expected,include_layout=True,pending=None):
     fresh=next((v for v in collect(project,include_layout,pending) if v.id==expected.id),None)
     if fresh is None or fresh.fingerprint!=expected.fingerprint:raise ValueError('疑点依据、素材或建议已变化；旧比较保留，请刷新后再处理。')
     return fresh
 
 
-def proposed_line(project,issue):
+def proposed_line(project,issue,pending=None):
     """Recompute an explicit local proposal using protected editing primitives."""
-    fresh=current_issue(project,issue,include_layout=False)
+    fresh=current_issue(project,issue,include_layout=False,pending=pending)
     if fresh.row<0 or not fresh.proposal:raise ValueError('这项没有可直接采用的明确建议，请定位后手工校对。')
     line=project.lines[fresh.row];proposal=fresh.proposal
+    if proposal['kind']=='tail':
+        report=tail_report(pending if isinstance(pending,dict) else {})
+        if report is None:raise ValueError('句尾检查结果已不在待审中，请重新检查句尾。')
+        values,changes=line_tails.apply(project.lines,report,{proposal['key']:proposal['choice']})
+        if len(changes)!=1 or changes[0]['row']!=fresh.row:raise ValueError('句尾建议与当前歌词不对应，请重新检查。')
+        return values[fresh.row]
     if proposal['kind']=='translation':return translation.accept_suggestion(line)
     if proposal['kind']=='reading':
         from studio_backend.reading_change import preview

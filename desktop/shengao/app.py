@@ -50,6 +50,7 @@ from .recognition_workflow import RecognitionWorkflow
 from .vocal_workflow import VocalWorkflow
 from .acoustic_workflow import AcousticWorkflow
 from .sound_gap_workflow import SoundGapWorkflow
+from .line_tail_workflow import LineTailWorkflow
 from .chorus_workflow import ChorusWorkflow
 from .color_workflow import ColorWorkflow
 from .reading_candidates_workflow import ReadingCandidatesWorkflow
@@ -74,7 +75,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow,EditPositionWorkflow,RenderWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,LineTailWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow,EditPositionWorkflow,RenderWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -286,6 +287,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.cleanup_gaps_button=button('检查空白…',self.start_sound_gaps);self.cleanup_gaps_button.setToolTip('按当前试听音轨检查声音连续性与已有音素依据；先试听再处理，不按固定时长填平休止。')
         self.build_acoustic_tools(l,secondary=self.cleanup_gaps_button)
         self.sound_gap_review=button('试听并审核空隙建议',self.review_pending);l.addWidget(self.sound_gap_review)
+        self.line_tails_button=button('检查句尾…',self.start_line_tails);self.line_tails_button.setToolTip('逐句看最后一个音节：截短、拖进静音、顶到范围末端或重复句收法不一致时列为疑点，并给出声音降落、音高结束、下一句开口前几个参考位置；默认保持当前句尾。')
+        self.line_tail_review=button('试听并审核句尾',self.review_pending);row=QHBoxLayout();row.addWidget(self.line_tails_button,1);row.addWidget(self.line_tail_review,1);l.addLayout(row)
         self.target=label('当前调整：整句','sectionTitle');l.addWidget(self.target)
         source_row=QHBoxLayout();self.timing_origin_info=label('','muted');source_row.addWidget(self.timing_origin_info,1)
         self.timing_sources_button=button('来源／提示',self.show_timing_sources);self.timing_sources_button.setToolTip('查看本句的字符／词时间、估算音节、歌声候选和人工修改；可试听并直接去校准。');source_row.addWidget(self.timing_sources_button);l.addLayout(source_row)
@@ -972,6 +975,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.refresh_fine_listening()
         self.refresh_issue_tools()
         self.refresh_sound_gap_tools()
+        self.refresh_line_tail_tools()
         self.go_calibrate_button.setVisible(has_lines);self.go_calibrate_button.setEnabled(has_lines)
         for widget in [self.draft_button,self.draft_status,self.draft_resume_button,self.single_steps,self.continuous_timing,self.continuity_info]:widget.setVisible(has_lines)
         self.draft_button.setEnabled(ready and not self.source_job)
@@ -985,6 +989,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.review_button.setVisible(pending);self.discard_button.setVisible(pending)
         if pending:self.review_button.setText(f'审核 {len(self.pending["result"]["suggestions"])} 行建议')
         if pending and self.pending.get('action')=='sound_gaps':self.review_button.setText(f'审核 {len(self.pending["result"]["gap_report"]["gaps"])} 处声音空隙')
+        if pending and self.pending.get('action')=='line_tails':self.review_button.setText(f'审核 {len(self.pending["result"]["tail_report"]["tails"])} 句句尾')
         self.pending_line_button.setEnabled(has_lines)
         self.edit_tools.setVisible(has_lines and self.stage in (1,2,3));self.quick_reading.setEnabled(has_lines);self.quick_timing.setEnabled(has_lines);self.quick_tail.setEnabled(has_lines)
         editable=bool(self.line and not locked(self.line))
@@ -1863,6 +1868,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def review_pending(self):
         if not self.pending:self.message('目前没有待审核结果，可从任务记录恢复以前的结果。');return
         if self.pending.get('action')=='sound_gaps':self.review_sound_gaps();return
+        if self.pending.get('action')=='line_tails':self.review_line_tails();return
         if not self.flush_edits():return
         context=self.pending.get('context',{})
         if context and (context['project']!=self.project.uid or context['media']!=file_stamp(self.project.media)):
@@ -1972,7 +1978,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.api.busy:self.api.cancel()
         if self.local_job or self.render_queue.busy:self.render_queue.cancel_all();self.message('正在取消压制任务，等待中的任务也已取消；不会留下半成品。')
         if self.proxy_job:self.cancel_proxy_request();self.message('正在取消轻量预览任务，当前素材与字幕保持。')
-        if self.source_job:self.source_job.cancel.set();self.message('正在取消声音空隙检查，原时间保留。' if self.source_job_kind=='sound_gaps' else '正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
+        if self.source_job:self.source_job.cancel.set();self.message('正在取消声音空隙检查，原时间保留。' if self.source_job_kind=='sound_gaps' else '正在取消句尾检查，原时间保留。' if self.source_job_kind=='line_tails' else '正在取消歌声对齐，原时间与人工校准保留。' if self.source_job_kind=='acoustic' else '正在取消人声任务，原素材与字幕保留。' if self.source_job_kind=='vocals' else '正在取消换源，当前视频与字幕保留。')
 
     def check_project(self):
         self.export_issues.clear()
@@ -2047,7 +2053,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 elif req.get('action') in {'transcribe','confirm_recognition'}:
                     title='识别原文' if req['action']=='transcribe' else '原文确认（本地）'
                     items.addItem(title+' · '+('结果已保存，可恢复' if value.get('ok') else value.get('message','未完成')))
-                else:items.addItem(('暂存的校对建议' if req.get('action')=='review_saved' else '本地歌声对齐' if req.get('action')=='acoustic' else str(req.get('action')))+' · '+('完成，待审核' if value.get('ok') else value.get('message','未完成')))
+                else:items.addItem(('暂存的校对建议' if req.get('action')=='review_saved' else '本地歌声对齐' if req.get('action')=='acoustic' else '句尾检查' if req.get('action')=='line_tails' else '声音空隙检查' if req.get('action')=='sound_gaps' else str(req.get('action')))+' · '+('完成，待审核' if value.get('ok') else value.get('message','未完成')))
                 entries.append((folder,req,value))
             except (ValueError,OSError):continue
         def restore():

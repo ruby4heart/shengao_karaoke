@@ -54,7 +54,7 @@ class IssuesDialog(QDialog):
         self.old=QPlainTextEdit();self.old.setReadOnly(True);self.old.setMinimumWidth(0);self.old.setMaximumHeight(110);detail.addWidget(self.old);self.old.hide()
         row=QHBoxLayout();self.locate=button('定位到编辑处','定位当前歌词、词组或音节；不采用建议。',lambda:self.jump(False));self.listen=button('带前音试听','定位后用主界面细听播放上下文；不修改原文、轴或确认。',lambda:self.jump(True));self.stop=button('停止试听','停止临时细听并恢复常规播放设置。',lambda:self.studio.playback.stop())
         for control in (self.locate,self.listen,self.stop):row.addWidget(control)
-        root.addLayout(row);row=QHBoxLayout();self.tool=button('打开对应工具','按问题打开读音、分词、声音空隙、局部匹配、样式或确认入口，不自动确认。',self.open_tool);row.addWidget(self.tool)
+        root.addLayout(row);row=QHBoxLayout();self.tool=button('打开对应工具','按问题打开读音、分词、声音空隙、句尾检查、局部匹配、样式或确认入口，不自动确认。',self.open_tool);row.addWidget(self.tool)
         self.pending=button('待审任务审核…','保留原审核流程的快照、锁定及人工保护；过期任务仍可在本清单比较。',self.review_task);row.addWidget(self.pending);root.addLayout(row)
         row=QHBoxLayout();self.adopt=button('采用这条建议','只采用上面明确比较的本地建议；与处理记录同一步撤销，不自动确认时间或读音。',self.adopt_selected);self.adopt.setObjectName('primary')
         self.manual=button('前往手改','收起清单并定位相应编辑入口；修改后可重新打开疑点清单。',self.manual_selected)
@@ -121,7 +121,7 @@ class IssuesDialog(QDialog):
             self.old.setPlainText('上次决定：'+STATES[old['decision']]+'\n'+notice+'\n旧当前值：'+old['current']+'\n旧建议：'+old['suggested']);self.old.show()
         if item.proposal:
             try:
-                candidate=proposed_line(self.studio.project,item);original=self.studio.project.lines[item.row]
+                candidate=proposed_line(self.studio.project,item,self.studio.pending);original=self.studio.project.lines[item.row]
                 if candidate.to_dict()!=original.to_dict():
                     self.candidate=candidate;self.adoption={'line':original.to_dict(),'checks':copy.deepcopy(self.studio.project.checks.get(original.id,{})),'preview':candidate.to_dict()};self.adopt.setEnabled(True)
                     self.current.setPlainText(item.current+'\n\n'+describe(original));self.suggested.setPlainText(item.suggested+'\n\n'+describe(candidate))
@@ -173,7 +173,7 @@ class IssuesDialog(QDialog):
 
 class IssuesWorkflow:
     def build_issue_tools(self,layout):
-        self.issue_dialog=None;self.issues_button=button('集中疑点清单…','汇总未匹配、读音、缺音节、间隔、时长、范围与排版；筛选、定位、试听和处理。',self.open_review_issues);layout.addWidget(self.issues_button)
+        self.issue_dialog=None;self.issues_button=button('集中疑点清单…','汇总未匹配、读音、缺音节、间隔、句尾、时长、范围与排版；筛选、定位、试听和处理。',self.open_review_issues);layout.addWidget(self.issues_button)
 
     def open_review_issues(self):
         if not self.flush_edits():return False
@@ -198,7 +198,7 @@ class IssuesWorkflow:
         try:
             fresh=current_issue(self.project,item,include_layout=False,pending=self.pending);original=self.project.lines[fresh.row]
             if original.to_dict()!=expected.get('line') or self.project.checks.get(original.id,{})!=expected.get('checks'):raise ValueError('本句、人工修改或确认已变化，旧比较未采用，请刷新。')
-            candidate=proposed_line(self.project,fresh)
+            candidate=proposed_line(self.project,fresh,self.pending)
             if candidate.to_dict()!=expected.get('preview'):raise ValueError('建议预览与当前计算不同，请重新比较；原内容保持。')
             if candidate.to_dict()==original.to_dict():return False
         except (ValueError,OSError,IndexError) as error:self.message(str(error));return False
@@ -239,6 +239,10 @@ class IssuesWorkflow:
         elif item.kind=='confirmation':
             reading='读音' in item.title;self.calibration_tabs.setCurrentIndex(1 if reading else 0);self.show_editor_widget(self.reading_confirm if reading else self.timing_confirm)
         elif specific and item.kind=='gap':self.time_scope.setCurrentIndex(self.time_scope.findData('current'));self.start_sound_gaps()
+        elif specific and item.kind=='tail':
+            if self.pending and self.pending.get('action')=='line_tails':self.review_line_tails()
+            else:self.start_line_tails()
+        elif item.kind=='tail':self.show_editor_widget(self.end)
         elif specific and item.kind=='match':self.local_match()
         elif item.kind=='duration':self.mora_editing.toggle.setChecked(True);self.show_editor_widget(self.mora_editor)
         elif item.kind=='missing':self.show_editor_widget(self.fill_mora_button)
