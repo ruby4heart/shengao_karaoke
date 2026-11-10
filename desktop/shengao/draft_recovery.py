@@ -24,17 +24,30 @@ def valid(record):
             all(type(x) is int for x in record['points']) and isinstance(record.get('media_stamp'),dict))
 
 
+def differences(record,project,media_stamp,audition_role=None):
+    """What changed since a record was taken, in a fixed order, as (key, reason).
+
+    The one version check shared by unapplied drafts and the remembered
+    editing position: same project, the line by id and exact content, the
+    media file stamp, the video version and (when given) the audition source.
+    """
+    if record.get('project_uid')!=project.uid:return [('project','草稿属于另一个工程')]
+    found=[];line=next((x for x in project.lines if x.id==record.get('line_id')),None)
+    if line is None:found.append(('line_missing','这一句已删除'))
+    elif line.to_dict()!=record.get('original'):found.append(('line_changed','这一句后来被修改过，草稿基于旧内容'))
+    if not same_media(record.get('media_stamp'),media_stamp):found.append(('media','素材文件已变化或尚未找到'))
+    if record.get('media_role')!=project.media_role:found.append(('media_role','当前使用的视频版本不同'))
+    if audition_role is not None and record.get('audition_role')!=audition_role:
+        found.append(('audition','录制时使用'+('人声辅助' if record.get('audition_role')=='vocals' else '原声')+'试听，当前试听源不同'))
+    return found
+
+
 def assess(record,project,media_stamp,audition_role):
     """(state, reason). state is 'ready', 'stale' or 'invalid'."""
     if not valid(record):return 'invalid','草稿记录不完整'
-    if record.get('project_uid')!=project.uid:return 'stale','草稿属于另一个工程'
-    line=next((x for x in project.lines if x.id==record['line_id']),None)
-    if line is None:return 'stale','这一句已删除'
-    if line.to_dict()!=record['original']:return 'stale','这一句后来被修改过，草稿基于旧内容'
-    if not same_media(record.get('media_stamp'),media_stamp):return 'stale','素材文件已变化或尚未找到'
-    if record.get('media_role')!=project.media_role:return 'stale','当前使用的视频版本不同'
-    if record.get('audition_role')!=audition_role:
-        return 'stale','录制时使用'+('人声辅助' if record.get('audition_role')=='vocals' else '原声')+'试听，当前试听源不同'
+    changed=differences(record,project,media_stamp,audition_role)
+    if changed:return 'stale',changed[0][1]
+    line=next(x for x in project.lines if x.id==record['line_id'])
     try:rebuild(record,line)
     except ValueError as error:return 'invalid',str(error)
     return 'ready',''

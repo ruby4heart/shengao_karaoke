@@ -65,6 +65,7 @@ from .audio_shortcut_workflow import AudioShortcutWorkflow
 from .tap_timing_dialog import TapTimingWorkflow
 from .preview_preferences import PreviewPreferencesWorkflow
 from .version_history_dialog import VersionWorkflow
+from .edit_position import EditPositionWorkflow
 
 def label(text,kind='',wrap=True):
     item=QLabel(text);item.setTextFormat(Qt.TextFormat.PlainText);item.setObjectName(kind);item.setWordWrap(wrap);return item
@@ -72,7 +73,7 @@ def label(text,kind='',wrap=True):
 def vertical(parent=None,margins=14):
     layout=QVBoxLayout(parent);layout.setContentsMargins(margins,margins,margins,margins);layout.setSpacing(10);return layout
 
-class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow):
+class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,VocalWorkflow,AcousticWorkflow,SoundGapWorkflow,ChorusWorkflow,ColorWorkflow,ReadingCandidatesWorkflow,TranslationWorkflow,SongInfoWorkflow,MoraEditingWorkflow,FineListeningWorkflow,IssuesWorkflow,StyleWorkflow,ProxyWorkflow,WorkbenchFlow,AudioShortcutWorkflow,TapTimingWorkflow,PreviewPreferencesWorkflow,VersionWorkflow,EditPositionWorkflow):
     def __init__(self,home=None,test=False):
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
@@ -1644,7 +1645,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self._discarding=True
         return True
     def new(self):
-        if self.can_replace():self.clear_media();self.kept_drafts=[];self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.reset_output_context();self.timeline.spectrum=None;self.refresh();self.set_stage(0)
+        if self.can_replace():self.remember_edit_position();self.clear_media();self.kept_drafts=[];self.clear_recovery();self.history=History(Project());self.path=None;self.current=-1;self.pending=None;self.reset_output_context();self.timeline.spectrum=None;self.refresh();self.set_stage(0)
     def open_dialog(self):
         path,_=QFileDialog.getOpenFileName(self,'打开工程或字幕','','工程与字幕 (*.sgproj *.json *.ass *.ssa *.lrc *.srt);;所有文件 (*)')
         if path:self.open_path(path)
@@ -1653,13 +1654,14 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         try:p=load_project(path);p,report=self.review_external_ass(path,p)
         except (ValueError,OSError) as error:self._discarding=False;self.message('打开失败：'+str(error));return False
         if p is None:self._discarding=False;self.message('已取消打开。');return False
-        self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
+        self.remember_edit_position();self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
         self.clear_recovery();self.reset_output_context();self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
         self.kept_drafts=[r for r in self.kept_drafts if r.get('project_uid')==p.uid]
         self.refresh(True);self.set_stage(2 if p.lines else 0)
         relocated=self.relocate_missing_media(path);p=self.project
         if p.media and Path(p.media).is_file():self.load_media(p.media,edit=False)
         if not relocated:self.message('已打开工程。' if p.media and Path(p.media).is_file() else '已打开字幕；请添加或重新定位对应音视频。')
+        self.restore_edit_position(lead=self.status.text())
         if report is not None:self.apply_external_ass(report)
         return True
     def review_external_ass(self,path,project):
@@ -1701,7 +1703,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             if path.suffix.lower()!='.sgproj':path=path.with_suffix('.sgproj')
         try:save_project(self.project,path)
         except (ValueError,OSError) as error:self.message('保存失败：'+str(error));return False
-        self.path=path;self.history.mark_saved();self.clear_recovery();self.record_version('save');self.remember_project();self.refresh();self.message('作品已保存：'+str(path));return True
+        self.path=path;self.history.mark_saved();self.clear_recovery();self.record_version('save');self.remember_project();self.remember_edit_position();self.refresh();self.message('作品已保存：'+str(path));return True
     def paste_lyrics(self):
         if not self.flush_edits():return
         dialog=LyricsDialog(self)
@@ -1740,7 +1742,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.original_audio=result
             p=self.project;p.duration=int(result['duration']);p.width=int(result['width']);p.height=int(result['height']);p.fps=float(result['fps']);p.media_stamp=file_stamp(path);p.has_video=bool(result['has_video']);self.playback.canvas.audio_only=not p.has_video;self.playback.set_reference_size(p.width,p.height)
             if p.media_role in p.media_versions:p.media_versions[p.media_role]=MediaVersion(path,p.duration,p.media_stamp.copy())
-            self.refresh();self.seek_slider.setMaximum(self.project.duration);self.message('音频波形已就绪。')
+            self.refresh();self.seek_slider.setMaximum(self.project.duration)
+            if not self.apply_pending_place():self.message('音频波形已就绪。')
         def failed(message):
             if self.closing or generation!=self.analysis_generation:return
             self.analysis_job=None;self.message(message)
@@ -2096,7 +2099,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not self.closing:self.message('自动恢复文件无法写入，请及时保存工程：'+str(error))
     def recovery_record(self,snapshot):
         # Workers never read the live project or a mutable pending API result.
-        return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending),'drafts':self.unapplied_drafts()}
+        return {'project':snapshot,'path':str(self.path or ''),'pending':copy.deepcopy(self.pending),'drafts':self.unapplied_drafts(),'position':self.position_snapshot()}
     def checkpoint_edited_snapshot(self,snapshot):
         # Only the successful synchronous History transaction calls this.
         # Its detached snapshot is immutable to all internal readers. Exact
@@ -2121,7 +2124,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         else:self.recovery_writer.queue_owned(record)
     def queue_recovery(self):
         if self.closing:return
-        self.drop_edited_checkpoint();self.maybe_auto_version()
+        self.drop_edited_checkpoint();self.maybe_auto_version();self.remember_edit_position()
         snapshot=self.project.to_dict()
         if snapshot!=self.history.saved or self.pending or self.unapplied_drafts():self.recovery_writer.queue_owned(self.recovery_record(snapshot))
         else:self.clear_recovery()
@@ -2145,6 +2148,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             self.relocate_missing_media(self.path)
             if self.project.media and Path(self.project.media).exists():self.load_media(self.project.media,False)
         except (OSError,ValueError) as error:self.message('恢复失败：'+str(error));return
+        self.restore_edit_position(data.get('position') or None)
         drafts=data.get('drafts') if isinstance(data,dict) else None
         if isinstance(drafts,list) and drafts:self.offer_drafts(drafts)
     def dragEnterEvent(self,event):
@@ -2167,7 +2171,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not self.can_replace():event.ignore();return
         if getattr(self,'_discarding',False):self.clear_recovery()
         else:self.save_recovery()
-        self.dispose();event.accept()
+        self.remember_edit_position();self.dispose();event.accept()
 
     def dispose(self):
         if self.closing:return
