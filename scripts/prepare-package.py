@@ -150,6 +150,7 @@ SOFTWARE.
                 for path in files(ROOT/folder):
                     archive.write(path,'karaoke-studio/'+path.relative_to(ROOT).as_posix())
             archive.write(ROOT/'README.md','karaoke-studio/README.md')
+            archive.write(ROOT/'LICENSE','karaoke-studio/LICENSE')
             archive.writestr('karaoke-studio/SOURCE-NOTES.txt',
                 'Based on user-supplied Aegisub 3.5.0 source, local snapshot 211e7aa.\n'
                 'Studio changes are recorded by scripts/apply-studio.py and native/.\n'
