@@ -2,6 +2,7 @@
 from dataclasses import dataclass,field
 import copy
 from studio_backend.provenance import record_tree
+from studio_backend.protection import locked
 from .timing import manual
 
 
@@ -16,7 +17,7 @@ class TapDraft:
         self.original=copy.deepcopy(self.original);self.points=list(self.points)
         if self.mode not in ('paired','continuous'):raise ValueError('请选择逐音起止或连续分界')
         line=self.original;line.validate()
-        if line.locked or any(u.locked for u in line.units):raise ValueError('本句或词组已锁定；请先解除需要修改的锁定，再跟唱打点。')
+        if locked(line):raise ValueError('本句或词组已锁定；请先解除需要修改的锁定，再跟唱打点。')
         if not line.units or any(not u.highlights for u in line.units):raise ValueError('请先完成本句分词、假名与演唱音节，再跟唱打点。')
         if self.mode=='continuous' and self.has_gaps and not self.acknowledge_gaps:
             raise ValueError('连续分界会连接相邻音节；请确认，或使用可保留休止的逐音起止模式。')

@@ -203,7 +203,8 @@ async def operation(request, root, report):
     key=settings.key(provider)
     if not key:
         raise ValueError('请先在 API 设置中配置 '+provider+' 密钥')
-    if any(line.locked or any(unit.locked for unit in line.units) for line in lines):
+    from .protection import locked
+    if any(locked(line) for line in lines):
         raise ValueError('选中范围包含已锁定歌词，请先取消锁定或调整选择')
     config=settings.read().get(provider,{})
     diagnostics={}

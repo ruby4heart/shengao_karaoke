@@ -5,12 +5,13 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QTextBrowser,
     QPushButton,QTableWidget,QTableWidgetItem,QHeaderView,QDialogButtonBox)
 from studio_backend.japanese import Group,word_groups,retime_groups,add_mora
+from studio_backend.protection import locked
 from .widgets import TimeEdit
 from .timing import manual
 
 
 def regroup(original,cuts,start=None,end=None):
-    if original.locked or any(u.locked for u in original.units):raise ValueError('本句或词组已锁定，请先解除锁定')
+    if locked(original):raise ValueError('本句或词组已锁定，请先解除锁定')
     line=copy.deepcopy(original);start=line.start if start is None else start;end=line.end if end is None else end
     if not 0<=start<end:raise ValueError('本句开始须早于结束')
     bounds=[0,*sorted(set(cuts)),len(line.text)]

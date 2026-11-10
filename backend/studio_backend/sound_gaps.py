@@ -40,7 +40,8 @@ def target_item(lines,position):
 
 def protected(line,unit,item,new_end=None):
     from .provenance import inferred,effective_kind
-    if line.locked or unit.locked:return '已锁定'
+    from .protection import locked
+    if locked(line,[unit]):return '已锁定'
     if line.reviewed:return '本句时间已确认'
     kind=effective_kind(inferred(item));word_kind=effective_kind(inferred(unit));line_kind=effective_kind(inferred(line))
     if getattr(item,'fixed_edges',[]) or unit.source=='manual' or item.source=='manual' or kind=='manual':return '人工时间已保护'

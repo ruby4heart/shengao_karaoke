@@ -12,10 +12,13 @@ def kana_only(text):
 
 
 def protected(line,reviewed=True):
-    return line.locked or (reviewed and line.reviewed) or any(u.locked or any(h.fixed_edges for h in u.highlights) for u in line.units)
+    from .protection import protected as rule
+    return rule(line,'smoothing',reviewed=reviewed)
 
 
-def reading_protected(line):return line.locked or any(u.locked for u in line.units)
+def reading_protected(line):
+    from .protection import protected as rule
+    return rule(line,'reading')
 
 
 def smooth_gaps(line,maximum=120):

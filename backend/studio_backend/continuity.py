@@ -6,7 +6,8 @@ DEFAULT_GAP_MS=500
 
 
 def protected(line):
-    return line.locked or line.reviewed or any(u.locked for u in line.units) or line.match.get('status') in {'protected','unmatched','manual'}
+    from .protection import protected as rule
+    return rule(line,'continuity')
 
 
 def automatic(unit,edge=None):

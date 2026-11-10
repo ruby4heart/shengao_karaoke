@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from .timing import manual
 from studio_backend.provenance import record_tree
+from studio_backend.protection import locked
 
 
 def scope_indices(project, scope, current, selected=()):
@@ -22,7 +23,7 @@ def scope_indices(project, scope, current, selected=()):
 
 
 def locked_rows(project, indices):
-    return [i for i in indices if project.lines[i].locked or any(u.locked for u in project.lines[i].units)]
+    return [i for i in indices if locked(project.lines[i])]
 
 
 def shift_limits(project, indices):

@@ -1,6 +1,7 @@
 """Qt input/model around the original offscreen Aegisub timeline drawing."""
 import math
 import numpy as np
+from studio_backend.protection import locked
 from PySide6.QtCore import Qt,Signal,QRectF,QTimer
 from PySide6.QtGui import QPainter,QColor,QImage
 from PySide6.QtWidgets import QWidget
@@ -324,7 +325,7 @@ class Timeline(QWidget):
             return
         if self.line and self.audio_top<=pos.y()<=self.audio_bottom and event.button()==Qt.MouseButton.LeftButton and (self.move_mode or event.modifiers()&Qt.KeyboardModifier.AltModifier):
             if self.move_error:self.notice.emit(self.move_error);return
-            if self.line.locked or any(u.locked for u in self.line.units):self.notice.emit('本句或词组已锁定，请先解除锁定。');return
+            if locked(self.line):self.notice.emit('本句或词组已锁定，请先解除锁定。');return
             if self.duration and self.line.end-self.line.start>self.duration:self.notice.emit('本句跨度超过素材时长，请先重新设置本句范围。');return
             value=self.time(pos.x());offset=value-self.line.start if self.line.start<=value<=self.line.end else 0
             self.moving=offset;self.drag_x=pos.x();self.drag_modifiers=event.modifiers();self.move_delta=self.move_value(pos.x());self.auto_scroll.start();self.viewChanged.emit();self.update();return

@@ -6,6 +6,7 @@ Original text and manual readings never change as a consequence of timing edits.
 import copy
 from dataclasses import asdict
 from studio_backend.model import Highlight
+from studio_backend.protection import locked
 from studio_backend.japanese import morae, romaji, add_mora
 from studio_backend.provenance import remember,record,record_tree,group_basis,derived
 
@@ -99,7 +100,7 @@ def merge_pauses(original,indices,policy,edges=False):
     if policy=='keep':return copy.deepcopy(original)
     if policy not in ('previous','next'):raise ValueError('请选择停顿处理方式')
     line=copy.deepcopy(original)
-    if line.locked or any(u.locked for u in line.units):raise ValueError('已锁定歌词不能修改停顿')
+    if locked(line):raise ValueError('已锁定歌词不能修改停顿')
     gaps=pauses(line,edges);parts=leaves(line)
     for index in sorted(set(indices)):
         start,end,left,right=gaps[index]
@@ -137,7 +138,7 @@ def edit_reading(original,index,kana,latin='',defaults=None):
 
 def merge_words(original,first,last):
     line=copy.deepcopy(original)
-    if line.locked or any(u.locked for u in line.units[first:last+1]):raise ValueError('所选词组已锁定')
+    if locked(line,line.units[first:last+1]):raise ValueError('所选词组已锁定')
     if not 0<=first<last<len(line.units):raise ValueError('请选中至少两个相邻词组')
     from studio_backend.model import Unit
     words=line.units[first:last+1]
@@ -167,7 +168,7 @@ def split_word(original,index,position):
 
 def shift_following(original,boundary,delta):
     line=copy.deepcopy(original)
-    if line.locked or any(u.locked for u in line.units):raise ValueError('已锁定歌词不能批量移动边界')
+    if locked(line):raise ValueError('已锁定歌词不能批量移动边界')
     times=sorted({t for i,j,h in leaves(line) for t in (h.start,h.end)}|{line.start,line.end})
     movable=[t for t in times if boundary<=t<line.end and t>line.start]
     if not movable:return line

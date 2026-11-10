@@ -38,6 +38,7 @@ from .audio_controls import AudioControls
 from .tail_dialog import TailDialog
 from .tail_model import shift_line
 from .time_transform import scope_indices,locked_rows,shift_limits,TimeTransform,transform_project
+from studio_backend.protection import locked
 from .time_correction_dialog import TimeCorrectionDialog
 from .match_range_dialog import MatchRangeDialog
 from .source_switch import SourceSwitch
@@ -762,7 +763,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def inspect_tail(self):
         if not self.flush_edits() or not self.line:return
-        if self.line.locked or any(u.locked for u in self.line.units):self.message('本句或词组已锁定，请先解除锁定。');return
+        if locked(self.line):self.message('本句或词组已锁定，请先解除锁定。');return
         if not any(u.highlights for u in self.line.units):self.go_reading();self.message('先点击“① 分词”生成本句音节，或填写词组假名，再使用尾音细听。');return
         row=self.current;uid=self.line.id;snapshot=self.line.to_dict();dialog=TailDialog(self.line,self.playback,self.timeline,self)
         accepted=dialog.exec()==QDialog.DialogCode.Accepted;result=dialog.result_line;dialog.deleteLater()
@@ -797,7 +798,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
 
     def resegment_dialog(self):
         if not self.flush_edits() or not self.line:return
-        if self.line.locked or any(u.locked for u in self.line.units):self.message('本句或词组已锁定，请先解除锁定。');return
+        if locked(self.line):self.message('本句或词组已锁定，请先解除锁定。');return
         dialog=SegmentationDialog(self.line,self.playback,self)
         if dialog.exec()==QDialog.DialogCode.Accepted:
             row=self.current;uid=self.line.id
@@ -809,7 +810,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if not self.flush_edits() or not self.line:return
         if self.line.locked:self.message('本句已锁定，请先解除锁定。');return
         row=self.current;end=self.line.end;line_mode=self.timeline.granularity=='line';advance=reset or self.preferences.data.get('audio_next_on_commit',True) is not False
-        if reset and line_mode and row+1<len(self.project.lines) and (self.project.lines[row+1].locked or any(u.locked for u in self.project.lines[row+1].units)):
+        if reset and line_mode and row+1<len(self.project.lines) and locked(self.project.lines[row+1]):
             self.message('下一句已锁定，不能重置其时间。');return
         def apply(p):
             line=p.lines[row];line.reviewed=True
@@ -983,7 +984,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if pending and self.pending.get('action')=='sound_gaps':self.review_button.setText(f'审核 {len(self.pending["result"]["gap_report"]["gaps"])} 处声音空隙')
         self.pending_line_button.setEnabled(has_lines)
         self.edit_tools.setVisible(has_lines and self.stage in (1,2,3));self.quick_reading.setEnabled(has_lines);self.quick_timing.setEnabled(has_lines);self.quick_tail.setEnabled(has_lines)
-        editable=bool(self.line and not self.line.locked and not any(u.locked for u in self.line.units))
+        editable=bool(self.line and not locked(self.line))
         self.move_to_playhead.setEnabled(editable);self.drag_line.setEnabled(editable)
         self.change_reading_button.setEnabled(bool(editable and self.line.units))
         self.play_output_button.setEnabled(bool(self.last_output and Path(self.last_output).is_file()));self.folder_output_button.setEnabled(self.play_output_button.isEnabled())
@@ -1769,20 +1770,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if self.api.busy or self.source_job:self.message('已有后台任务正在执行，请等候换源或当前任务完成');return
         if self.pending and self.pending.get('result',{}).get('suggestions'):self.message('先审核或放弃当前建议，再生成新的初稿。原始结果仍保存在任务记录。');return
         if not self.project.lines:self.message('请先粘贴原歌词');return
-        if line_ids is not None:
-            lines=[line for line in self.project.lines if line.id in line_ids]
-            if len(lines)!=len(set(line_ids)):self.message('歌词选择已变化，请重新选择范围');return
-            if any(line.locked or any(unit.locked for unit in line.units) for line in lines):self.message('所选范围包含锁定内容，请先解除锁定');return
-        elif only_current and self.line:lines=[self.line]
-        elif action in {'match','transcribe_match'}:
-            # Confirmed/locked rows remain immutable context for whole-song
-            # matching. Removing them here would let repeated verses cross the
-            # very human positions that the backend is meant to respect.
-            from studio_backend.matching_context import protected
-            lines=list(self.project.lines) if any(not protected(x) for x in self.project.lines) else []
-        elif action in {'refine','annotate'}:lines=[x for x in self.project.lines if not x.locked and not self.project.checks.get(x.id,{}).get('reading')]
-        else:lines=[x for x in self.project.lines if not x.reviewed and not x.locked]
-        if not lines:self.message('当前范围已经确认或锁定；可以选中具体一句再操作');return
+        # One shared rule picks the range: locked word groups are left out of
+        # whole-line cloud work up front instead of failing the started task.
+        from .task_scope import api_lines,left_out
+        lines,refusal=api_lines(self.project,action,self.line,only_current,line_ids)
+        if refusal:self.message(refusal);return
         if action in {'transcribe_match','align'} and not self.project.media:self.message('请先添加音视频');return
         if action=='match' and not self.project.transcript:self.message('本工程没有可复用的转录，请先完成一次转录');return
         if action=='match' and self.project.transcript_stamp and self.project.transcript_stamp!=file_stamp(self.project.media):self.message('素材已被替换，已有转录不再对应当前版本，请重新添加正确素材或重新转录');return
@@ -1796,7 +1788,8 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if action=='match' and options.get('rematch_confirmed'):
             request['_studio_snapshots']=copy.deepcopy(self.snapshots)
             for value in request['lines']:value['reviewed']=False
-        self.api.start(request);self.message('任务已开始；结果会先进入审核。')
+        self.api.start(request);skipped=left_out(self.project,lines) if line_ids is None and not only_current else 0
+        self.message('任务已开始；结果会先进入审核。'+(f'{skipped} 句含锁定词组，已留在原样。' if skipped else ''))
     def api_done(self,result):
         action=self.api.request.get('action')
         if action=='configure':self.message('API 设置已加密保存到本机。');return

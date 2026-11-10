@@ -3,6 +3,7 @@ import copy
 import math
 import io
 import wave
+from studio_backend.protection import locked
 import numpy as np
 from studio_backend.analysis import kana_only
 from studio_backend.japanese import morae,romaji
@@ -11,7 +12,7 @@ from studio_backend.provenance import remember,record_tree
 
 
 def shift_line(original,delta):
-    if original.locked or any(u.locked for u in original.units):raise ValueError('本句或词组已锁定，请先解除锁定')
+    if locked(original):raise ValueError('本句或词组已锁定，请先解除锁定')
     if type(delta) not in (int,float) or not math.isfinite(delta):raise ValueError('移动时间无效')
     line=copy.deepcopy(original);delta=max(-line.start,round(delta))
     line.start+=delta;line.end+=delta
@@ -24,7 +25,7 @@ def shift_line(original,delta):
 
 
 def replace_mora(original,index,part,reading):
-    if original.locked or any(u.locked for u in original.units):raise ValueError('本句或词组已锁定，请先解除锁定')
+    if locked(original):raise ValueError('本句或词组已锁定，请先解除锁定')
     reading=kana_only(reading)
     if not reading or len(morae(reading))!=1:raise ValueError('这里填写一个日语音节，例如 て、す、きょ；整词读音请在注音页修改')
     if not 0<=index<len(original.units) or not 0<=part<len(original.units[index].highlights):raise ValueError('请先选择一个演唱音节')
