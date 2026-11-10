@@ -129,10 +129,14 @@ def group_basis(items,start,end,method='grouped_reference'):
     return value
 
 
+# v2 only adds optional breath/release tags at free line edges; mora runs keep the same shape.
+VOICE_ENGINES=frozenset(('tifa-1.0-st-mora-cpu-v1','tifa-1.0-st-mora-cpu-v2'))
+
+
 def voice_lookup(line):
     """Recover only the fixed legacy model's retained, nonempty phoneme runs."""
     evidence=line.timing_evidence
-    if evidence.get('engine')!='tifa-1.0-st-mora-cpu-v1' or evidence.get('model_sha256')!='8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b':return {}
+    if evidence.get('engine') not in VOICE_ENGINES or evidence.get('model_sha256')!='8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b':return {}
     output={};runs=evidence.get('runs',[])
     if not isinstance(runs,list):return output
     for run in runs:

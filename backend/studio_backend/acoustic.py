@@ -57,13 +57,17 @@ def plan(line):
     if line.locked or line.reviewed:raise ValueError('本句时间已确认或锁定；如需重算，请先解除本句时间确认。')
     if not line.units:raise ValueError('请先按原歌词分词并填写假名，再对齐歌声。')
     if not 100<=line.end-line.start<=60000:raise ValueError('请用“整句范围”圈住本句歌声，范围须在 0.1 至 60 秒内。')
-    baseline=copy.deepcopy(line);jobs=[];pending=[];left=line.start;protected=[]
-    def flush(right):
-        nonlocal pending,left
+    baseline=copy.deepcopy(line);jobs=[];pending=[];left=line.start;protected=[];free_left=True
+    def flush(right,trail=False):
+        nonlocal pending,left,free_left
         if pending:
             if right-left<max(20,len(pending)*10):raise ValueError('人工固定位置之间没有足够空间容纳未固定音节，请先检查整句范围和固定边界。')
-            jobs.append({'start':left,'end':right,'mora':pending});pending=[]
-        left=right
+            job={'start':left,'end':right,'mora':pending}
+            # Only a free line edge may carry breath or reverb tail audio;
+            # human anchors and fixed edges stay exact.
+            if free_left or trail:job['edges']={'lead':free_left,'trail':trail}
+            jobs.append(job);pending=[]
+        left=right;free_left=False
     for i,unit in enumerate(baseline.units):
         if unit.locked:
             flush(unit.start);left=unit.end;protected.append({'unit':i,'kind':'locked'});continue
@@ -81,9 +85,21 @@ def plan(line):
                 pending.append({'unit':i,'highlight':j,'kana':highlight.kana,'pronunciation':key})
                 if 'end' in highlight.fixed_edges:flush(highlight.end)
         if manual_unit_bounds(unit):flush(unit.end)
-    flush(line.end)
+    flush(line.end,trail=True)
     if not jobs:raise ValueError('本句全部音节已人工固定，没有可重算的部分。')
     return {'original':line.to_dict(),'baseline':baseline.to_dict(),'jobs':jobs,'protected':protected}
+
+EDGE_TAGS='ap-ep-v1'
+
+def edge_evidence(job,output,values):
+    """Keep the model's breath and release spans only when they sit outside the mora."""
+    raw=output.get('edges') if isinstance(output.get('edges'),dict) else {}
+    found={'lead':bool(job['edges'].get('lead')),'trail':bool(job['edges'].get('trail'))}
+    for name,label,low,high in (('lead','breath',job['start'],values[0]['start']),('trail','release',values[-1]['end'],job['end'])):
+        span=raw.get(label)
+        good=found[name] and isinstance(span,list) and len(span)==2 and all(type(x) is int for x in span) and low<=span[0]<span[1]<=high
+        found[label]=list(span) if good else None
+    return found
 
 def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=True):
     line=LyricLine.from_dict(prepared['baseline']);notes=[];evidence=[];changed=0;changed_units=set();inferred_units=set();written=set()
@@ -127,7 +143,9 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
             if not manual_unit_bounds(unit):unit.source='acoustic'
         for a,b in zip(values,values[1:]):
             if a['phones'][-1]['phone']==b['phones'][0]['phone'] and a['end']==b['start']:warnings.append(a['kana']+'／'+b['kana']+'：相同音连续，内部分界需人工听拍。')
-        evidence.append({'window':[job['start'],job['end']],'mora':values,'agreement':output.get('agreement'),'notes':warnings});notes+=warnings
+        run={'window':[job['start'],job['end']],'mora':values,'agreement':output.get('agreement'),'notes':warnings}
+        if job.get('edges'):run['edges']=edge_evidence(job,output,values)
+        evidence.append(run);notes+=warnings
     if not changed:raise ValueError('没有生成可用的声音边界，原时间保留。请核对假名与整句范围，或手工划音。')
     original=LyricLine.from_dict(prepared['original'])
     if prepared.get('recalculation'):
@@ -144,6 +162,7 @@ def propose(prepared,result,source_sha256,audio_sha256,audio_role,leading_gap=Tr
                 record(original.units[i],unit,'manual_boundary')
     line.reviewed=False
     line.timing_evidence={'engine':result['engine'],'model_sha256':result['model_sha256'],'source_sha256':source_sha256,'audio_sha256':audio_sha256,'audio_role':audio_role,'timestep_ms':result['timestep_ms'],'runs':evidence,'protected':prepared['protected'],'notes':list(dict.fromkeys(notes)),'notice':'按输入假名强制对齐歌声，未核验假名是否唱对；模型分数不是准确率。整句头尾、原文、读音和人工固定部分保留。'}
+    if any('edges' in run for run in evidence):line.timing_evidence['edge_tags']=EDGE_TAGS
     if guides:
         from .acoustic_guides import validate_result
         line.timing_evidence['guide_points']=copy.deepcopy(guides)
