@@ -54,7 +54,7 @@ class IssuesDialog(QDialog):
         self.old=QPlainTextEdit();self.old.setReadOnly(True);self.old.setMinimumWidth(0);self.old.setMaximumHeight(110);detail.addWidget(self.old);self.old.hide()
         row=QHBoxLayout();self.locate=button('定位到编辑处','定位当前歌词、词组或音节；不采用建议。',lambda:self.jump(False));self.listen=button('带前音试听','定位后用主界面细听播放上下文；不修改原文、轴或确认。',lambda:self.jump(True));self.stop=button('停止试听','停止临时细听并恢复常规播放设置。',lambda:self.studio.playback.stop())
         for control in (self.locate,self.listen,self.stop):row.addWidget(control)
-        root.addLayout(row);row=QHBoxLayout();self.tool=button('打开对应工具','按问题打开读音、分词、声音空隙、句尾检查、局部匹配、样式或确认入口，不自动确认。',self.open_tool);row.addWidget(self.tool)
+        root.addLayout(row);row=QHBoxLayout();self.tool=button('打开对应工具','按问题打开读音、分词、声音空隙、句尾检查、多方案比对、局部匹配、样式或确认入口，不自动确认。',self.open_tool);row.addWidget(self.tool)
         self.pending=button('待审任务审核…','保留原审核流程的快照、锁定及人工保护；过期任务仍可在本清单比较。',self.review_task);row.addWidget(self.pending);root.addLayout(row)
         row=QHBoxLayout();self.adopt=button('采用这条建议','只采用上面明确比较的本地建议；与处理记录同一步撤销，不自动确认时间或读音。',self.adopt_selected);self.adopt.setObjectName('primary')
         self.manual=button('前往手改','收起清单并定位相应编辑入口；修改后可重新打开疑点清单。',self.manual_selected)
@@ -243,6 +243,9 @@ class IssuesWorkflow:
             if self.pending and self.pending.get('action')=='line_tails':self.review_line_tails()
             else:self.start_line_tails()
         elif item.kind=='tail':self.show_editor_widget(self.end)
+        elif specific and item.kind=='timing':
+            if self.pending and self.pending.get('action')=='timing_plans':self.review_timing_plans()
+            else:self.start_timing_plans()
         elif specific and item.kind=='match':self.local_match()
         elif item.kind=='duration':self.mora_editing.toggle.setChecked(True);self.show_editor_widget(self.mora_editor)
         elif item.kind=='missing':self.show_editor_widget(self.fill_mora_button)

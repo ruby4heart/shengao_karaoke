@@ -10,9 +10,10 @@ from studio_backend.analysis import kana_only,recognition_for
 from studio_backend.reading_candidates import _transcript_word
 from studio_backend import translation
 from studio_backend import line_tails
+from studio_backend import timing_plans
 
 
-KINDS={'media':'素材','match':'匹配／错段','reading':'读音分歧','missing':'缺少词组／音节','duration':'异常时长','gap':'音节间隔','tail':'句尾','range':'范围','layout':'排版','translation':'译文','confirmation':'待确认','proposal':'待审任务建议'}
+KINDS={'media':'素材','match':'匹配／错段','reading':'读音分歧','missing':'缺少词组／音节','duration':'异常时长','gap':'音节间隔','tail':'句尾','timing':'多来源时间','range':'范围','layout':'排版','translation':'译文','confirmation':'待确认','proposal':'待审任务建议'}
 SEVERITIES={'error':'需处理','warning':'需检查','notice':'参考提示'}
 DECISIONS={'keep','defer','adopted'}
 
@@ -169,7 +170,24 @@ def collect(project,include_layout=True,pending=None):
         add('tail','notice',target['row'],word,-1 if part is None else part,'tail-quick','句尾可能被压缩',
             '；'.join(f['message'] for f in quick)+' 仅按时间判断，未听声音；可用“检查句尾”结合人声比较候选。',
             f'{target["text"]}：{target["start"]}–{target["end"]} ms；整句到 {target["line_end"]} ms','打开句尾检查，试听后保持或选择候选',basis=[target['start'],target['end'],target['line_end'],target['limit'],[f['code'] for f in quick]])
-    if pending and report is None:
+    plans=plan_report(task)
+    if plans is not None and where and (where.get('project')!=project.uid or where.get('media')!=stamp):
+        add('proposal','warning',-1,-1,-1,'plans-elsewhere','多方案比对属于另一素材或工程','旧结果保留在任务记录，不能用于当前时间轴。','当前工程保持','切回原素材后审核，或重新比对',basis=where)
+    elif plans is not None:
+        changed=timing_plans.stale_rows(project.lines,plans);by_id={line.id:row for row,line in enumerate(project.lines)}
+        for entry in plans['lines']:
+            row=by_id.get(entry['line_id'])
+            if row is None or entry['line_id'] in changed or entry['status'] not in {'conflict','uncertain'}:continue
+            cells=entry['grid'];spot=entry['differing'][0]['index'] if entry['differing'] else -1
+            target=cells[min(spot,len(cells)-1)] if cells and spot>=0 else {'word':None,'part':None}
+            word=-1 if target['word'] is None else target['word'];part=-1 if target['part'] is None else target['part']
+            others=[p for p in entry['plans'] if p['kind']!='current']
+            listing='；'.join(f'{p["label"]} {p["start"]}–{p["end"]} ms（起点 {p["start"]-entry["start"]:+d} ms）'+('，与当前相同' if p['same'] else '') for p in others)
+            title=f'各来源时间有分歧（最大差 {entry["spread"]} ms）' if entry['status']=='conflict' else '位置匹配不确定，请比较各方案'
+            add('timing','warning',row,word,part,'timing-plans',title,
+                entry['reason']+' 没有哪种来源总是更准，不会自动选择；请在多方案比对里逐个试听，保持当前或选一个方案。',
+                f'当前：{entry["start"]}–{entry["end"]} ms',(listing or '没有其他可用方案')+'\n打开多方案比对，试听后决定',None,basis={'report':plans['result_sha256'],'entry':entry['line_sha']})
+    if pending and report is None and plans is None:
         result=task.get('result',{});result=result if isinstance(result,dict) else {}
         snapshots=task.get('snapshots',{});snapshots=snapshots if isinstance(snapshots,dict) else {};task_context=task.get('context',{});task_context=task_context if isinstance(task_context,dict) else {}
         by_id={line.id:row for row,line in enumerate(project.lines)};suggestions=result.get('suggestions',[])
@@ -209,6 +227,14 @@ def tail_report(task):
     try:line_tails.validate_report(result.get('tail_report'))
     except ValueError:return None
     return result['tail_report']
+
+
+def plan_report(task):
+    if task.get('action')!='timing_plans':return None
+    result=task.get('result');result=result if isinstance(result,dict) else {}
+    try:timing_plans.validate_report(result.get('plan_report'))
+    except ValueError:return None
+    return result['plan_report']
 
 
 def current_issue(project,expected,include_layout=True,pending=None):
