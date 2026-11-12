@@ -8,11 +8,17 @@ from studio_backend.settings import atomic_json
 
 class Preferences:
     def __init__(self,home):
-        self.path=Path(home)/'workspace.json';self.data={}
+        self.path=Path(home)/'workspace.json';self.data={};self.damaged=None
         try:
             value=json.loads(self.path.read_text(encoding='utf-8'))
-            if isinstance(value,dict):self.data=value
-        except (OSError,ValueError):pass
+            if not isinstance(value,dict):raise ValueError('工作区设置不是对象')
+            self.data=value
+        except ValueError:
+            # Keep the damaged file for inspection rather than overwriting it
+            # with defaults on the next preference change.
+            from studio_backend.settings import preserve_damaged
+            self.damaged=preserve_damaged(self.path)
+        except OSError:pass
 
     def save(self):atomic_json(self.path,self.data)
 

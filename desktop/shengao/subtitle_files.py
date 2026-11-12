@@ -144,6 +144,7 @@ def export_subtitle(project,path,kind='ass'):
 
     Returns ``{'path','fonts','missing'}``: the font files carried beside the
     ASS, and the fonts that could not be carried (their files are gone)."""
+    from .project import copy_whole,_font_check
     path=Path(path);project.validate()
     if not project.lines:raise ValueError('工程没有歌词')
     carried=[];skipped=[]
@@ -154,14 +155,14 @@ def export_subtitle(project,path,kind='ass'):
             chosen=getattr(value.style,name)
             if chosen and not Path(chosen).is_file():skipped.append(Path(chosen).name)
             source=resolve_font(chosen,getattr(value.style,family));digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12];destination=resources/(digest+source.suffix)
-            if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
+            if source.resolve()!=destination.resolve():copy_whole(source,destination,_font_check(destination.stem))
             setattr(value.style,name,str(destination));carried.append(destination.name)
         # Embed relative resource paths so an exported ASS can reopen elsewhere.
         data=value.to_dict()
         if value.song_info.get('font') or value.song_info.get('font_file'):
             from .song_info import font_path
             source=font_path(value);destination=resources/(hashlib.sha256(source.read_bytes()).hexdigest()[:12]+source.suffix)
-            if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
+            if source.resolve()!=destination.resolve():copy_whole(source,destination,_font_check(destination.stem))
             value.song_info['font_file']=str(destination);carried.append(destination.name)
             data['song_info']['font_file']=str(destination.relative_to(path.parent))
         for name in ('font_file','ruby_font_file','translation_font_file'):data['style'][name]=os.path.relpath(getattr(value.style,name),path.parent)
@@ -169,7 +170,7 @@ def export_subtitle(project,path,kind='ass'):
             source=Path(source_name)
             if not source.is_file():skipped.append(family);continue
             destination=resources/(hashlib.sha256(source.read_bytes()).hexdigest()[:12]+source.suffix)
-            if source.resolve()!=destination.resolve():shutil.copy2(source,destination)
+            if source.resolve()!=destination.resolve():copy_whole(source,destination,_font_check(destination.stem))
             data['font_assets'][family]=str(destination.relative_to(path.parent));carried.append(destination.name)
         if value.media:
             try:data['media']=os.path.relpath(value.media,path.parent)

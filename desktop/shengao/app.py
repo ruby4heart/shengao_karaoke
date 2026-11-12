@@ -101,6 +101,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         self.autosave=QTimer(self);self.autosave.setInterval(15000);self.autosave.timeout.connect(self.queue_recovery);self.autosave.start()
         self.render_timer=QTimer(self);self.render_timer.setSingleShot(True);self.render_timer.setInterval(100);self.render_timer.timeout.connect(self.render_subtitles)
         if not test:QTimer.singleShot(0,self.recover_interrupted_renders);QTimer.singleShot(250,self.offer_recovery)
+        if self.preferences.damaged:QTimer.singleShot(0,lambda:self.message('工作区设置文件已损坏，已改用默认设置；原文件另存为 '+self.preferences.damaged.name+'。'))
         if self.audio_profile_warning:QTimer.singleShot(0,lambda warning=self.audio_profile_warning:self.message(warning))
         saved=self.preferences.data
         volume=saved.get('volume',70)
@@ -1669,7 +1670,11 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def open_path(self,path,guard=True):
         if guard and not self.can_replace():return False
         try:p=load_project(path);p,report=self.review_external_ass(path,p)
-        except (ValueError,OSError) as error:self._discarding=False;self.message('打开失败：'+str(error));return False
+        except (ValueError,OSError) as error:
+            self._discarding=False
+            if self.open_damaged_project(path,error):return True
+            from .damage import reason
+            self.message('打开失败：'+reason(error).rstrip('。')+('；原文件未改动。' if Path(path).is_file() else '。'));return False
         if p is None:self._discarding=False;self.message('已取消打开。');return False
         self.remember_edit_position();self.clear_media();self.history=History(p);self.path=Path(path) if Path(path).suffix.lower()=='.sgproj' else None;self.current=0;self.pending=None
         self.clear_recovery();self.reset_output_context();self.preferences.remember(path,p.title);self.refresh_recent_menu();self.welcome.set_recent(self.preferences.recent())
@@ -1720,7 +1725,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
             path=Path(selected)
             if path.suffix.lower()!='.sgproj':path=path.with_suffix('.sgproj')
         try:save_project(self.project,path)
-        except (ValueError,OSError) as error:self.message('保存失败：'+str(error));return False
+        except (ValueError,OSError) as error:
+            from .damage import reason
+            self.message('保存失败：'+reason(error).rstrip('。')+('；原工程文件未改动' if path.is_file() else '')+'。当前修改仍在窗口中，可另存到其他位置。');return False
         self.path=path;self.history.mark_saved();self.clear_recovery();self.record_version('save');self.remember_project();self.remember_edit_position();self.refresh();self.message('作品已保存：'+str(path));return True
     def paste_lyrics(self):
         if not self.flush_edits():return
@@ -2041,11 +2048,12 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 value=json.loads(file.read_text(encoding='utf-8'));entries.append((None,{'action':'encode'},value));items.addItem(render_history_text(value))
             except (ValueError,OSError):continue
         root=self.home/'desktop-tasks'
+        from .damage import read_task
         for folder in sorted(root.iterdir(),key=lambda x:x.stat().st_mtime,reverse=True)[:100] if root.exists() else []:
-            request=folder/'request.json';result=folder/'result.json'
-            if not request.exists():continue
             try:
-                req=json.loads(request.read_text(encoding='utf-8'));value=json.loads(result.read_text(encoding='utf-8')) if result.exists() else {'message':'没有最终结果，请确认服务端状态后再重试'}
+                task=read_task(folder)
+                if task is None:continue
+                req,value=task
                 if req.get('action')=='chorus_reuse':
                     if not value.get('suggestions'):
                         from studio_backend.chorus_workflow import saved_result
@@ -2059,7 +2067,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
                 elif req.get('action') in {'transcribe','confirm_recognition'}:
                     title='识别原文' if req['action']=='transcribe' else '原文确认（本地）'
                     items.addItem(title+' · '+('结果已保存，可恢复' if value.get('ok') else value.get('message','未完成')))
-                else:items.addItem(('暂存的校对建议' if req.get('action')=='review_saved' else '本地歌声对齐' if req.get('action')=='acoustic' else '句尾检查' if req.get('action')=='line_tails' else '多方案比对' if req.get('action')=='timing_plans' else '声音空隙检查' if req.get('action')=='sound_gaps' else str(req.get('action')))+' · '+('完成，待审核' if value.get('ok') else value.get('message','未完成')))
+                else:items.addItem(('损坏的任务记录' if req.get('action')=='damaged' else '暂存的校对建议' if req.get('action')=='review_saved' else '本地歌声对齐' if req.get('action')=='acoustic' else '句尾检查' if req.get('action')=='line_tails' else '多方案比对' if req.get('action')=='timing_plans' else '声音空隙检查' if req.get('action')=='sound_gaps' else str(req.get('action')))+' · '+('完成，待审核' if value.get('ok') else value.get('message','未完成')))
                 entries.append((folder,req,value))
             except (ValueError,OSError):continue
         def restore():
@@ -2135,11 +2143,16 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         try:self.recovery_writer.clear()
         except OSError:pass
     def offer_recovery(self):
-        path=self.recovery_path()
+        from .recovery import sweep,read_record
+        path=self.recovery_path();sweep(path)
         if not path.exists():return
+        data,project,problem,moved=read_record(path)
+        if data is None:
+            if problem:self.message('上次的自动恢复记录无法读取：'+problem+('；原记录已另存为 '+moved.name+'，不会再提示。' if moved else '。'))
+            return
         if QMessageBox.question(self,'恢复上次制作','发现上次未保存的工程、待审核结果或未应用的草稿，是否恢复？')!=QMessageBox.StandardButton.Yes:return
         try:
-            data=json.loads(path.read_text(encoding='utf-8'));self.history=History(Project.from_dict(data['project']));self.history.saved={};self.path=Path(data['path']) if data.get('path') else None;self.pending=data.get('pending');self.current=0;self.refresh(True)
+            self.history=History(project);self.history.saved={};self.path=Path(data['path']) if isinstance(data.get('path'),str) and data.get('path') else None;self.pending=data.get('pending') if isinstance(data.get('pending'),dict) else None;self.current=0;self.refresh(True)
             self.relocate_missing_media(self.path)
             if self.project.media and Path(self.project.media).exists():self.load_media(self.project.media,False)
         except (OSError,ValueError) as error:self.message('恢复失败：'+str(error));return

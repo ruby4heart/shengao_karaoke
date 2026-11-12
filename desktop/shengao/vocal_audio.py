@@ -75,7 +75,7 @@ def run(command,cancel,progress=lambda x:None,engine=False,kind='vocals',event=N
         if engine and os.name=='nt':
             from .process_tree import ProcessTree
             child_job=ProcessTree();command+=['--owner-job',child_job.name]
-        try:process=subprocess.Popen(command,stdout=writer,stderr=subprocess.STDOUT,creationflags=subprocess.CREATE_NO_WINDOW)
+        try:process=subprocess.Popen(command,stdout=writer,stderr=subprocess.STDOUT,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
         except BaseException:
             if child_job:child_job.close()
             raise
@@ -105,8 +105,10 @@ def run(command,cancel,progress=lambda x:None,engine=False,kind='vocals',event=N
             drain(final=True)
             cancelled(cancel)
             if process.returncode:
-                log.seek(0);message=log.read().decode('utf-8',errors='replace')[-1600:]
-                raise ValueError(('歌声对齐失败：' if kind=='alignment' else '人声处理失败：')+message)
+                from .damage import process_failure
+                log.seek(0);message=log.read().decode('utf-8',errors='replace')[-4000:]
+                label='audio' if Path(command[0]).stem.lower()=='ffmpeg' else 'alignment' if kind=='alignment' else 'vocals'
+                raise ValueError(process_failure(label,process.returncode,message))
         finally:
             try:
                 if child_job:child_job.terminate();child_job.wait_empty()

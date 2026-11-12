@@ -10,7 +10,7 @@ from . import jobs
 from . import version_history as vh
 from . import media_locate
 from . import draft_recovery
-from .project import Project,file_stamp
+from .project import Project,History,file_stamp
 
 AUTO_INTERVAL=300  # seconds between automatic checkpoints while edits continue
 STATUS={'changed':'有改动','removed':'当前已删除','added':'该版本没有','unchanged':'相同'}
@@ -204,6 +204,34 @@ class VersionWorkflow:
         if time.monotonic()-self._version_time<AUTO_INTERVAL or not self.history.dirty or self.pending is not None:return
         label=self.history.undo_stack[-1][0] if self.history.undo_stack else ''
         self.record_version('auto',label)
+
+    def open_damaged_project(self,path,error):
+        """A project file that cannot be read: offer its newest readable local checkpoint.
+
+        The damaged file is never written. The checkpoint opens as unsaved
+        work without a file name, so saving asks for a new location.
+        """
+        from .damage import reason
+        if Path(path).suffix.lower()!='.sgproj' or not Path(path).is_file():return False
+        try:found=vh.find_for_path(self.version_root(),path)
+        except OSError:return False
+        for history,meta in found:
+            try:snapshot=history.load(meta['id']);project=Project.from_dict(snapshot,Path(path).parent)
+            except (ValueError,OSError,TypeError,KeyError,AttributeError):continue
+            break
+        else:return False
+        moment=time.strftime('%Y-%m-%d %H:%M',time.localtime(meta.get('created_ms',0)/1000))
+        text=(f'「{Path(path).name}」无法读取：{reason(error).rstrip("。")}。\n\n'
+              f'本机版本记录里有这个工程 {moment} 的{vh.REASONS.get(meta.get("reason"),"检查点")}记录（{meta.get("lines",0)} 句）。'
+              '要打开这份记录吗？\n\n损坏的原文件保持不动；保存时会请你另存为新文件。')
+        if QMessageBox.question(self,'工程文件无法读取',text)!=QMessageBox.StandardButton.Yes:return False
+        self.remember_edit_position();self.clear_media();self.history=History(project);self.history.saved={}
+        self.path=None;self.current=0;self.pending=None;self.kept_drafts=[]
+        self.clear_recovery();self.reset_output_context();self.refresh(True);self.set_stage(2 if project.lines else 0)
+        self.relocate_missing_media(path)
+        if self.project.media and Path(self.project.media).is_file():self.load_media(self.project.media,edit=False)
+        self.message(f'已打开 {moment} 的版本记录；原文件「{Path(path).name}」未改动，请另存为新工程。')
+        return True
 
     def open_version_history(self):
         if not self.flush_edits():return

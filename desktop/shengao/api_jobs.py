@@ -86,7 +86,8 @@ class ApiJob(QObject):
                 recovery=workflow.saved_result(self.request,self.home);self.poll()
             if self.result and self.result.exists():
                 try:data=json.loads(self.result.read_text(encoding='utf-8'))
-                except (OSError,ValueError):self.failed.emit('后台结果文件不完整，请查看任务记录');return
+                except (OSError,ValueError):self.failed.emit('后台结果文件不完整，结果未采用；任务目录保留，可从任务记录检查');return
+                if not isinstance(data,dict):self.failed.emit('后台结果文件不完整，结果未采用；任务目录保留，可从任务记录检查');return
                 if data.get('ok'):self.completed.emit(data)
                 else:self.failure=data;self.failed.emit(data.get('message','后台任务未完成'))
             elif recovery:self.completed.emit({'ok':True,**recovery})

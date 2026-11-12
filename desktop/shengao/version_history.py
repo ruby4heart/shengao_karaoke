@@ -112,10 +112,48 @@ class VersionHistory:
         with self._lock:
             try:value=json.loads((self.folder/(ident+'.json')).read_text(encoding='utf-8'))
             except OSError as error:raise ValueError('检查点已不存在') from error
+            except ValueError as error:raise ValueError('检查点内容已损坏') from error
         project=value.get('project') if isinstance(value,dict) else None
         if not isinstance(project,dict) or project.get('uid')!=self.uid:raise ValueError('检查点内容无效或不属于本工程')
-        if value.get('meta',{}).get('digest') not in (None,digest(project)):raise ValueError('检查点内容已损坏')
+        meta=value.get('meta') if isinstance(value.get('meta'),dict) else {}
+        if meta.get('digest') not in (None,digest(project)):raise ValueError('检查点内容已损坏')
         return project
+
+
+def _folder_name(uid):return _SAFE_UID.sub('_',uid)[:80] or 'project'
+
+
+def _same_path(a,b):
+    import os
+    try:return os.path.normcase(os.path.abspath(str(a)))==os.path.normcase(os.path.abspath(str(b)))
+    except (TypeError,ValueError):return False
+
+
+def find_for_path(root,path):
+    """(history, metadata) of checkpoints recorded for one project file, newest first.
+
+    Used when that file cannot be read, so its project number is unknown:
+    every project's index is checked for the file path it was saved under.
+    Damaged checkpoints are skipped by the normal index rebuild.
+    """
+    root=Path(root);found=[]
+    for folder in sorted(root.iterdir()) if root.is_dir() else []:
+        if not folder.is_dir():continue
+        uid=None
+        try:
+            value=json.loads((folder/'index.json').read_text(encoding='utf-8'))
+            uid=value.get('uid') if isinstance(value,dict) else None
+        except (OSError,ValueError):pass
+        if not isinstance(uid,str) or not uid or _folder_name(uid)!=folder.name:
+            uid=None
+            for item in sorted(folder.glob('v-*.json'),reverse=True):
+                try:uid=json.loads(item.read_text(encoding='utf-8'))['project']['uid'];break
+                except (OSError,ValueError,KeyError,TypeError):continue
+            if not isinstance(uid,str) or not uid or _folder_name(uid)!=folder.name:continue
+        history=VersionHistory(root,uid)
+        found+=[(history,meta) for meta in history.entries() if meta.get('path') and _same_path(meta['path'],path)]
+    found.sort(key=lambda item:item[1].get('created_ms',0),reverse=True)
+    return found
 
 
 # ---------------------------------------------------------------- comparison

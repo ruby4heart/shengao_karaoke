@@ -4,6 +4,7 @@ from pathlib import Path
 import base64
 import copy
 import json
+import os
 import shutil
 import uuid
 import time
@@ -296,6 +297,26 @@ def _load_project(path):
         return import_ass(text,path)
     return Project.from_dict(json.loads(text),path.parent)
 
+def copy_whole(source,dest,check=None,changed='复制资源时文件发生变化，已停止；原有文件未覆盖。'):
+    """Copy beside the destination first, then rename into place.
+
+    A full disk, a forced exit or a failed check leaves either the previous
+    destination or nothing, never a partial asset that a saved project or an
+    exported subtitle would point at.
+    """
+    dest=Path(dest);temp=dest.with_name(dest.name+'.copying')
+    try:
+        shutil.copy2(source,temp)
+        if check is not None and not check(temp):raise ValueError(changed)
+        os.replace(temp,dest)
+    finally:
+        try:temp.unlink(missing_ok=True)
+        except OSError:pass
+
+def _font_check(digest):
+    import hashlib
+    return lambda path:hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]==digest
+
 def save_project(project,path,portable_fonts=True):
     project.validate();path=Path(path);value=project.to_dict()
     if portable_fonts:
@@ -303,7 +324,7 @@ def save_project(project,path,portable_fonts=True):
             import hashlib
             source=Path(project.song_info['font_file']);digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12]
             dest=path.parent/(path.stem+'.assets')/'fonts'/(digest+source.suffix);dest.parent.mkdir(parents=True,exist_ok=True)
-            if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):shutil.copy2(source,dest)
+            if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):copy_whole(source,dest,_font_check(digest))
             value['song_info']['font_file']=str(dest.relative_to(path.parent))
         for name in ('font_file','ruby_font_file','translation_font_file'):
             source=Path(value['style'][name]) if value['style'][name] else None
@@ -312,7 +333,7 @@ def save_project(project,path,portable_fonts=True):
                 digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12]
                 dest=path.parent/(path.stem+'.assets')/'fonts'/(digest+source.suffix)
                 dest.parent.mkdir(parents=True,exist_ok=True)
-                if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):shutil.copy2(source,dest)
+                if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):copy_whole(source,dest,_font_check(digest))
                 value['style'][name]=str(dest.relative_to(path.parent))
         for family,source_name in project.font_assets.items():
             source=Path(source_name)
@@ -320,7 +341,7 @@ def save_project(project,path,portable_fonts=True):
             import hashlib
             digest=hashlib.sha256(source.read_bytes()).hexdigest()[:12];dest=path.parent/(path.stem+'.assets')/'fonts'/(digest+source.suffix)
             dest.parent.mkdir(parents=True,exist_ok=True)
-            if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):shutil.copy2(source,dest)
+            if source.resolve()!=dest.resolve() and (not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest()[:12]!=digest):copy_whole(source,dest,_font_check(digest))
             value['font_assets'][family]=str(dest.relative_to(path.parent))
     if project.media:
         import os
@@ -338,9 +359,7 @@ def save_project(project,path,portable_fonts=True):
             if digest(source)!=fingerprint:raise ValueError('人声缓存已变化，请重新生成后保存；工程未覆盖。')
             dest=path.parent/(path.stem+'.assets')/'audio'/(fingerprint+'.wav');dest.parent.mkdir(parents=True,exist_ok=True)
             if source.resolve()!=dest.resolve() and (not dest.is_file() or digest(dest)!=fingerprint):
-                temp=dest.with_suffix('.copying');shutil.copy2(source,temp)
-                if digest(temp)!=fingerprint:temp.unlink(missing_ok=True);raise ValueError('复制人声资源时发生变化，工程未覆盖。')
-                temp.replace(dest)
+                copy_whole(source,dest,lambda temp:digest(temp)==fingerprint,'复制人声资源时发生变化，工程未覆盖。')
             value['vocal_track']['path']=str(dest.relative_to(path.parent))
         import os
         try:value['vocal_track']['source_path']=os.path.relpath(project.vocal_track['source_path'],path.parent)

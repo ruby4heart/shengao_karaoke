@@ -38,6 +38,32 @@ def atomic_json(path, value, *, compact=False, dumps=None):
         Path(temp).unlink(missing_ok=True)
 
 
+DAMAGED_KEEP = 5
+
+
+def preserve_damaged(path, now=None):
+    """Move a damaged app record aside as <stem>.damaged-<time><suffix>.
+
+    The bytes stay on disk for inspection and the caller starts clean, so the
+    same damaged file is neither reported again on every start nor silently
+    overwritten. Only the newest few copies of one record are kept. Returns
+    the new path, or None when the file is gone or cannot be moved.
+    """
+    path = Path(path)
+    if not path.is_file(): return None
+    stamp = time.strftime('%Y%m%d-%H%M%S', time.localtime(now))
+    target = path.with_name(f'{path.stem}.damaged-{stamp}{path.suffix}'); n = 1
+    while target.exists():
+        target = path.with_name(f'{path.stem}.damaged-{stamp}-{n}{path.suffix}'); n += 1
+    try: os.replace(path, target)
+    except OSError: return None
+    older = sorted(path.parent.glob(f'{path.stem}.damaged-*{path.suffix}'), key=lambda x: x.name)[:-DAMAGED_KEEP]
+    for item in older:
+        try: item.unlink()
+        except OSError: pass
+    return target
+
+
 class Blob(ctypes.Structure):
     _fields_ = [('size', wintypes.DWORD), ('data', ctypes.POINTER(ctypes.c_ubyte))]
 
@@ -66,11 +92,24 @@ class Settings:
     def __init__(self, root=None):
         self.root = Path(root) if root else default_home()
         self.path = self.root / 'settings.json'
+        self.damaged = None
 
     def read(self):
         if not self.path.exists():
             return {}
-        return json.loads(self.path.read_text(encoding='utf-8'))
+        try: value = json.loads(self.path.read_text(encoding='utf-8'))
+        except ValueError as error:
+            raise ValueError('服务设置文件已损坏，请在设置中重新填写密钥') from error
+        if not isinstance(value, dict) or any(not isinstance(item, dict) for item in value.values()):
+            raise ValueError('服务设置文件已损坏，请在设置中重新填写密钥')
+        return value
+
+    def writable(self):
+        """Current settings to change; a damaged file is kept aside and replaced."""
+        try: return self.read()
+        except ValueError:
+            self.damaged = preserve_damaged(self.path)
+            return {}
 
     def public(self):
         data = self.read()
@@ -87,7 +126,7 @@ class Settings:
     def save(self, provider, key='', **options):
         if provider not in {'elevenlabs', 'mai', 'deepseek'}:
             raise ValueError('不支持的服务')
-        data = self.read()
+        data = self.writable()
         config = data.setdefault(provider, {})
         if key:
             if len(key) > 1024 or any(c.isspace() for c in key):
@@ -99,6 +138,6 @@ class Settings:
         atomic_json(self.path, data)
 
     def forget(self, provider):
-        data = self.read()
+        data = self.writable()
         data.get(provider, {}).pop('secret', None)
         atomic_json(self.path, data)
