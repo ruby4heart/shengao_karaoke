@@ -195,9 +195,10 @@ class RecognitionWorkflow:
                 self.save_recovery();self.set_stage(1);self.review_recognition()
             return
         context={'project':self.project.uid,'media':file_stamp(self.project.media)}
-        self.api.start({'action':'transcribe','lines':[],'media':self.project.media,'provider':dialog.provider.currentData(),
-                        'language':'ja','_studio_context':context,'_recognition_entry':True})
-        self.set_stage(1);self.message('正在识别音轨；文字先进入待确认草稿，不会自动加入字幕。')
+        if self.api.start({'action':'transcribe','lines':[],'media':self.project.media,'provider':dialog.provider.currentData(),
+                           'language':'ja','_studio_context':context,'_recognition_entry':True}) is False:
+            self.message('已取消，没有发送任何内容。');return
+        self.set_stage(1);self.message('正在识别音轨；'+self.api.notice+'文字先进入待确认草稿，不会自动加入字幕。')
 
     def review_recognition(self):
         if not self.flush_edits() or self.api.busy or self.source_job:return

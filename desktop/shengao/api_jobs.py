@@ -18,6 +18,9 @@ class ApiJob(QObject):
         super().__init__(parent);self.home=Path(home) if home else default_home();self.process=None
         self.folder=None;self.result=None;self.request={};self.stopping=False
         self.child_job=None;self.start_error='';self.failure={}
+        # Asked with the request before anything is written or sent; False
+        # cancels. ``notice`` says in a few words where this task sends data.
+        self.confirm=None;self.notice=''
         self.timer=QTimer(self);self.timer.setInterval(250);self.timer.timeout.connect(self.poll)
 
     @property
@@ -25,6 +28,10 @@ class ApiJob(QObject):
 
     def start(self,request):
         if self.busy:raise ValueError('已有任务正在执行，请等待或取消')
+        from .network_notice import summary
+        # A paid-request resend was already confirmed in its own dialog.
+        if self.confirm is not None and request.get('confirm_resubmit') is not True and not self.confirm(request):return False
+        self.notice=summary(request)
         self.folder=self.home/'desktop-tasks'/uuid.uuid4().hex;self.folder.mkdir(parents=True)
         self.result=self.folder/'result.json';self.request=request;self.stopping=False;self.start_error='';self.failure={}
         # Config keys are stdin only. No key or environment snapshot is persisted.
@@ -41,6 +48,7 @@ class ApiJob(QObject):
         process.errorOccurred.connect(self.error)
         process.started.connect(lambda:self.send(request))
         process.start();self.timer.start();self.changed.emit()
+        return True
 
     def send(self,request):
         if sys.platform=='win32':

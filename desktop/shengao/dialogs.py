@@ -218,15 +218,18 @@ class ReviewDialog(QDialog):
         self.values[row]=value;self.table.item(row,2).setText(f'{stamp(value["start"])} → {stamp(value["end"])}')
 
 class SettingsDialog(QDialog):
-    def __init__(self,parent=None,settings=None):
+    def __init__(self,parent=None,settings=None,remembered=0):
         super().__init__(parent);self.setWindowTitle('API 设置');self.resize(560,370)
         from studio_backend.settings import Settings
         public=(settings or Settings()).public();self.public=public
-        layout=QVBoxLayout(self);label=QLabel('密钥加密保存在本机，不进入工程。保存设置不会发起转录或付费请求。');label.setWordWrap(True);layout.addWidget(label)
+        layout=QVBoxLayout(self);label=QLabel('密钥加密保存在本机，不进入工程。保存设置不会发起转录或付费请求；每次联网前会先说明发送给哪家服务、发送音频还是文字。');label.setWordWrap(True);layout.addWidget(label)
         form=QFormLayout();self.provider=QComboBox()
         for title,key in [('ElevenLabs · 转录／对齐','elevenlabs'),('Microsoft AI · 转录','mai'),('DeepSeek · 注音／翻译','deepseek')]:self.provider.addItem(title,key)
         self.key=QLineEdit();self.key.setEchoMode(QLineEdit.EchoMode.Password);self.endpoint=QLineEdit();self.model=QLineEdit();self.forget=QCheckBox('删除已保存的密钥')
         form.addRow('服务',self.provider);form.addRow('API 密钥',self.key);form.addRow('Microsoft 接口地址',self.endpoint);form.addRow('DeepSeek 模型',self.model);layout.addLayout(form);layout.addWidget(self.forget)
+        # Before-sending explanations the person chose to skip, restored here.
+        self.ask_again=QCheckBox(f'恢复联网前确认（目前有 {remembered} 类发送设为不再询问）') if remembered else None
+        if self.ask_again is not None:layout.addWidget(self.ask_again)
         controls=QDialogButtonBox(QDialogButtonBox.StandardButton.Save|QDialogButtonBox.StandardButton.Cancel);controls.button(QDialogButtonBox.StandardButton.Save).setText('保存本机设置');controls.button(QDialogButtonBox.StandardButton.Cancel).setText('取消');controls.accepted.connect(self.accept);controls.rejected.connect(self.reject);layout.addWidget(controls)
         self.provider.currentIndexChanged.connect(self.refresh);self.refresh()
     def refresh(self):

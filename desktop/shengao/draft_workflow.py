@@ -142,7 +142,8 @@ class DraftWorkflow:
     def submit_draft(self,request):
         self.snapshots={x['id']:copy.deepcopy(x) for x in request['lines']}
         request['_studio_snapshots']=copy.deepcopy(self.snapshots)
-        self.api.start(request);self.message('初稿流程已开始；每步完成会保存，结果先审核。')
+        if self.api.start(request) is False:self.message('已取消，没有发送任何内容；初稿流程的检查点保留。');return
+        self.message('初稿流程已开始；'+self.api.notice+'每步完成会保存，结果先审核。')
 
     def resume_draft(self,workflow_id=None):
         if not self.draft_available():return

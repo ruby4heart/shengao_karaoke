@@ -81,7 +81,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         super().__init__();self.home=Path(home) if home else default_home();self.test=test
         self.history=History(Project());self.path=None;self.current=-1;self.stage=0;self.refreshing=False;self.pending=None
         self.preferences=Preferences(self.home);self.reset_output_context();self.next_callback=None;self._flushing=False
-        self.api=ApiJob(self,self.home);self.local_job=None;self.analysis_job=None;self.extra_fonts=[];self.snapshots={}
+        self.api=ApiJob(self,self.home);self.api.confirm=lambda request:self.confirm_network(request);self.local_job=None;self.analysis_job=None;self.extra_fonts=[];self.snapshots={}
         self.analysis_generation=0;self.closing=False
         self.init_proxy_workflow()
         self.encoder_capabilities=None;self.capability_job=None;self.init_render_workflow()
@@ -1785,9 +1785,15 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def settings(self):
         if self.api.busy:self.message('请等待当前 API 任务完成');return
         from studio_backend.settings import Settings
-        try:dialog=SettingsDialog(self,Settings(self.home))
+        from .network_dialog import remembered_count,PREFERENCE
+        try:dialog=SettingsDialog(self,Settings(self.home),remembered_count(self.preferences))
         except (OSError,ValueError) as error:self.message(str(error));return
-        if dialog.exec()==QDialog.DialogCode.Accepted:self.api.start(dialog.request())
+        if dialog.exec()==QDialog.DialogCode.Accepted:
+            if dialog.ask_again is not None and dialog.ask_again.isChecked():self.preferences.set(PREFERENCE,[])
+            self.api.start(dialog.request())
+    def confirm_network(self,request):
+        from .network_dialog import confirm
+        return confirm(self,request)
     def refine_reading(self,use_llm,only_current=True):
         verified=bool(self.project.transcript_stamp) and self.project.transcript_stamp==file_stamp(self.project.media)
         self.start_api('refine',only_current=only_current,use_llm=use_llm,transcript=self.project.transcript,transcript_verified=verified,context=[line.to_dict() for line in self.project.lines])
@@ -1816,8 +1822,9 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
         if action=='match' and options.get('rematch_confirmed'):
             request['_studio_snapshots']=copy.deepcopy(self.snapshots)
             for value in request['lines']:value['reviewed']=False
-        self.api.start(request);skipped=left_out(self.project,lines) if line_ids is None and not only_current else 0
-        self.message('任务已开始；结果会先进入审核。'+(f'{skipped} 句含锁定词组，已留在原样。' if skipped else ''))
+        if self.api.start(request) is False:self.message('已取消，没有发送任何内容。');return
+        skipped=left_out(self.project,lines) if line_ids is None and not only_current else 0
+        self.message('任务已开始；'+self.api.notice+'结果会先进入审核。'+(f'{skipped} 句含锁定词组，已留在原样。' if skipped else ''))
     def api_done(self,result):
         action=self.api.request.get('action')
         if action=='configure':self.message('API 设置已加密保存到本机。');return
