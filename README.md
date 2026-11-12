@@ -32,7 +32,7 @@ Windows日语卡拉OK字幕制作软件，使用独立Qt工作台，面向个人
 
 ## 下载与使用
 
-到 [Releases](https://github.com/ruby4heart/shengao_karaoke/releases) 下载对应版本的 `ShengaoKaraoke-X.Y.Z-final-win64.zip`，完整解压后双击 `shengao-karaoke.exe`。需要 Windows x64，无需另装 Python、FFmpeg 或 Aegisub。软件带不联网的合成练习素材，可先查看 [第一次制作](docs/DESKTOP-USER-GUIDE.md)。
+到 [Releases](https://github.com/ruby4heart/shengao_karaoke/releases) 下载对应版本的 `ShengaoKaraoke-X.Y.Z-final-win64.zip`，完整解压后双击 `shengao-karaoke.exe`。需要 Windows x64，无需另装 Python、FFmpeg 或 Aegisub。软件带不联网的合成练习素材；第一次使用先看 [首次使用指南](docs/FIRST-USE-GUIDE.md)（练习步骤、默认设置、快捷键、已知限制），完整操作见 [第一次制作](docs/DESKTOP-USER-GUIDE.md)。
 
 1. 拖入视频，粘贴每行一句的原歌词；没有歌词时可先识别，再确认文字。
 2. 配置需要的 ElevenLabs／Microsoft AI 转录及 DeepSeek 文字建议，审核自动初稿。联网动作会使用所配置服务的额度；已有结果可本地复用。

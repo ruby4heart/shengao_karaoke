@@ -25,7 +25,7 @@ REQUIRED = {'shengao', 'aegisub', 'fonts', 'ffmpeg', 'demucs', 'tifa-code', 'tif
 HEX64 = re.compile(r'^[0-9a-f]{64}$')
 
 # Text that must tell the reader the singing model is non-commercial.
-NOTICE_FILES = ('README.md', 'docs/DESKTOP-USER-GUIDE.md', 'docs/THIRD-PARTY-LICENSES.md',
+NOTICE_FILES = ('README.md', 'docs/DESKTOP-USER-GUIDE.md', 'docs/FIRST-USE-GUIDE.md', 'docs/THIRD-PARTY-LICENSES.md',
                 'desktop/assets/快速开始.txt', 'vendor/GIT-SOURCE-NOTES.md')
 # Places a commercial claim could slip into.
 CLAIM_GLOBS = ('README.md', 'docs/*.md', 'docs/releases/*.md', 'desktop/assets/*.txt',

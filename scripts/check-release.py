@@ -20,7 +20,7 @@ for path in (portable,source):
         assert archive.testzip() is None,f'CRC failure: {path}'
         assert not any({'.git','.venv','__pycache__','.env'}&set(Path(name).parts) for name in names)
         if path==portable:
-            for name in ('shengao-karaoke.exe','ffmpeg.exe','studio-worker.exe','使用说明.md','快速开始.txt','验收记录.md','package-manifest.json'):
+            for name in ('shengao-karaoke.exe','ffmpeg.exe','studio-worker.exe','使用说明.md','首次使用指南.md','快速开始.txt','验收记录.md','package-manifest.json'):
                 assert archive.read(NAME+'/'+name)==(PACKAGE/name).read_bytes(),name
             for item in (ROOT/'docs/images').glob('*.png'):
                 assert archive.read(NAME+'/images/'+item.name)==item.read_bytes(),item.name
