@@ -1,6 +1,7 @@
 """Window sizes of real screens, save and reopen, failure recovery and render
 cancel, all in the test's own window (TODO group 10, item 8)."""
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -69,6 +70,14 @@ def test_runner_reports_each_check_in_chinese(capsys):
     assert runner.show('150% 缩放', 1, report, Path('o')) is False
     text = capsys.readouterr().out
     assert '[通过] 压制任务开始后可以取消' in text and '[失败] 窗口尺寸：最小窗口 900×620' in text and '左右滚动 9 像素' in text
+    assert [key for key, *_ in runner.RUNS] == ['normal', 'dpi150', 'basic']
+    basic = runner.PREFERENCES['basic']; good = {'passed': True, 'checks': [{'name': 'x', 'title': '某项', 'passed': True}], 'groups': [],
+                                                  'preview_gpu': False, 'worker_limit': 1, 'thread_limit': 1, 'light_preview': False}
+    assert runner.show('关闭可选优化', 0, good, Path('o'), basic) is True
+    assert 'GPU 预览关，后台任务并行数 1（线程上限 1），轻量预览关' in capsys.readouterr().out
+    assert runner.show('关闭可选优化', 0, {**good, 'preview_gpu': True}, Path('o'), basic) is False      # settings were not read
+    assert '[失败] 启动时读取了关闭可选优化的设置' in capsys.readouterr().out
+    assert runner.show('正常缩放', 0, {**good, 'worker_limit': 0, 'thread_limit': 8, 'preview_gpu': True}, Path('o')) is True
 
 
 class _SilentAudio:
@@ -102,7 +111,7 @@ def window_class(monkeypatch):
     return Window
 
 
-def test_save_reopen_recovery_cancel_and_sizes_in_own_window(qapp, window_class, tmp_path):
+def _exercise(qapp, window_class, out, keys):
     from PySide6.QtTest import QTest
     checks = []
     def check(name, condition):
@@ -113,6 +122,30 @@ def test_save_reopen_recovery_cancel_and_sizes_in_own_window(qapp, window_class,
             qapp.processEvents(); QTest.qWait(25)
             if fn(): return True
         return False
-    cases = [c for c in window_acceptance.layout_cases() if c[0] in {'minimum', '1366x768-150-start', '1920x1080-150-start'}]
-    window_acceptance.exercise(qapp, window_class, tmp_path, check, wait, cases)
+    cases = [c for c in window_acceptance.layout_cases() if c[0] in keys]
+    window_acceptance.exercise(qapp, window_class, out, check, wait, cases)
+    return checks
+
+
+def test_save_reopen_recovery_cancel_and_sizes_in_own_window(qapp, window_class, tmp_path):
+    checks = _exercise(qapp, window_class, tmp_path, {'minimum', '1366x768-150-start', '1920x1080-150-start'})
     assert set(window_acceptance.TITLES) <= set(checks) and len([c for c in checks if c.startswith('layout_')]) == 3
+
+
+def test_whole_flow_works_with_every_optional_speed_up_off(qapp, window_class, tmp_path):
+    """TODO 11.2: GPU preview off, one background task at a time, original video
+    preview; saved the way the settings window saves them, read on start."""
+    from PySide6.QtCore import QThreadPool
+    pool = QThreadPool.globalInstance(); old = pool.maxThreadCount(); seen = []
+    spec = importlib.util.spec_from_file_location('run_window_checks', ROOT / 'scripts' / 'run-window-checks.py')
+    runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+    (tmp_path / 'home').mkdir(); (tmp_path / 'home' / 'workspace.json').write_text(json.dumps(runner.PREFERENCES['basic']), encoding='utf-8')
+
+    class Basic(window_class):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            seen.append((self.playback.canvas.gpu_enabled, self.local_worker_limit, pool.maxThreadCount(), self.proxy_active))
+    try: checks = _exercise(qapp, Basic, tmp_path, {'minimum'})
+    finally: pool.setMaxThreadCount(old)
+    assert set(window_acceptance.TITLES) <= set(checks)          # includes a render queue running on the single worker
+    assert len(seen) >= 3 and set(seen) == {(False, 1, 1, False)}

@@ -67,8 +67,8 @@ class GpuFrameScaler:
             image=self.view.grabFramebuffer()
             if image.isNull() or max(image.width(),image.height())>1922:raise ValueError('GPU preview image unavailable or exceeds budget')
             image.setDevicePixelRatio(1.);self.frames+=1;return image
-        except (ImportError,ValueError,RuntimeError,OSError,AttributeError) as error:
-            self.error=str(error);self.close();return None
+        except Exception as error:  # any failure: this scaler stops and the canvas uses the regular Qt image
+            self.error=str(error) or type(error).__name__;self.close();return None
 
     def clear(self):
         if not self.closed and self.sink is not None:self.sink.setVideoFrame(QVideoFrame())

@@ -210,6 +210,10 @@ def check_recovery(app, StudioWindow, window, out, check, wait, path):
     # A damaged record is explained once and set aside, never offered or asked about again.
     from PySide6.QtWidgets import QMessageBox
     home = out / 'home-damaged-recovery'; home.mkdir(parents=True, exist_ok=True)
+    try: saved = json.loads((window.home / 'workspace.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError): saved = {}
+    if isinstance(saved, dict) and (same := {k: saved[k] for k in ('preview_gpu', 'local_worker_limit') if k in saved}):
+        (home / 'workspace.json').write_text(json.dumps(same), encoding='utf-8')   # same speed-up choices as the main window
     record = home / 'desktop-recovery.json'; record.write_text('{"project": [没写完', encoding='utf-8')
     other = _new_window(StudioWindow, home)
     try:
@@ -267,6 +271,7 @@ def main():
     args = parser.parse_args(); out = args.output.resolve(); out.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
     from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QThreadPool
     from PySide6.QtTest import QTest
     from .app import StudioWindow
     from .gui_gc import install
@@ -298,7 +303,9 @@ def main():
         report = {'passed': passed, 'checks': checks, 'groups': groups, 'layout': layout or _saved_layout(out),
                   'device_pixel_ratio': window.devicePixelRatioF(), 'scale_factor': os.environ.get('QT_SCALE_FACTOR', ''),
                   'platform': app.platformName(), 'runtime': 'standalone' if getattr(sys, 'frozen', False) else 'development',
-                  'seconds': round(time.time() - started, 1), 'last_status': window.status.text()}
+                  'seconds': round(time.time() - started, 1), 'last_status': window.status.text(),
+                  'preview_gpu': window.playback.canvas.gpu_enabled, 'worker_limit': window.local_worker_limit,
+                  'thread_limit': QThreadPool.globalInstance().maxThreadCount(), 'light_preview': bool(window.proxy_active)}
         (out / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         window.close(); app.processEvents()
     print(json.dumps({'ok': passed, 'checks': len(checks), 'output': str(out)}, ensure_ascii=False))
