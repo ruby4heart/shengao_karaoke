@@ -294,10 +294,33 @@ def estimated_units(text, start, end):
             for a,b in [(start+round((end-start)*i/n),start+round((end-start)*(i+1)/n))]]
 
 
+def _restore_breaks(text, characters):
+    """Line breaks a service dropped or returned as spaces, put back at zero length.
+
+    Every other character must still match the lyrics one for one; anything
+    else returns None so the caller refuses the result.
+    """
+    restored = []; index = 0
+    for wanted in text:
+        here = characters[index] if index < len(characters) else None
+        if here is not None and here.get('text') == wanted:
+            restored.append(here); index += 1
+        elif wanted == '\n':
+            if here is not None and here.get('text') in (' ', '', '\r\n'):
+                index += 1
+            at = restored[-1].get('end') if restored else (here or {}).get('start', 0)
+            restored.append({'text': '\n', 'start': at, 'end': at})
+        else:
+            return None
+    return restored if index == len(characters) else None
+
+
 def align_characters(text, characters, start_offset=0):
     """Require exact source coverage; omitted punctuation isn't silently guessed."""
     returned = ''.join(c.get('text', '') for c in characters)
     if returned != text:
+        characters = _restore_breaks(text, characters)
+    if characters is None:
         raise ValueError('API 对齐文字与歌词不一致，请检查歌词后重新对齐')
     units = []
     for char in characters:

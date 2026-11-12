@@ -11,11 +11,36 @@ ELEVEN_STT = 'https://api.elevenlabs.io/v1/speech-to-text'
 ELEVEN_ALIGN = 'https://api.elevenlabs.io/v1/forced-alignment'
 DEEPSEEK = 'https://api.deepseek.com/chat/completions'
 
+# Documented upload limits, checked locally so an oversized file is never sent
+# (sources and check dates: docs/SERVICE-COMPATIBILITY.md).
+ELEVEN_STT_BYTES = 5_000_000_000   # ElevenLabs speech to text: under 5.0 GB
+ELEVEN_ALIGN_BYTES = 1_000_000_000 # ElevenLabs forced alignment: under 1 GB
+MAI_BYTES = 250_000_000            # Microsoft AI transcription: under 250 MB
+MAI_SECONDS = 2 * 3600             # ... and shorter than 2 hours
+
 
 class ApiError(ValueError):
     def __init__(self, message, diagnostics=None):
         super().__init__(message)
         self.diagnostics = diagnostics or {}
+
+
+def flac_seconds(path):
+    """Duration from a FLAC file's STREAMINFO block; None when it cannot tell."""
+    try:
+        with open(path, 'rb') as stream:
+            head = stream.read(42)
+    except OSError:
+        return None
+    # 'fLaC', a 4-byte block header whose type is 0 (STREAMINFO), then 34 bytes.
+    if len(head) < 42 or head[:4] != b'fLaC' or head[4] & 0x7f != 0:
+        return None
+    packed = int.from_bytes(head[18:26], 'big')
+    rate = packed >> 44
+    samples = packed & ((1 << 36) - 1)
+    if not rate or not samples:
+        return None
+    return samples / rate
 
 
 def azure_url(endpoint):
@@ -65,6 +90,44 @@ def failure(detail,diagnostics,stage=None):
     return ApiError(f'{label}阶段失败：{detail}{billing}',diagnostics)
 
 
+# Service error codes worth naming in the message, beyond the HTTP status.
+CODE_HINTS = {
+    'AudioLengthLimitExceeded': '（音频超过服务的时长限制）',
+    'InvalidAudioFormat': '（服务无法读取这种音频格式）',
+    'EmptyAudioFile': '（音频为空）',
+    'InvalidLocale': '（服务不支持所选语言）',
+    'invalid_api_key': '（密钥无效）',
+    'quota_exceeded': '（账户额度已用完）',
+    'insufficient_balance': '（账户余额不足）',
+}
+
+
+def error_details(body, diagnostics):
+    """Request id and error code from the documented error bodies.
+
+    ElevenLabs: {"detail": {"status", "message", "request_id"}}, or for 422 a
+    list of {"loc", "msg", "type"}. Azure: {"error": {"code", "innerError":
+    {"code"}}}. DeepSeek: {"error": {"message", "type", "code"}}. Only short
+    codes are kept; messages may echo the request and are never recorded.
+    """
+    detail = body.get('detail', body.get('error', {}))
+    if isinstance(detail, list):
+        detail = next((item for item in detail if isinstance(item, dict)), {})
+        code = detail.get('type')
+    elif isinstance(detail, dict):
+        diagnostics['request_id'] = detail.get('request_id') or diagnostics.get('request_id')
+        inner = detail.get('innerError') or detail.get('innererror')
+        code = (inner.get('code') if isinstance(inner, dict) else None) or detail.get('status') or detail.get('code') or detail.get('type')
+    else:
+        return
+    if isinstance(code, (str, int)) and str(code):
+        diagnostics['error_code'] = str(code)[:100]
+
+
+# One long wait for a whole song; connecting must succeed within 45 seconds.
+TIMEOUT = aiohttp.ClientTimeout(total=7200, connect=45, sock_read=7200)
+
+
 async def request_json(url, headers, data=None, payload=None, diagnostics=None, upload_size=None):
     diagnostics = diagnostics if diagnostics is not None else {}
     for name in ('stage','billing','http_status','request_id','error_code','exception'):diagnostics.pop(name,None)
@@ -79,7 +142,7 @@ async def request_json(url, headers, data=None, payload=None, diagnostics=None, 
         diagnostics['phase'] = 'waiting' if upload_size and diagnostics['uploaded_bytes']>=upload_size else 'uploading'
     trace.on_request_chunk_sent.append(sent)
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=7200, connect=45, sock_read=7200),
+        async with aiohttp.ClientSession(timeout=TIMEOUT,
                                          trust_env=True, trace_configs=[trace]) as client:
             async with client.post(url, headers=headers, data=data, json=payload, allow_redirects=False) as response:
                 diagnostics.update(phase='reading_response', http_status=response.status)
@@ -90,14 +153,11 @@ async def request_json(url, headers, data=None, payload=None, diagnostics=None, 
                                 402:'账户余额不足',403:'当前资源或密钥无访问权限',404:'接口或模型不存在',
                                 413:'音频文件超过服务限制',422:'无法处理音频或参数',429:'额度不足或请求受到限流'}
                     try:
-                        body = json.loads(await response.read())
-                        detail = body.get('detail', body.get('error', {}))
-                        if isinstance(detail, dict):
-                            diagnostics['request_id'] = detail.get('request_id') or diagnostics.get('request_id')
-                            diagnostics['error_code'] = detail.get('status') or detail.get('code')
+                        error_details(json.loads(await response.read()), diagnostics)
                     except (ValueError, AttributeError, aiohttp.ClientError, asyncio.TimeoutError):
                         pass
-                    raise failure(f'HTTP {response.status}：{messages.get(response.status, "服务暂时不可用")}。',diagnostics)
+                    hint = CODE_HINTS.get(diagnostics.get('error_code'), '')
+                    raise failure(f'HTTP {response.status}：{messages.get(response.status, "服务暂时不可用")}{hint}。',diagnostics)
                 raw = await response.read()
                 diagnostics.update(phase='parsing', response_bytes=len(raw))
                 try:result = json.loads(raw)
@@ -122,7 +182,13 @@ async def request_json(url, headers, data=None, payload=None, diagnostics=None, 
         diagnostics['elapsed_ms']=round((time.monotonic()-started)*1000)
 
 
+def too_large(audio, limit, message, diagnostics):
+    if audio.stat().st_size >= limit:
+        raise failure(message, diagnostics if diagnostics is not None else {}, 'local')
+
+
 async def eleven_transcribe(audio, key, language='ja', diagnostics=None):
+    too_large(audio, ELEVEN_STT_BYTES, '音频超过 ElevenLabs 识别的 5 GB 上限，请截短媒体。', diagnostics)
     form = aiohttp.FormData()
     for name,value in {'model_id':'scribe_v2', 'language_code':language,
                        'timestamps_granularity':'character', 'diarize':'false', 'tag_audio_events':'false'}.items():
@@ -134,8 +200,7 @@ async def eleven_transcribe(audio, key, language='ja', diagnostics=None):
 
 
 async def eleven_align(audio, text, key, diagnostics=None):
-    if audio.stat().st_size >= 1_000_000_000:
-        raise ApiError('对齐音频须小于 1 GB，请选取较短范围')
+    too_large(audio, ELEVEN_ALIGN_BYTES, '对齐音频须小于 1 GB，请选取较短范围。', diagnostics)
     form = aiohttp.FormData()
     form.add_field('text',text)
     with audio.open('rb') as stream:
@@ -144,8 +209,11 @@ async def eleven_align(audio, text, key, diagnostics=None):
 
 
 async def mai_transcribe(audio, key, endpoint, language='ja', diagnostics=None):
-    if audio.stat().st_size >= 300_000_000:
-        raise ApiError('MAI 音频须小于 300 MB，请选取较短范围')
+    too_large(audio, MAI_BYTES, 'Microsoft AI 转写只接受小于 250 MB 的音频，请改用 ElevenLabs 或截短媒体。', diagnostics)
+    seconds = flac_seconds(audio)
+    if seconds is not None and seconds >= MAI_SECONDS:
+        raise failure(f'音轨长 {seconds/3600:.1f} 小时，Microsoft AI 转写只接受 2 小时以内的音频，请改用 ElevenLabs 或截短媒体。',
+                      diagnostics if diagnostics is not None else {}, 'local')
     definition = {'enhancedMode':{'enabled':True,'model':'MAI-Transcribe-2','modelOptions':{'timestamps':'word'}},
                   'diarization':{'enabled':False}}
     if language:
@@ -238,4 +306,8 @@ Return kana for the actual sung reading when supported; do not change source lyr
         result=json.loads(choice['message']['content'])
     except (KeyError,IndexError,TypeError,AttributeError,json.JSONDecodeError) as error:
         raise failure('DeepSeek 返回内容为空或不是有效 JSON；未应用结果。',diagnostics,'parsing') from error
-    return validate_annotations(result,lines)
+    try:
+        return validate_annotations(result,lines)
+    except ApiError as error:
+        # The answer came back (and was billed) but is unusable: say so, not "not sent".
+        raise failure(str(error).rstrip('。')+'。',diagnostics,'parsing') from error
