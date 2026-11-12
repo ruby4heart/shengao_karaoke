@@ -70,6 +70,7 @@ for name in ['NotoSans-LICENSE.txt','NotoSerif-LICENSE.txt','NotoSerif-Black-LIC
 shutil.copy2(root/'desktop'/'assets'/'快速开始.txt',package/'快速开始.txt')
 shutil.copy2(root/'docs'/'DESKTOP-USER-GUIDE.md',package/'使用说明.md')
 shutil.copy2(root/'docs'/'ROMANIZATION-REFERENCES.md',package/'ROMANIZATION-REFERENCES.md')
+shutil.copy2(root/'docs'/'THIRD-PARTY-LICENSES.md',package/'licenses'/'THIRD-PARTY-LICENSES.md')
 guide=(root/'docs'/'DESKTOP-USER-GUIDE.md').read_text(encoding='utf-8')
 for relative in set(re.findall(r'!\[[^\]]*\]\((images/[^)]+)\)',guide)):
     image=(root/'docs'/relative).resolve();assert image.is_relative_to((root/'docs/images').resolve()) and image.is_file()

@@ -1,0 +1,1059 @@
+{
+ "schema": 1,
+ "checked": "2026-11-12",
+ "app_version": "0.31.0",
+ "product_statement": "声稿整体随附 TIFA-1.0-ST 权重（CC BY-NC-SA 4.0，非商业），因此整个软件只供非商业使用；“正式版”“1.0”不代表商用授权，也不宣称可商用。其余组件各自的许可条件见下表并须同时遵守。",
+ "external_services": "ElevenLabs、Microsoft AI 转写、DeepSeek 是用户自备密钥调用的外部服务，不随软件分发，使用条款以各服务商为准。",
+ "components": [
+  {
+   "id": "shengao",
+   "name": "声稿应用代码",
+   "version": "0.31.0（开发中）",
+   "upstream": [
+    "https://github.com/ruby4heart/shengao_karaoke"
+   ],
+   "license": "MIT",
+   "use": "桌面程序、后台流程、原生适配、脚本与文档",
+   "fingerprint_note": "应用代码每版都会变化，逐文件指纹由构建时的 build/desktop-build-sources.json 和运行包 package-manifest.json 记录。",
+   "files": [
+    {
+     "path": "vendor/desktop-runtime/licenses/Shengao-MIT.txt",
+     "in": "source",
+     "sha256": "c312e7a12e7c904b8235b1dadc977c32422e4da5e7bb310d7583e37b09006f97",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Shengao-MIT.txt",
+     "in": "package",
+     "sha256": "c312e7a12e7c904b8235b1dadc977c32422e4da5e7bb310d7583e37b09006f97",
+     "role": "license",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "aegisub",
+   "name": "Aegisub 相关代码",
+   "version": "3.5.0（用户提供的源码副本，本地快照 211e7aa）",
+   "upstream": [
+    "https://github.com/TypesettingTools/Aegisub"
+   ],
+   "license": "BSD-3-Clause（个别子目录按各自许可，见 LICENCE）",
+   "use": "原版音频波形／频谱算法与时间轴绘制，移植进 shengao-audio.dll 与 shengao-view.dll；不构建 Aegisub 主程序",
+   "files": [
+    {
+     "path": "vendor/aegisub/LICENCE",
+     "in": "source",
+     "sha256": "dac4a32575f6272a1285e03e957d5f67cd8682db717cab92d83c55a9dadbe748",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/aegisub/src/audio_display.cpp",
+     "in": "source",
+     "sha256": "2cdff8e7a4afb50144809ec3362efed85db50d673fbee347e976e4a08698db10",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vendor/aegisub/libaegisub/audio/provider_convert.cpp",
+     "in": "source",
+     "sha256": "eaba56dca85b4c890fbf668c36cd04148c2fe91862e042c787106d63ba8c0209",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "desktop/native/aegisub/SOURCES.json",
+     "in": "source",
+     "sha256": "185566e4555f24c9ed535734e3cff910802f2f9defbc38c574cf89bbd71f652d",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "desktop/native/aegisub/TIMELINE-SOURCES.json",
+     "in": "source",
+     "sha256": "75dfc25b357f4966d6340aefd5fca2ef16babec5fc1ebe1c5b364f038dc74b3f",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/licenses/Original-Audio/audio_display-NOTICE.txt",
+     "in": "source",
+     "sha256": "f6fad137a661cd141e49ca6f0a2c433cd03a09c628824c480202c63c649c5c71",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/Original-Audio/audio_display-NOTICE.txt",
+     "in": "package",
+     "sha256": "f6fad137a661cd141e49ca6f0a2c433cd03a09c628824c480202c63c649c5c71",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/licenses/Original-Audio/provider_convert-NOTICE.txt",
+     "in": "source",
+     "sha256": "cbf3413f1f053e749d599dc1306f1952908055aeef29470e46a4cef544db653f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/Original-Audio/provider_convert-NOTICE.txt",
+     "in": "package",
+     "sha256": "cbf3413f1f053e749d599dc1306f1952908055aeef29470e46a4cef544db653f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Aegisub.txt",
+     "in": "package",
+     "sha256": "084229c88bcf0f8b882b3cb4ca8e5364913133155f71cc2a8af2b6e72af5e385",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/licenses/Aegisub.txt",
+     "in": "source",
+     "sha256": "084229c88bcf0f8b882b3cb4ca8e5364913133155f71cc2a8af2b6e72af5e385",
+     "role": "license",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "wxwidgets",
+   "name": "wxWidgets",
+   "version": "Aegisub 3.5.0 子项目",
+   "upstream": [
+    "https://www.wxwidgets.org/"
+   ],
+   "license": "wxWindows-exception-3.1（wxWindows Library Licence 3.1）",
+   "use": "仅在 shengao-view.dll 里离屏执行原版时间轴绘制",
+   "files": [
+    {
+     "path": "vendor/aegisub/subprojects/wxWidgets/docs/licence.txt",
+     "in": "source",
+     "sha256": "5d82dd4900cab74859baab3aaae0bc8fc3bee10e1af0c7e8de5b61a892019de8",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/licenses/Original-Audio/wxWidgets-LICENSE.txt",
+     "in": "source",
+     "sha256": "5d82dd4900cab74859baab3aaae0bc8fc3bee10e1af0c7e8de5b61a892019de8",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/Original-Audio/wxWidgets-LICENSE.txt",
+     "in": "package",
+     "sha256": "5d82dd4900cab74859baab3aaae0bc8fc3bee10e1af0c7e8de5b61a892019de8",
+     "role": "license",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "subtitle-libs",
+   "name": "字幕渲染库 libass／FreeType／HarfBuzz／FriBidi",
+   "version": "Aegisub 3.5.0 子项目",
+   "upstream": [
+    "https://github.com/libass/libass",
+    "https://freetype.org/",
+    "https://github.com/harfbuzz/harfbuzz",
+    "https://github.com/fribidi/fribidi"
+   ],
+   "license": "ISC；FTL（FreeType License）；MIT（HarfBuzz “Old MIT”）；LGPL-2.1-or-later（FriBidi）",
+   "use": "shengao-render.dll 与 FFmpeg 的 ASS 字幕渲染",
+   "files": [
+    {
+     "path": "vendor/desktop-runtime/licenses/libass/COPYING",
+     "in": "source",
+     "sha256": "3dc660f0b5ff4f727656cd2c4b81b10ba9d457860906cc3d8e5a73bcbb651f6d",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/libass/COPYING",
+     "in": "package",
+     "sha256": "3dc660f0b5ff4f727656cd2c4b81b10ba9d457860906cc3d8e5a73bcbb651f6d",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/licenses/freetype2/LICENSE.TXT",
+     "in": "source",
+     "sha256": "84f47dc7f0887dd56b05f2f218060581c055e443bd7af18e46677bec3dcc2473",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/freetype2/LICENSE.TXT",
+     "in": "package",
+     "sha256": "84f47dc7f0887dd56b05f2f218060581c055e443bd7af18e46677bec3dcc2473",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/licenses/freetype2/docs/FTL.TXT",
+     "in": "source",
+     "sha256": "308dca54b5aaa4a6ba0880621fe3bcf287956821aa948430263062a8333625c0",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/freetype2/docs/FTL.TXT",
+     "in": "package",
+     "sha256": "308dca54b5aaa4a6ba0880621fe3bcf287956821aa948430263062a8333625c0",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/licenses/harfbuzz/COPYING",
+     "in": "source",
+     "sha256": "bd836c0ddca8ea0bab54a03cd32b6ff7256cbb3840fca2edc1249a4ed92c5b02",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/harfbuzz/COPYING",
+     "in": "package",
+     "sha256": "bd836c0ddca8ea0bab54a03cd32b6ff7256cbb3840fca2edc1249a4ed92c5b02",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/licenses/fribidi/COPYING",
+     "in": "source",
+     "sha256": "b14c366c41cc9f62dc20ec1a0885f278cf9681076d98027012a910fca5e89639",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/fribidi/COPYING",
+     "in": "package",
+     "sha256": "b14c366c41cc9f62dc20ec1a0885f278cf9681076d98027012a910fca5e89639",
+     "role": "license",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "fonts",
+   "name": "内置字体 Noto Sans／Serif CJK JP、BIZ UDPGothic",
+   "version": "Noto CJK：Sans/Serif Regular 取自 main 分支，Serif Black 为 Serif2.003；BIZ UDPGothic 固定提交 18934af",
+   "upstream": [
+    "https://github.com/notofonts/noto-cjk",
+    "https://github.com/googlefonts/morisawa-biz-ud-gothic"
+   ],
+   "license": "OFL-1.1",
+   "use": "预览与压制的默认字幕字体",
+   "files": [
+    {
+     "path": "desktop/assets/fonts/NotoSansCJKjp-Regular.otf",
+     "in": "source",
+     "sha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
+     "role": "artifact"
+    },
+    {
+     "path": "_internal/assets/fonts/NotoSansCJKjp-Regular.otf",
+     "in": "package",
+     "sha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
+     "role": "artifact"
+    },
+    {
+     "path": "desktop/assets/fonts/NotoSerifCJKjp-Regular.otf",
+     "in": "source",
+     "sha256": "d9854c7a8ef170b5a7932558856fd64eb8de0b007cd823fed6f9f514ad2803d3",
+     "role": "artifact"
+    },
+    {
+     "path": "_internal/assets/fonts/NotoSerifCJKjp-Regular.otf",
+     "in": "package",
+     "sha256": "d9854c7a8ef170b5a7932558856fd64eb8de0b007cd823fed6f9f514ad2803d3",
+     "role": "artifact"
+    },
+    {
+     "path": "desktop/assets/fonts/NotoSerifCJKjp-Black.otf",
+     "in": "source",
+     "sha256": "7a8c8b6dd729eddc63b021284d1eb4ada9974c84609c5eb4b23f9591795e8e76",
+     "role": "artifact"
+    },
+    {
+     "path": "_internal/assets/fonts/NotoSerifCJKjp-Black.otf",
+     "in": "package",
+     "sha256": "7a8c8b6dd729eddc63b021284d1eb4ada9974c84609c5eb4b23f9591795e8e76",
+     "role": "artifact"
+    },
+    {
+     "path": "desktop/assets/fonts/BIZUDPGothic-Bold.ttf",
+     "in": "source",
+     "sha256": "30eba52fc837e8b62c97d4b82e6706583149fb7294e3712dd71a655eaea80a90",
+     "role": "artifact"
+    },
+    {
+     "path": "_internal/assets/fonts/BIZUDPGothic-Bold.ttf",
+     "in": "package",
+     "sha256": "30eba52fc837e8b62c97d4b82e6706583149fb7294e3712dd71a655eaea80a90",
+     "role": "artifact"
+    },
+    {
+     "path": "desktop/assets/fonts/NotoSans-LICENSE.txt",
+     "in": "source",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/NotoSans-LICENSE.txt",
+     "in": "package",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/fonts/NotoSerif-LICENSE.txt",
+     "in": "source",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/NotoSerif-LICENSE.txt",
+     "in": "package",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/fonts/NotoSerif-Black-LICENSE.txt",
+     "in": "source",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/NotoSerif-Black-LICENSE.txt",
+     "in": "package",
+     "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/fonts/BIZUD-LICENSE.txt",
+     "in": "source",
+     "sha256": "e753d7155d53c747d037a445e584c8ecfca6dd79846db610417e282a736b28bc",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/BIZUD-LICENSE.txt",
+     "in": "package",
+     "sha256": "e753d7155d53c747d037a445e584c8ecfca6dd79846db610417e282a736b28bc",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/fonts/SOURCES.json",
+     "in": "source",
+     "sha256": "780784fb08a7f576dee38647af8b7b30b11f315a1c0ab9b8e1fb2fe1cb71f27b",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "ffmpeg",
+   "name": "FFmpeg",
+   "version": "n8.0.1-120033-gff04763ef7（Aegisub 的 Meson 子项目，MSVC 19.50 静态构建，未启用 GPL 与 nonfree）",
+   "upstream": [
+    "https://ffmpeg.org/",
+    "https://github.com/TypesettingTools/Aegisub"
+   ],
+   "license": "LGPL-2.1-or-later",
+   "use": "独立 ffmpeg.exe：提取音轨、压制样片与成片",
+   "files": [
+    {
+     "path": "vendor/desktop-runtime/ffmpeg.exe",
+     "in": "source",
+     "sha256": "967f4567a6879493237dbe7171dfa838c5b0e869dbb86db3bd8701edfca49f9c",
+     "role": "artifact"
+    },
+    {
+     "path": "ffmpeg.exe",
+     "in": "package",
+     "sha256": "967f4567a6879493237dbe7171dfa838c5b0e869dbb86db3bd8701edfca49f9c",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/aegisub/subprojects/ffmpeg/LICENSE.md",
+     "in": "source",
+     "sha256": "36f6e2cb63f6a40a72b5c1b6169fb03f338d7eccd336fb3ccd4dcc0b49116dd1",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/aegisub/subprojects/ffmpeg/COPYING.LGPLv2.1",
+     "in": "source",
+     "sha256": "37828f96b745455c387a19946bc005b5e0b7c4cef782bbd67e9de5130d7d0bdc",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/ffmpeg/LICENSE.md",
+     "in": "package",
+     "sha256": "36f6e2cb63f6a40a72b5c1b6169fb03f338d7eccd336fb3ccd4dcc0b49116dd1",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/ffmpeg/COPYING.LGPLv2.1",
+     "in": "package",
+     "sha256": "37828f96b745455c387a19946bc005b5e0b7c4cef782bbd67e9de5130d7d0bdc",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/desktop-runtime/SOURCES.json",
+     "in": "source",
+     "sha256": "3ea77bfd37163b15d01882dcd09095e31c9319f0c77340615283b244cd4a0a43",
+     "role": "provenance",
+     "text": true
+    }
+   ],
+   "binary_license_check": "ffmpeg"
+  },
+  {
+   "id": "msvc-runtime",
+   "name": "Microsoft Visual C++ 运行库",
+   "version": "随 FFmpeg 构建使用的 Visual Studio 可再发行组件",
+   "upstream": [
+    "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files"
+   ],
+   "license": "Microsoft Visual Studio 可再发行代码条款（应用本地分发，未改动）",
+   "use": "ffmpeg.exe 与原生模块的 C++ 运行库",
+   "files": [
+    {
+     "path": "vendor/desktop-runtime/concrt140.dll",
+     "in": "source",
+     "sha256": "b2faf3b85b23c840b654e57d5497a0ad31acd02fb01856cad4725a1715d5f78e",
+     "role": "artifact"
+    },
+    {
+     "path": "concrt140.dll",
+     "in": "package",
+     "sha256": "b2faf3b85b23c840b654e57d5497a0ad31acd02fb01856cad4725a1715d5f78e",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/msvcp140.dll",
+     "in": "source",
+     "sha256": "def46aa6a8f72f27bafac0c43334419486a4d1dcdb6c479a8ef7034b3e1fa4cb",
+     "role": "artifact"
+    },
+    {
+     "path": "msvcp140.dll",
+     "in": "package",
+     "sha256": "def46aa6a8f72f27bafac0c43334419486a4d1dcdb6c479a8ef7034b3e1fa4cb",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/msvcp140_1.dll",
+     "in": "source",
+     "sha256": "2dd670f874562fbdca5b022df1943d70a57ba91fde559280e3a1daebe4db2380",
+     "role": "artifact"
+    },
+    {
+     "path": "msvcp140_1.dll",
+     "in": "package",
+     "sha256": "2dd670f874562fbdca5b022df1943d70a57ba91fde559280e3a1daebe4db2380",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/msvcp140_2.dll",
+     "in": "source",
+     "sha256": "1d60da3ac2b06482912ca852fa7047436e6e474b4cfffa3bf77f4598cfbf454c",
+     "role": "artifact"
+    },
+    {
+     "path": "msvcp140_2.dll",
+     "in": "package",
+     "sha256": "1d60da3ac2b06482912ca852fa7047436e6e474b4cfffa3bf77f4598cfbf454c",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/msvcp140_atomic_wait.dll",
+     "in": "source",
+     "sha256": "e7963645e0d1db08e300614d4c5fa7194bd8173e9ab7a5558859e6b232ed3241",
+     "role": "artifact"
+    },
+    {
+     "path": "msvcp140_atomic_wait.dll",
+     "in": "package",
+     "sha256": "e7963645e0d1db08e300614d4c5fa7194bd8173e9ab7a5558859e6b232ed3241",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/msvcp140_codecvt_ids.dll",
+     "in": "source",
+     "sha256": "ae8d922b00cdd93e3ebecc37beb46c800f383ebdeb9f9e5b84e04a72428b6fb3",
+     "role": "artifact"
+    },
+    {
+     "path": "msvcp140_codecvt_ids.dll",
+     "in": "package",
+     "sha256": "ae8d922b00cdd93e3ebecc37beb46c800f383ebdeb9f9e5b84e04a72428b6fb3",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/vccorlib140.dll",
+     "in": "source",
+     "sha256": "6b8d8a76c3e6664293407553650e60b94df9aaafc7c92057ea83032bd228e44f",
+     "role": "artifact"
+    },
+    {
+     "path": "vccorlib140.dll",
+     "in": "package",
+     "sha256": "6b8d8a76c3e6664293407553650e60b94df9aaafc7c92057ea83032bd228e44f",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/vcruntime140.dll",
+     "in": "source",
+     "sha256": "184146852727a9db4eea06178716bec3cdbb1015c911f6b0f915b184ad7775b2",
+     "role": "artifact"
+    },
+    {
+     "path": "vcruntime140.dll",
+     "in": "package",
+     "sha256": "184146852727a9db4eea06178716bec3cdbb1015c911f6b0f915b184ad7775b2",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/vcruntime140_1.dll",
+     "in": "source",
+     "sha256": "e6bfb3662ab4b1969a73441dbe35c96d51441b6bff8cf1fe7430bd5b246ca605",
+     "role": "artifact"
+    },
+    {
+     "path": "vcruntime140_1.dll",
+     "in": "package",
+     "sha256": "e6bfb3662ab4b1969a73441dbe35c96d51441b6bff8cf1fe7430bd5b246ca605",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/desktop-runtime/vcruntime140_threads.dll",
+     "in": "source",
+     "sha256": "a6222020b500a9a86b36e040c2dbd0e459716db1bf2810a11cd7512ea9b8d89b",
+     "role": "artifact"
+    },
+    {
+     "path": "vcruntime140_threads.dll",
+     "in": "package",
+     "sha256": "a6222020b500a9a86b36e040c2dbd0e459716db1bf2810a11cd7512ea9b8d89b",
+     "role": "artifact"
+    }
+   ],
+   "license_file_note": "微软的可再发行条款随 Visual Studio 授权，不单独随包附带文本。"
+  },
+  {
+   "id": "demucs",
+   "name": "Demucs（htdemucs 权重）",
+   "version": "demucs 4.0.1；权重 955717e8-8726e21a.th",
+   "upstream": [
+    "https://github.com/facebookresearch/demucs",
+    "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th"
+   ],
+   "license": "MIT（代码与权重）",
+   "use": "本机人声辅助（分离人声）",
+   "files": [
+    {
+     "path": "vendor/vocal-model/955717e8-8726e21a.th",
+     "in": "source",
+     "sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4",
+     "role": "artifact"
+    },
+    {
+     "path": "vocal-engine/955717e8-8726e21a.th",
+     "in": "package",
+     "sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/vocal-model/LICENSE.txt",
+     "in": "source",
+     "sha256": "cf9b17822d1fcd4ff32ccbe14183386fb3adf6f2ff92dc184130823f7fc28173",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/LICENSE.txt",
+     "in": "package",
+     "sha256": "cf9b17822d1fcd4ff32ccbe14183386fb3adf6f2ff92dc184130823f7fc28173",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/vocal-model/MODEL.json",
+     "in": "source",
+     "sha256": "275808e8f6c5731dae738a441538847b1e246b5579329439de34928f4a840ac4",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/MODEL.json",
+     "in": "package",
+     "sha256": "275808e8f6c5731dae738a441538847b1e246b5579329439de34928f4a840ac4",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "tifa-code",
+   "name": "TIFA 源码",
+   "version": "固定提交 d246be1cc2e202613213ca60a4e5d35e71a2fb6a（未改写）",
+   "upstream": [
+    "https://github.com/openvpi/TIFA"
+   ],
+   "license": "MIT",
+   "use": "本机歌声音节对齐的推理代码",
+   "files": [
+    {
+     "path": "vendor/tifa/LICENSE",
+     "in": "source",
+     "sha256": "515ecbf58c3f070e2bc8e95b0c3aa66a41431950ce31cd25d3e9abd49db28d0f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa/LICENSE",
+     "in": "package",
+     "sha256": "515ecbf58c3f070e2bc8e95b0c3aa66a41431950ce31cd25d3e9abd49db28d0f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/tifa/SHENGAO-SOURCE.json",
+     "in": "source",
+     "sha256": "6fc2a6388e940dc72bb7cc74bd8e5fc2f40f34470bf8640b98be751f22873bc9",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa/SHENGAO-SOURCE.json",
+     "in": "package",
+     "sha256": "6fc2a6388e940dc72bb7cc74bd8e5fc2f40f34470bf8640b98be751f22873bc9",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "tifa-model",
+   "name": "TIFA-1.0-ST 歌声模型权重",
+   "version": "v1.0.0",
+   "upstream": [
+    "https://github.com/openvpi/TIFA/releases/tag/v1.0.0"
+   ],
+   "license": "CC-BY-NC-SA-4.0",
+   "noncommercial": true,
+   "use": "本机歌声音节对齐（不需要密钥、不上传）",
+   "restriction": "仅限非商业用途。原作者声明该许可只约束模型文件本身；但本软件整体随附该权重，所以整个发行包不得作商业使用，也不宣称可商用。用户于 2026-10-19 确认为个人非商业用途。",
+   "files": [
+    {
+     "path": "vendor/tifa-model/model.pt",
+     "in": "source",
+     "sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+     "role": "artifact"
+    },
+    {
+     "path": "vocal-engine/tifa-model/model.pt",
+     "in": "package",
+     "sha256": "8d9bf896da1827f36bf135f80c7ab1fc4f3c1d48f328818b8402c9527c0f014b",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/tifa-model/config.yaml",
+     "in": "source",
+     "sha256": "b4bdfd5c73ca3a01ff8675ca353c54d4c14eefa75a188eac9a22ab94e147f8ac",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa-model/config.yaml",
+     "in": "package",
+     "sha256": "b4bdfd5c73ca3a01ff8675ca353c54d4c14eefa75a188eac9a22ab94e147f8ac",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vendor/tifa-model/vocabulary.json",
+     "in": "source",
+     "sha256": "644c85ac28cfe4f26fcf60de5a6d1fe192c11a6a837746119ef2dbc6dac9246c",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa-model/vocabulary.json",
+     "in": "package",
+     "sha256": "644c85ac28cfe4f26fcf60de5a6d1fe192c11a6a837746119ef2dbc6dac9246c",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vendor/tifa-model/dictionaries/japanese_dict_full.txt",
+     "in": "source",
+     "sha256": "96812fcac957d4d393f5ca2d605f04773824a71d1b51175f5b5eda10281298db",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa-model/dictionaries/japanese_dict_full.txt",
+     "in": "package",
+     "sha256": "96812fcac957d4d393f5ca2d605f04773824a71d1b51175f5b5eda10281298db",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vendor/tifa-model/CC-BY-NC-SA-4.0.html",
+     "in": "source",
+     "sha256": "cce1526cf6d7099436b00278856e0f8f4484456549aa9ffe8af5fd9fa63579c7",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa-model/CC-BY-NC-SA-4.0.html",
+     "in": "package",
+     "sha256": "cce1526cf6d7099436b00278856e0f8f4484456549aa9ffe8af5fd9fa63579c7",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/tifa-model/MODEL.json",
+     "in": "source",
+     "sha256": "90f7117aaf0b012f7396e78bd3a79a0992a817a228ee5bf39ec3441e83ea823f",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/tifa-model/MODEL.json",
+     "in": "package",
+     "sha256": "90f7117aaf0b012f7396e78bd3a79a0992a817a228ee5bf39ec3441e83ea823f",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "qt",
+   "name": "Qt 6 与 PySide6",
+   "version": "6.12.0",
+   "upstream": [
+    "https://code.qt.io/cgit/pyside/pyside-setup.git/",
+    "https://doc.qt.io/qt-6/licenses-used-in-qt.html"
+   ],
+   "license": "LGPL-3.0-only（按 LGPL 使用，可替换动态库）",
+   "use": "桌面界面、播放与预览",
+   "files": [
+    {
+     "path": "desktop/assets/licenses/Qt/LGPL-3.0.txt",
+     "in": "source",
+     "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/Qt/LGPL-3.0.txt",
+     "in": "package",
+     "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/licenses/Qt/SOURCE-CODE.txt",
+     "in": "source",
+     "sha256": "c566936eadd9d67da5f137e6cf5cb4f3c67e771def77ddc49e35807b2a533af0",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/Qt/SOURCE-CODE.txt",
+     "in": "package",
+     "sha256": "c566936eadd9d67da5f137e6cf5cb4f3c67e771def77ddc49e35807b2a533af0",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/licenses/SOURCES.json",
+     "in": "source",
+     "sha256": "d629b4fb5a5cb08f7442641077b2eedf05e79d6f50c04fa115d75e068f82b54b",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "licenses/Independent-Qt/SOURCES.json",
+     "in": "package",
+     "sha256": "d629b4fb5a5cb08f7442641077b2eedf05e79d6f50c04fa115d75e068f82b54b",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "python",
+   "name": "CPython 运行时与 Python 依赖包",
+   "version": "Python 3.12；依赖版本见 desktop/requirements-tested.txt 与 desktop/vocal-requirements.lock",
+   "upstream": [
+    "https://www.python.org/",
+    "https://pypi.org/"
+   ],
+   "license": "PSF-2.0；各依赖包许可逐个收录在 licenses/python 与 vocal-engine/licenses",
+   "use": "程序运行时",
+   "files": [
+    {
+     "path": "vendor/desktop-runtime/licenses/Python-LICENSE.txt",
+     "in": "source",
+     "sha256": "886a0ead2d89030ee62dbff52b04e47ab91998341295bb9c56fb952b4e081c7a",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/Python-LICENSE.txt",
+     "in": "package",
+     "sha256": "886a0ead2d89030ee62dbff52b04e47ab91998341295bb9c56fb952b4e081c7a",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/python/Janome-0.5.0.tar.gz",
+     "in": "source",
+     "sha256": "ce4a3ed7a4635c2f80139639327d5b1e0381858ad74a3c4a61e8cc83f820400e",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/python-tls/codex-rejected-cas.pem",
+     "in": "source",
+     "sha256": "c916ce1b14ed8ca69e9b5c9fab22799a900dd610d6d4ec9b1347f4fd48e53718",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "_internal/codex-rejected-cas.pem",
+     "in": "package",
+     "sha256": "c916ce1b14ed8ca69e9b5c9fab22799a900dd610d6d4ec9b1347f4fd48e53718",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "vendor/python-tls/SOURCES.md",
+     "in": "source",
+     "sha256": "b138b128275734ec03083cda57ce009bf04381656b2e7a9e0450dac4e29141e7",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "orjson",
+   "name": "orjson",
+   "version": "3.13.0",
+   "upstream": [
+    "https://github.com/ijl/orjson",
+    "https://pypi.org/project/orjson/3.13.0/"
+   ],
+   "license": "Apache-2.0 OR MIT（部分随附代码为 MPL-2.0）",
+   "use": "自动恢复检查点的快速 JSON 编码",
+   "files": [
+    {
+     "path": "vendor/orjson/orjson-3.13.0-cp312-cp312-win_amd64.whl",
+     "in": "source",
+     "sha256": "b571236d8393edcd3236e07423f762bfcf571f852aad667a3bce9e7b755e0790",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/orjson/orjson-3.13.0.tar.gz",
+     "in": "source",
+     "sha256": "d1de5eb04485110c5da4c657e49168995d55e076b1ce60f1a042e254f4186c4f",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/orjson/licenses/LICENSE-APACHE",
+     "in": "source",
+     "sha256": "7cfd738c53d61c79f07e348f622bf7707c9084237054d37fbe07788a75f5881c",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/orjson/LICENSE-APACHE",
+     "in": "package",
+     "sha256": "7cfd738c53d61c79f07e348f622bf7707c9084237054d37fbe07788a75f5881c",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/orjson/licenses/LICENSE-MIT",
+     "in": "source",
+     "sha256": "36516aefdc84c5d5a1e7485425913a22dbda69eb1930c5e84d6ae4972b5194b9",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "licenses/orjson/LICENSE-MIT",
+     "in": "package",
+     "sha256": "36516aefdc84c5d5a1e7485425913a22dbda69eb1930c5e84d6ae4972b5194b9",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/orjson/SOURCES.json",
+     "in": "source",
+     "sha256": "1b172771c210ee4bd1089b71a98fc32932ebfc2ef2d93638b38bde2bf4e978b2",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "licenses/orjson/SOURCES.json",
+     "in": "package",
+     "sha256": "1b172771c210ee4bd1089b71a98fc32932ebfc2ef2d93638b38bde2bf4e978b2",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "tbb",
+   "name": "Intel oneTBB 运行库",
+   "version": "2023.2.0",
+   "upstream": [
+    "https://pypi.org/project/tbb/2023.2.0/"
+   ],
+   "license": "Intel Simplified Software License（未改动二进制再分发）",
+   "use": "Numba 可选并行扩展的依赖，放在人声引擎目录",
+   "files": [
+    {
+     "path": "vendor/tbb-runtime/tbb-2023.2.0-py3-none-win_amd64.whl",
+     "in": "source",
+     "sha256": "b39121cbdaff350fc61a448766cbb26807c523491d66e364838c9feeb3c6a0eb",
+     "role": "artifact"
+    },
+    {
+     "path": "vocal-engine/_internal/tbb12.dll",
+     "in": "package",
+     "sha256": "67f8277a3fe2d08387a2ad0ff6d82795fff712906d72d10e1f329f6276487d58",
+     "role": "artifact"
+    },
+    {
+     "path": "vendor/tbb-runtime/LICENSE.txt",
+     "in": "source",
+     "sha256": "7721633d0ddff43fae25ebfd405f8166a0ce730cbcec44f2f3ad9d5eb8ac9a6f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/licenses/Intel-oneTBB/LICENSE.txt",
+     "in": "package",
+     "sha256": "7721633d0ddff43fae25ebfd405f8166a0ce730cbcec44f2f3ad9d5eb8ac9a6f",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "vendor/tbb-runtime/SOURCE.json",
+     "in": "source",
+     "sha256": "ff846ffe466f9ba6d2e043fbb4737c06ce89e3367284a93e0d088be50c673fe2",
+     "role": "provenance",
+     "text": true
+    },
+    {
+     "path": "vocal-engine/licenses/Intel-oneTBB/SOURCE.json",
+     "in": "package",
+     "sha256": "ff846ffe466f9ba6d2e043fbb4737c06ce89e3367284a93e0d088be50c673fe2",
+     "role": "provenance",
+     "text": true
+    }
+   ]
+  },
+  {
+   "id": "pjs-sample",
+   "name": "PJS 语料 PJS056 演唱片段与人工标注",
+   "version": "16 秒片段",
+   "upstream": [
+    "https://sites.google.com/site/shinnosuketakamichi/research-topics/pjs_corpus",
+    "https://github.com/UtaUtaUtau/pjs-manual-labels"
+   ],
+   "license": "CC-BY-SA-4.0",
+   "use": "离线练习、对齐自检与联网服务真实检查的公开样例",
+   "files": [
+    {
+     "path": "desktop/assets/alignment-demo/pjs056_song.wav",
+     "in": "source",
+     "sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+     "role": "artifact"
+    },
+    {
+     "path": "_internal/assets/alignment-demo/pjs056_song.wav",
+     "in": "package",
+     "sha256": "92037425e4b461b4efbcf1c38585e8e5122a3dfb5b41e589ae8c9a9390c250b4",
+     "role": "artifact"
+    },
+    {
+     "path": "desktop/assets/alignment-demo/sample.json",
+     "in": "source",
+     "sha256": "29715b8b80e85172798cb4fd39d5144df2f000da9b67360b5ba102639e083646",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "_internal/assets/alignment-demo/sample.json",
+     "in": "package",
+     "sha256": "29715b8b80e85172798cb4fd39d5144df2f000da9b67360b5ba102639e083646",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/alignment-demo/pjs056.lab",
+     "in": "source",
+     "sha256": "6e16306782d633bed5b31ae0b6f84ea59d35c65ee882f502d60d66ff34a33504",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "_internal/assets/alignment-demo/pjs056.lab",
+     "in": "package",
+     "sha256": "6e16306782d633bed5b31ae0b6f84ea59d35c65ee882f502d60d66ff34a33504",
+     "role": "artifact",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/alignment-demo/ATTRIBUTION.txt",
+     "in": "source",
+     "sha256": "9e0e983a78e23d3990dc18b638e026392a5054b220cb642456d61928ac0d6736",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "_internal/assets/alignment-demo/ATTRIBUTION.txt",
+     "in": "package",
+     "sha256": "9e0e983a78e23d3990dc18b638e026392a5054b220cb642456d61928ac0d6736",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "desktop/assets/alignment-demo/CC-BY-SA-4.0.html",
+     "in": "source",
+     "sha256": "d48546c6161cd2698445d184a859363a2436a6a3bcda655564730e3861e74a9e",
+     "role": "license",
+     "text": true
+    },
+    {
+     "path": "_internal/assets/alignment-demo/CC-BY-SA-4.0.html",
+     "in": "package",
+     "sha256": "d48546c6161cd2698445d184a859363a2436a6a3bcda655564730e3861e74a9e",
+     "role": "license",
+     "text": true
+    }
+   ]
+  }
+ ]
+}
