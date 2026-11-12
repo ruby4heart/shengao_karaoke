@@ -41,6 +41,9 @@ if __name__=='__main__':
     elif '--gpu-preview-test' in sys.argv:
         from shengao.gpu_preview_acceptance import main
         main()
+    elif '--window-check' in sys.argv:
+        from shengao.window_acceptance import main
+        raise SystemExit(main())
     elif '--self-test' in sys.argv:
         from shengao.self_test import main
         main()

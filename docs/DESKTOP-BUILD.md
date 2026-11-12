@@ -57,9 +57,11 @@ $env:QT_SCALE_FACTOR='1.5'
 Remove-Item Env:\QT_SCALE_FACTOR
 .\.venv-desktop\Scripts\python.exe scripts\test-desktop.py
 .\.venv-desktop\Scripts\python.exe scripts\test-desktop-package.py
+.\.venv-desktop\Scripts\python.exe scripts\run-window-checks.py
+.\.venv-desktop\Scripts\python.exe scripts\run-window-checks.py --package build\desktop-dist\shengao-karaoke
 ```
 
-对照库只进入 `build/desktop-reference`，不随运行包分发。`TIMELINE-SOURCES.json` 记录未改写的原版类和绘图函数哈希；用户提供的原始 3.5.0 与开发副本已经核对这些函数一致。音频底图测试要求完整 RGB 逐像素相同。离屏测试使用合成音视频和虚拟 API，不读取用户密钥，不调用收费服务，不操作桌面窗口。
+对照库只进入 `build/desktop-reference`，不随运行包分发。`TIMELINE-SOURCES.json` 记录未改写的原版类和绘图函数哈希；用户提供的原始 3.5.0 与开发副本已经核对这些函数一致。音频底图测试要求完整 RGB 逐像素相同。离屏测试使用合成音视频和虚拟 API，不读取用户密钥，不调用收费服务，不操作桌面窗口。窗口检查分别在正常缩放和 150% 缩放下启动离屏的独立实例，覆盖常见屏幕的打开与最大化尺寸、最小窗口、保存重开、失败恢复和压制取消，报告与截图写入 `tmp\window-checks`。
 
 人声引擎与 Qt 环境分离，固定 CPU PyTorch，`build-vocal-engine.py` 收集依赖许可证并绑定源码、依赖锁及官方模型指纹。模型与许可已随源码放在 `vendor/vocal-model`；下载脚本校验官方短指纹，运行时还验证固定的完整 SHA256。主程序不会联网下载模型。重建需要约数 GB 的依赖和构建空间；不要把隔离开发环境打进源码归档。
 

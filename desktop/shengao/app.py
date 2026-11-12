@@ -30,7 +30,7 @@ from .encode import encode,EncodeOptions,capabilities,capability_text
 from .dialogs import LyricsDialog,PauseDialog,ReviewDialog,SettingsDialog,button
 from .paths import ROOT,ASSETS
 from .theme import STYLE
-from .widgets import TimeEdit,StepButton,Collapsible,WelcomePane,LyricDelegate,icon,time_text
+from .widgets import TimeEdit,StepButton,Collapsible,WelcomePane,LyricDelegate,ElidedLabel,icon,time_text
 from .preferences import Preferences
 from .continuity_dialog import ContinuityDialog
 from .segmentation_dialog import SegmentationDialog
@@ -124,7 +124,7 @@ class StudioWindow(QMainWindow,SourceSwitch,DraftWorkflow,RecognitionWorkflow,Vo
     def build(self):
         root=QWidget();self.setCentralWidget(root);outer=vertical(root,0)
         header=QFrame();header.setObjectName('header');row=QHBoxLayout(header);row.setContentsMargins(20,10,20,10);row.setSpacing(8)
-        row.addWidget(label('声稿','brand',False));self.project_label=label('未命名作品','',False);row.addWidget(self.project_label,1)
+        row.addWidget(label('声稿','brand',False));self.project_label=ElidedLabel('未命名作品');row.addWidget(self.project_label,1)
         self.project_label.setMaximumWidth(220);self.project_label.setMinimumWidth(0);self.project_label.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred)
         self.project_label.setObjectName('projectName');self.save_state=label('尚未保存','saveState',False);row.addWidget(self.save_state)
         project_menu=QMenu(self)
@@ -2208,6 +2208,7 @@ def main():
     install(app)
     window=StudioWindow()
     if len(sys.argv)>1 and Path(sys.argv[1]).is_file():window.open_path(sys.argv[1],False)
-    screen=app.primaryScreen().availableGeometry()
-    window.setMinimumSize(min(900,screen.width()-24),min(620,screen.height()-24));window.resize(min(1460,screen.width()-24),min(940,screen.height()-24))
+    from .window_size import startup_geometry
+    screen=app.primaryScreen().availableGeometry();minimum,size=startup_geometry(screen.width(),screen.height())
+    window.setMinimumSize(*minimum);window.resize(*size)
     window.set_stage(0 if not window.project.lines else 2);window.show();sys.exit(app.exec())

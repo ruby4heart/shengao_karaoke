@@ -9,8 +9,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
-                               QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
-                               QVBoxLayout, QWidget)
+                               QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox,
+                               QPushButton, QVBoxLayout, QWidget)
 
 from . import jobs
 from .encode import encode, EncodeOptions
@@ -31,6 +31,13 @@ def _button(text, fn, tip=''):
     widget = QPushButton(text); widget.clicked.connect(fn)
     if tip: widget.setToolTip(tip)
     return widget
+
+
+def _path_field():
+    # A long folder path has no spaces to wrap at; a read-only field keeps the
+    # export panel's width (no sideways scrolling) and the path stays copyable.
+    item = QLineEdit(); item.setReadOnly(True); item.setMinimumWidth(80)
+    return item
 
 
 def font_export_note(report, kind):
@@ -59,8 +66,7 @@ class RenderWorkflow:
         row.addWidget(self.sample_mode, 1); row.addWidget(self.sample_start); row.addWidget(self.sample_length); layout.addLayout(row)
         self.sample_label = _label(''); layout.addWidget(self.sample_label)
         row = QHBoxLayout(); row.addWidget(QLabel('输出目录'))
-        self.output_folder_label = _label(''); self.output_folder_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        row.addWidget(self.output_folder_label, 1)
+        self.output_folder_label = _path_field(); row.addWidget(self.output_folder_label, 1)
         row.addWidget(_button('更改…', self.choose_output_folder, '选择样片和成品默认保存的文件夹；会记住这次的选择'))
         layout.addLayout(row)
         saved = self.preferences.data.get('sample')
@@ -76,11 +82,11 @@ class RenderWorkflow:
         layout.addWidget(_label('每个任务使用加入时的工程快照，依次压制；可以单独取消。结果都写入任务记录。'))
         self.render_list = QListWidget(); self.render_list.setWordWrap(True); self.render_list.setMinimumHeight(90)
         layout.addWidget(self.render_list)
-        row = QHBoxLayout()
-        row.addWidget(_button('批量导出…', self.open_batch_dialog, '一次加入多个视频版本或分辨率，按顺序压制'))
-        row.addWidget(_button('取消所选', self.cancel_selected_render, '取消所选任务；正在压制的会停止，不会留下半成品'))
-        row.addWidget(_button('全部取消', self.cancel_renders, '取消正在压制和等待中的全部任务'))
-        row.addWidget(_button('清除已结束', self.clear_finished_renders, '从列表移除已完成、失败或已取消的任务；任务记录保留'))
+        row = QGridLayout()   # two by two: four buttons in one row do not fit the compact export panel
+        row.addWidget(_button('批量导出…', self.open_batch_dialog, '一次加入多个视频版本或分辨率，按顺序压制'), 0, 0)
+        row.addWidget(_button('清除已结束', self.clear_finished_renders, '从列表移除已完成、失败或已取消的任务；任务记录保留'), 0, 1)
+        row.addWidget(_button('取消所选', self.cancel_selected_render, '取消所选任务；正在压制的会停止，不会留下半成品'), 1, 0)
+        row.addWidget(_button('全部取消', self.cancel_renders, '取消正在压制和等待中的全部任务'), 1, 1)
         layout.addLayout(row)
 
     def sample_settings_changed(self, *args):
@@ -102,7 +108,7 @@ class RenderWorkflow:
             if mode == 'playhead': text += '；按点击时的播放点计算'
         except ValueError as error: text = str(error)
         self.sample_label.setText(text)
-        self.output_folder_label.setText(self.output_directory())
+        self.show_output_folder(self.output_directory())
 
     # ------------------------------------------------------------ destination
     def output_directory(self):
@@ -111,7 +117,11 @@ class RenderWorkflow:
 
     def remember_output_folder(self, folder):
         self.preferences.set('output_folder', str(Path(folder)))
-        if hasattr(self, 'output_folder_label'): self.output_folder_label.setText(str(Path(folder)))
+        if hasattr(self, 'output_folder_label'): self.show_output_folder(str(Path(folder)))
+
+    def show_output_folder(self, folder):
+        text = str(folder); self.output_folder_label.setText(text); self.output_folder_label.setToolTip(text)
+        self.output_folder_label.setCursorPosition(0)
 
     def choose_output_folder(self):
         folder = QFileDialog.getExistingDirectory(self, '选择输出目录', self.output_directory())

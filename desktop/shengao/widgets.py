@@ -41,6 +41,15 @@ class TimeEdit(QSpinBox):
         return state,text,pos
     def fixup(self,text):return self.textFromValue(self.valueFromText(text))
 
+class ElidedLabel(QLabel):
+    """One line that ends in "…" when the window is too narrow; text() keeps the whole text."""
+    def __init__(self,text='',kind=''):
+        super().__init__(text);self.setTextFormat(Qt.TextFormat.PlainText);self.setObjectName(kind);self.setWordWrap(False)
+    def paintEvent(self,event):
+        painter=QPainter(self);r=self.contentsRect()
+        text=self.fontMetrics().elidedText(self.text(),Qt.TextElideMode.ElideRight,max(1,r.width()))
+        self.style().drawItemText(painter,r,int(self.alignment().value),self.palette(),self.isEnabled(),text,self.foregroundRole());painter.end()
+
 def icon(name,color='#64748b',size=20):
     pix=QPixmap(size*2,size*2);pix.fill(Qt.GlobalColor.transparent);p=QPainter(pix);p.setRenderHint(QPainter.RenderHint.Antialiasing);p.scale(size/12,size/12)
     p.setPen(QPen(QColor(color),1.7,Qt.PenStyle.SolidLine,Qt.PenCapStyle.RoundCap,Qt.PenJoinStyle.RoundJoin));p.setBrush(Qt.BrushStyle.NoBrush)
