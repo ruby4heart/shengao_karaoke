@@ -1,6 +1,6 @@
 # 第三方许可与资源清单
 
-核对日期：2026-11-12，对应 0.31.0（开发中）。逐文件的来源、许可和 SHA256 指纹以
+核对日期：2026-11-13，对应 0.32.0。逐文件的来源、许可和 SHA256 指纹以
 [`desktop/assets/licenses/THIRD-PARTY-INVENTORY.json`](../desktop/assets/licenses/THIRD-PARTY-INVENTORY.json)
 为准；本页是它的说明。打包时清单随包放在 `licenses/Independent-Qt/`，本页放在 `licenses/THIRD-PARTY-LICENSES.md`。
 
@@ -20,7 +20,7 @@ ElevenLabs、Microsoft AI 转写、DeepSeek 是用户自备密钥调用的外部
 
 | 组件 | 版本 | 许可 | 来源 | 用途 | 固定指纹（SHA256 前 12 位） |
 |---|---|---|---|---|---|
-| 声稿应用代码 | 0.31.0（开发中） | MIT | <https://github.com/ruby4heart/shengao_karaoke> | 桌面程序、后台流程、原生适配、脚本与文档 | `Shengao-MIT.txt` c312e7a12e7c |
+| 声稿应用代码 | 0.32.0 | MIT | <https://github.com/ruby4heart/shengao_karaoke> | 桌面程序、后台流程、原生适配、脚本与文档 | `Shengao-MIT.txt` c312e7a12e7c |
 | Aegisub 相关代码 | 3.5.0（用户提供的源码副本，本地快照 211e7aa） | BSD-3-Clause（个别子目录按各自许可，见 LICENCE） | <https://github.com/TypesettingTools/Aegisub> | 原版音频波形／频谱算法与时间轴绘制，移植进 shengao-audio.dll 与 shengao-view.dll；不构建 Aegisub 主程序 | `audio_display.cpp` 2cdff8e7a4af<br>`provider_convert.cpp` eaba56dca85b |
 | wxWidgets | Aegisub 3.5.0 子项目 | wxWindows-exception-3.1（wxWindows Library Licence 3.1） | <https://www.wxwidgets.org/> | 仅在 shengao-view.dll 里离屏执行原版时间轴绘制 | `licence.txt` 5d82dd4900ca<br>`wxWidgets-LICENSE.txt` 5d82dd4900ca |
 | 字幕渲染库 libass／FreeType／HarfBuzz／FriBidi | Aegisub 3.5.0 子项目 | ISC；FTL（FreeType License）；MIT（HarfBuzz “Old MIT”）；LGPL-2.1-or-later（FriBidi） | <https://github.com/libass/libass><br><https://freetype.org/> | shengao-render.dll 与 FFmpeg 的 ASS 字幕渲染 | `COPYING` 3dc660f0b5ff<br>`LICENSE.TXT` 84f47dc7f088<br>另 3 个见清单 |

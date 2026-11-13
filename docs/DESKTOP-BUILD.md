@@ -1,6 +1,6 @@
 # 独立 Qt 工作台构建
 
-本文对应0.30.0开发树，尚未发布，验收进度见 `V030-ACCEPTANCE.md`；当前稳定版为0.29.0。每版合并一个完整工作阶段的多个关联目标；旧包保留，不可把旧包的测试作为新程序通过的证据。原版音频／字幕／时间轴绘图ABI未改动，0.30另增CPython 3.12数据复制模块。
+本文对应0.32.0，发布说明见 `V032-RELEASE-NOTES.md`；最近一次公开发行为0.30.0，0.31.0只推送了标签，内容并入0.32。每版合并一个完整工作阶段的多个关联目标；旧包保留，不可把旧包的测试作为新程序通过的证据。原版音频／字幕／时间轴绘图ABI未改动，0.30另增CPython 3.12数据复制模块。
 
 若构建 Python 的 `ssl.py` 引用 `codex-rejected-cas.pem`，两种构建脚本会核对运行时原件与 `vendor/python-tls` 的固定指纹，并打包至 SSL 模块同目录；普通 CPython 不需要该附属文件。不要通过关闭证书验证绕过缺失依赖。构建环境的证书策略变化后，应先核对来源、更新资源和验收。
 
@@ -65,7 +65,7 @@ Remove-Item Env:\QT_SCALE_FACTOR
 
 人声引擎与 Qt 环境分离，固定 CPU PyTorch，`build-vocal-engine.py` 收集依赖许可证并绑定源码、依赖锁及官方模型指纹。模型与许可已随源码放在 `vendor/vocal-model`；下载脚本校验官方短指纹，运行时还验证固定的完整 SHA256。主程序不会联网下载模型。重建需要约数 GB 的依赖和构建空间；不要把隔离开发环境打进源码归档。
 
-构建脚本在开始与结束对源码及原生模块求哈希；构建期间文件变化会使包失效。完整回归、完整时间轴图像对照和运行包隔离验收都通过后，执行 `scripts/prepare-desktop-release.py --version 0.30.0` 生成便携 ZIP、对应源码 ZIP 和 SHA256。该脚本拒绝过期证据，并拒绝覆盖已有发行包。全部依赖检查使用 `scripts/check-desktop-dependencies.py`；一小时音频可见区压力测试使用 `scripts/stress-desktop-audio.py --output tmp/desktop-audio-stress`。
+构建脚本在开始与结束对源码及原生模块求哈希；构建期间文件变化会使包失效。正式发行包由下文“发布前冻结与发布”的冻结脚本在全部检查通过后调用 `scripts/prepare-desktop-release.py` 生成便携 ZIP、对应源码 ZIP 和 SHA256；该脚本拒绝过期证据，并拒绝覆盖已有发行包，不要绕过冻结单独执行。全部依赖检查使用 `scripts/check-desktop-dependencies.py`；一小时音频可见区压力测试使用 `scripts/stress-desktop-audio.py --output tmp/desktop-audio-stress`。
 
 0.19.0 的共享 CPU 引擎同时封装 Demucs 与 TIFA，依赖由 `desktop/vocal-requirements.lock` 固定。`vendor/tifa` 保留固定提交的未改写上游源码及 MIT 许可；`vendor/tifa-model` 保留官方配置、日语字典、词表和非商业模型许可、完整指纹。无需重新下载即可从源包构建。构建前会把 TIFA 入口和动态 backbone 纳入模块，构建后复制实际上游源码供 Numba 定位／缓存；缓存仅写入测试／用户数据目录。不要把模型的非商业许可与代码 MIT 混淆。
 
@@ -98,3 +98,33 @@ shengao-karaoke.exe --preview-performance-test --source "本机视频" --output 
 压力入口与源码脚本共用1000句、50次操作、完整撤销／重做及后台恢复检查；冻结包前后逐文件核验。启动工具运行三个空应用目录和三个复用目录的新进程，记录外部启动至窗口实际绘制和交互就绪，另存完整审计。哈希读取会温热文件，系统缓存未清理；系统冷缓存和干净Windows结果须独立记录。所有窗口属于测试进程并保持隐藏，不使用Computer Use，不调用付费API。两档缩放分别建立新输出目录；同一报告不能被改写后冒充另一档结果。
 
 Windows上固定Qt 6.12时，播放器默认跳过`av1_mf,h264_mf,hevc_mf`三个未使用的Qt内部编码器探测；已有`QT_FFMPEG_EXCLUDE_ENCODERS`配置保持。解码器与独立FFmpeg压制不受此设置控制。该变量属于Qt私有实现，升级Qt小版本须重新审计；实际源码／冻结压力报告记录采用的配置，并继续验证原片解码、GPU颜色与压制输出。
+
+## 发布前冻结与发布
+
+0.32起，正式发行前用一条命令完成整组冻结验收。运行前确认：
+
+- 原生模块已按“环境”一节构建在 `build\desktop`，人声引擎已构建在 `build\vocal-dist`；
+- 对照库已按“对照与测试”一节准备在 `build\desktop-reference`；
+- `vendor` 完整，不是只含部分依赖的副本；
+- 所有改动都已提交，`git status` 没有输出。
+
+```powershell
+git status
+.\.venv-desktop\Scripts\python.exe scripts\run-release-freeze.py --list
+.\.venv-desktop\Scripts\python.exe scripts\run-release-freeze.py
+```
+
+脚本对同一提交依次运行15步：完整回归、构建运行包、依赖检查、开发版离屏自检、正常与150%独立包验收、两档原版像素对照、窗口检查、故障演练、外部服务模拟、许可完整检查、生成发行包、发行包核对（`check-release.py`）和隐私检查。每步完整输出写入 `build\vXYZ-evidence\logs`；运行时清除服务密钥环境变量，不调用付费接口。任一步失败即停止，并显示失败的步骤和日志位置。修好环境后若提交和源码都没变，可加 `--resume` 从失败处继续，已通过的步骤不重跑；提交或源码改变后原进度作废，须重新完整运行。冻结期间源码有任何变化，整次结果作废。
+
+全部通过后生成 `build\vXYZ-evidence`（各步报告、日志、SHA256 列表和 `README.txt`）、`desktop-final-audit-vXYZ.json`，以及 `dist` 下的便携 ZIP、完整源码 ZIP 和 SHA256 列表。脚本不打标签、不推送、不发布；同一版本已有发行包或总审计时拒绝运行，不覆盖。
+
+决定发布后，在冻结时的同一提交上执行（以0.32.0为例；发布脚本使用 `GITHUB_TOKEN` 或已配置的 Git 凭据）：
+
+```powershell
+.\.venv-desktop\Scripts\python.exe scripts\package-public-evidence.py --version 0.32.0 --tag v032
+git tag -a v0.32.0 -m "声稿 0.32.0"
+git push origin main v0.32.0
+.\.venv-desktop\Scripts\python.exe scripts\publish-github-release.py --version 0.32.0 --evidence-tag v032 --notes-file docs\V032-RELEASE-NOTES.md
+```
+
+完整顺序和中断后的处理见 `GITHUB-RELEASE.md`。

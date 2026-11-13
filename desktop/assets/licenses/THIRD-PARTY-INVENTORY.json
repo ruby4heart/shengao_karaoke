@@ -1,14 +1,14 @@
 {
  "schema": 1,
- "checked": "2026-11-12",
- "app_version": "0.31.0",
+ "checked": "2026-11-13",
+ "app_version": "0.32.0",
  "product_statement": "声稿整体随附 TIFA-1.0-ST 权重（CC BY-NC-SA 4.0，非商业），因此整个软件只供非商业使用；“正式版”“1.0”不代表商用授权，也不宣称可商用。其余组件各自的许可条件见下表并须同时遵守。",
  "external_services": "ElevenLabs、Microsoft AI 转写、DeepSeek 是用户自备密钥调用的外部服务，不随软件分发，使用条款以各服务商为准。",
  "components": [
   {
    "id": "shengao",
    "name": "声稿应用代码",
-   "version": "0.31.0（开发中）",
+   "version": "0.32.0",
    "upstream": [
     "https://github.com/ruby4heart/shengao_karaoke"
    ],

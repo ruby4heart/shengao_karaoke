@@ -6,10 +6,10 @@
 
 ## 发布顺序
 
-1. 冻结整组版本功能，同步更新 README、中文教程、ToDo、版本说明及本版验收；当前源码完成全部回归、离屏实例、正常／150% 独立包与原版像素检查。开发中的功能保留未完成状态。
-2. `prepare-desktop-release.py` 生成新的运行包和完整源码 ZIP；逐文件审计、保留验收记录和 SHA256，已有发行不覆盖。
+1. 冻结整组版本功能，同步更新 README、中文教程、ToDo、版本说明及本版验收，并全部提交；开发中的功能保留未完成状态。
+2. 在 Windows 上运行 `run-release-freeze.py`（0.32 起）：对同一提交依次完成全部回归、离屏实例、正常／150% 独立包、原版像素、窗口、故障、服务模拟、许可、发行包与隐私检查，并由 `prepare-desktop-release.py` 生成新的运行包、完整源码 ZIP 和 SHA256；已有发行不覆盖。通过后写 `build/vXYZ-evidence` 与 `desktop-final-audit-vXYZ.json`。
 3. `package-public-evidence.py --version X.Y.Z --tag vXYZ` 提取公开验收子集；不包含用户原片、正式 MV 截图、私人工作工程和任务缓存。完整本地验收保留。
-4. 提交源码与说明并推送，创建与该提交一致的版本标签，再运行 `publish-github-release.py --version X.Y.Z --evidence-tag vXYZ --notes-file docs/releases/X.Y.Z.md`（`vXYZ` 使用本次本地验收标签，例如 `v021`）。
+4. 给冻结时的提交创建版本标签并推送，再运行 `publish-github-release.py --version X.Y.Z --evidence-tag vXYZ --notes-file docs/VXYZ-RELEASE-NOTES.md`（`vXYZ` 使用本次本地验收标签，例如 `v032`）。冻结后若再改源码，须提交并重新冻结。
 5. 发布脚本创建草稿，上传 Windows ZIP、完整源码 ZIP、公开验收 ZIP 和归档 SHA256 清单；核对远端资产大小、SHA256 和标签提交后公开。上传中断保留草稿；重新执行时只复用指纹一致的资产，不覆盖已发布版本。
 6. 公开后独立回读版本与标签提交，匿名检查四个下载地址；保存发布回执及公开核验记录。未完成时分别标明“源码已推送”“附件上传中”或“公开下载待核验”，不提前宣布完整交付。
 
