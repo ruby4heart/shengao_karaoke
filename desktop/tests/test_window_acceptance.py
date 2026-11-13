@@ -111,11 +111,30 @@ def window_class(monkeypatch):
     return Window
 
 
+def _layout_failure(out):
+    """What the size check saw, so a failed run says which step and which control."""
+    try: rows = json.loads((Path(out) / 'window-layout.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError): rows = []
+    found = [f"{row['label']}：" + '；'.join(row['problems']) for row in rows if row.get('problems')]
+    return '\n'.join([f'窗口尺寸检查没有通过（有问题的画面截图在 {out}）', *found])
+
+
+def test_layout_failure_names_every_problem(tmp_path):
+    rows = [{'key': 'minimum', 'label': '最小窗口 900×620', 'problems': ['第 3 步“校准”按钮“试听”文字显示不全（宽 60，需要 72）', '第 5 步“导出”需要左右滚动 9 像素才能看全']},
+            {'key': '1366x768-150-start', 'label': '1366×768 · 150% 打开时 886×440', 'problems': []}]
+    (tmp_path / 'window-layout.json').write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
+    text = _layout_failure(tmp_path)
+    assert str(tmp_path) in text and '最小窗口 900×620：第 3 步“校准”按钮“试听”文字显示不全（宽 60，需要 72）；第 5 步' in text
+    assert '1366×768' not in text and _layout_failure(tmp_path / 'missing').startswith('窗口尺寸检查没有通过')
+
+
 def _exercise(qapp, window_class, out, keys):
     from PySide6.QtTest import QTest
     checks = []
     def check(name, condition):
-        checks.append(name); assert condition, window_acceptance.TITLES.get(name, name)
+        checks.append(name)
+        if not condition and name.startswith('layout_'): raise AssertionError(_layout_failure(out))
+        assert condition, window_acceptance.TITLES.get(name, name)
     def wait(fn, timeout=10000):
         deadline = time.monotonic() + timeout / 1000
         while time.monotonic() < deadline:
