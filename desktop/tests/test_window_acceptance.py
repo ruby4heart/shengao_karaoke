@@ -52,6 +52,23 @@ def test_export_page_never_scrolls_sideways_with_a_long_folder(qapp, tmp_path):
     assert window_acceptance.inspect(window, 4) == []
 
 
+def test_finished_render_with_a_long_windows_path_keeps_the_export_page_narrow(qapp, tmp_path):
+    """Text never wraps at a backslash, so a long Windows output path in the
+    "已完成" line used to widen the export page until it scrolled sideways."""
+    from types import SimpleNamespace
+    from shengao.app import StudioWindow
+    window = StudioWindow(home=tmp_path / 'home', test=True); window.setMinimumSize(*MINIMUM); window.resize(*MINIMUM); window.show()
+    output = 'E:\\transcribe\\karaoke-studio\\tmp\\desktop-pytest-cd7982e048b742b8965fd6ae562a8a8c\\test_save_reopen_recovery_canc0\\output\\未命名作品-1080p-字幕成品.mp4'
+    task = SimpleNamespace(project=window.project, kind='full', options=SimpleNamespace(start=0, duration=0))
+    window.set_stage(4); window._render_done(task, {'output': output, 'checked': {'duration_ms': 12000}}, None)
+    for _ in range(5): qapp.processEvents(); time.sleep(0.01)
+    assert window_acceptance.inspect(window, 4) == []
+    shown = window.output_label.text()
+    assert shown.replace('\u200b', '') == '已完成：' + output + '（已读回检查：H.264 + AAC，12.0 秒）'
+    assert window.output_label.toolTip() == '已完成：' + output + '（已读回检查：H.264 + AAC，12.0 秒）'
+    window.close()
+
+
 def test_launcher_has_the_window_check():
     result = subprocess.run([sys.executable, str(ROOT / 'desktop' / 'main.py'), '--window-check'], capture_output=True, text=True,
                             timeout=60, env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})

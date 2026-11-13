@@ -40,6 +40,13 @@ def _path_field():
     return item
 
 
+def wrappable(text):
+    """Text never wraps at a backslash, so a long Windows path in a wrapped label
+    sets the panel's minimum width.  Display only: a zero-width space after each
+    separator gives the line places to break; the plain text goes in the tooltip."""
+    return str(text).replace('\\', '\\\u200b').replace('/', '/\u200b')
+
+
 def font_export_note(report, kind):
     if kind != 'ass' or not report: return ''
     text = f'已随附 {len(report["fonts"])} 个字体文件。'
@@ -275,7 +282,8 @@ class RenderWorkflow:
                     '注意：成品与上次样片的字幕时间、排版或字体不同（样片之后有修改），建议再看一次样片。')
         checked = result.get('checked') or {}
         seconds = f'{checked["duration_ms"] / 1000:.1f} 秒' if checked.get('duration_ms') else ''
-        self.output_label.setText('已完成：' + result['output'] + (f'（已读回检查：H.264 + AAC，{seconds}）' if seconds else ''))
+        done = '已完成：' + result['output'] + (f'（已读回检查：H.264 + AAC，{seconds}）' if seconds else '')
+        self.output_label.setText(wrappable(done)); self.output_label.setToolTip(done)
         left = len(self.render_queue.waiting())
         self.message(('样片' if task.kind == 'sample' else '视频') + '已导出并检查可以播放，可以播放成品或打开文件夹。' + note
                      + (f'队列中还有 {left} 个任务。' if left else ''))
