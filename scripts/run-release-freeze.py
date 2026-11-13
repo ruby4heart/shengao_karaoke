@@ -27,6 +27,7 @@ import time
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from desktop_source_state import app_version, snapshot
+from vocal_source_state import state as vocal_state
 
 KEYS=('ELEVENLABS_API_KEY','MAI_SPEECH_KEY','DEEPSEEK_API_KEY')   # never reach any step
 PACKAGE=Path('build')/'desktop-dist'/'shengao-karaoke'
@@ -106,6 +107,25 @@ def timeline(source,target):
         for image in Path(source).glob('*.png'):shutil.copy2(image,target/image.name)
         return {'cases':6}
     return after
+
+
+def prerequisites(root):
+    """What the build step needs but does not make, checked before the long regression."""
+    root=Path(root);problems=[]
+    engine=root/'build'/'vocal-dist'/'shengao-vocals'/'engine-sources.json'
+    try:built=json.loads(engine.read_text(encoding='utf-8'))
+    except (OSError,ValueError):built=None
+    try:current=vocal_state(root)
+    except OSError as error:current={'missing':str(error)}
+    if built is None:
+        problems.append(r'没有找到构建好的人声引擎（build\vocal-dist\shengao-vocals），先按构建说明构建。')
+    elif built!=current:
+        problems.append('人声引擎和当前源码对不上（改过版本号或人声相关源码后都要重建），先运行：'
+                        r'.\.venv-align\Scripts\python.exe scripts\build-vocal-engine.py')
+    for name in ('shengao-audio.dll','shengao-render.dll','shengao-view.dll'):
+        if not (root/'build'/'desktop'/name).is_file():
+            problems.append(f'缺少原生模块 build\\desktop\\{name}，先按构建说明“环境”一节构建。')
+    return problems
 
 
 def plan(root,version,evidence,python=sys.executable):
@@ -199,6 +219,8 @@ def freeze(root=ROOT,argv=None,run=execute,git=git,windows=None):
     commit=git(root,'rev-parse','HEAD');sources=snapshot(root)
     if (evidence/audit_name).is_file():
         return stop(f'{version} 已经冻结过（{evidence/audit_name}）。要重新冻结，请换一个新版本号。')
+    if missing:=prerequisites(root):
+        return stop('还不能开始，构建运行包需要的东西没有准备好：\n  '+'\n  '.join(missing))
     release=[root/'dist'/n for n in (f'ShengaoKaraoke-{version}-final-win64.zip',f'ShengaoKaraoke-{version}-source.zip',
                                      f'ShengaoKaraoke-{version}-final-win64',f'SHA256SUMS-{version}.txt')]
     records=[]

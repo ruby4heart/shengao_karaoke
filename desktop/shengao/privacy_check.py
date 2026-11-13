@@ -6,9 +6,15 @@ Four places are checked, each on its own:
   key, no key saved on this computer, no personal folder path; no project,
   settings, task record or cache from a person's own work is tracked; audio,
   video and subtitles are only the published demo and reference files.
-* Release assets: the same rules for every file inside the release archives
-  (dist/*.zip by default). A media file that is not byte-identical to a
-  published one is listed for checking rather than failed outright.
+* Release assets: every file inside the release archives (dist/*.zip by
+  default) has no key, no key or home folder or user name of this computer and
+  no private file. Other people's home folders are not failed there: the
+  archives are mostly third-party files (upstream DLLs, package metadata, the
+  standard library) that keep their authors' build and example paths, public
+  and not ours to change; our own files are the tracked ones, already held to
+  the full rule above. They are counted instead. A media file that is not
+  byte-identical to a published one is listed for checking rather than failed
+  outright, except upstream test files under a vendor folder.
 * Diagnostics: a report built from a made-up home full of fake keys, lyrics,
   e-mail addresses and personal paths contains none of them; the report from
   this computer's own home contains none of its saved keys.
@@ -156,25 +162,34 @@ def users_in(data):
     return found
 
 
-def paths_in(data, where, own=((), '')):
-    found = []
-    if where.replace('\\', '/') in PATH_EXCEPTIONS: return found
+def personal_paths(data, where, own=((), '')):
+    """(this computer's, other people's) home folder paths in one file's bytes."""
+    if where.replace('\\', '/') in PATH_EXCEPTIONS: return [], []
+    paths, user = own; mine = []; others = []
     for offset, raw in users_in(data):
         name = raw.decode('utf-8', 'replace').strip('.')
         if not name or name.lower() in PLACEHOLDERS: continue
-        found.append(finding(where, f'含个人目录路径（用户名 {name}）', line_of(data, offset)))
-    paths, user = own
+        if len(user) >= 3 and name.lower() == user.lower():
+            mine.append(finding(where, '含本机用户名路径', line_of(data, offset)))
+        else:
+            others.append(finding(where, f'含个人目录路径（用户名 {name}）', line_of(data, offset)))
     for path in paths:
         offset = data.find(path)
-        if offset >= 0: found.append(finding(where, '含本机个人目录路径', line_of(data, offset))); break
-    if len(user) >= 3 and not found:
+        if offset >= 0: mine.append(finding(where, '含本机个人目录路径', line_of(data, offset))); break
+    if len(user) >= 3 and not mine:
         lower = data.lower(); name = user.lower().encode('utf-8')
         for anchor in (b'\\users\\', b'/users/', b'/home/', b'\\\\users\\\\'):
             offset = lower.find(anchor + name)
             end = offset + len(anchor + name)
             if offset >= 0 and not data[end:end + 1].isalnum():
-                found.append(finding(where, '含本机用户名路径', line_of(data, offset))); break
-    return found
+                mine.append(finding(where, '含本机用户名路径', line_of(data, offset))); break
+    return mine, others
+
+
+def paths_in(data, where, own=((), '')):
+    """Every home folder path in one of our own files, anyone's."""
+    mine, others = personal_paths(data, where, own)
+    return others + mine
 
 
 def private_name(relative):
@@ -234,7 +249,7 @@ def public_hashes(root):
 
 def check_archives(paths, root, keys=(), own=None):
     own = own or personal(); known = public_hashes(root)
-    problems = []; warnings = []; entries = 0; skipped = 0; names = []
+    problems = []; warnings = []; entries = 0; skipped = 0; names = []; others = 0; other_files = 0; upstream = 0
     for archive in paths:
         archive = Path(archive); names.append(archive.name)
         try:
@@ -248,12 +263,17 @@ def check_archives(paths, root, keys=(), own=None):
                         skipped += 1; continue
                     data = bundle.read(info)
                     if Path(info.filename).suffix.lower() in MEDIA and hashlib.sha256(data).hexdigest() not in known:
-                        warnings.append(finding(where, '音视频或字幕与公开演示文件不一致，请确认来源'))
-                    problems += secrets_in(data, where, keys) + paths_in(data, where, own)
+                        if 'vendor' in Path(info.filename).parts[:-1]: upstream += 1
+                        else: warnings.append(finding(where, '音视频或字幕与公开演示文件不一致，请确认来源'))
+                    mine, theirs = personal_paths(data, where, own)
+                    problems += secrets_in(data, where, keys) + mine
+                    others += len(theirs); other_files += bool(theirs)
         except (OSError, zipfile.BadZipFile) as error:
             problems.append(finding(archive, f'发行包无法读取（{error}）'))
     checked = (f'{len(names)} 个发行包（{"、".join(names)}），文件 {entries} 个' +
-               (f'，超过 64 MB 未读内容 {skipped} 个' if skipped else '')) if names else '没有找到发行包，跳过'
+               (f'，超过 64 MB 未读内容 {skipped} 个' if skipped else '') +
+               (f'；第三方文件里别人的目录路径 {others} 处（{other_files} 个文件，上游构建或示例留下的，不计为问题）' if others else '') +
+               (f'；vendor 里上游源码自带的测试音视频或字幕 {upstream} 个' if upstream else '')) if names else '没有找到发行包，跳过'
     return {'title': '发行资产', 'checked': checked, 'problems': problems, 'warnings': warnings}
 
 

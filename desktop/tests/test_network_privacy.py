@@ -311,6 +311,11 @@ def test_personal_paths_are_found_with_placeholders_and_redaction_fixtures_allow
     assert names(b'C:\\<U>\\Mio\\x', 'desktop/tests/test_diagnostics.py') == []
     assert names(b'E:\\Work\\x', own=([b'E:\\Work'], '')) == ['含本机个人目录路径']
     assert names(b'x\\Users\\kanade2', own=((), 'kanade2')) == ['含本机用户名路径']
+    # Split by whose folder it is: release archives fail only this computer's.
+    mine = fake('C:\\<U>\\Kanade2\\venv\\x').encode()
+    assert [[x['what'] for x in part] for part in check.personal_paths(mine, 'f', ((), 'kanade2'))] == [['含本机用户名路径'], []]
+    other = fake('C:\\<U>\\Alice\\x').encode()
+    assert [[x['what'] for x in part] for part in check.personal_paths(other, 'f', ((), 'kanade2'))] == [[], ['含个人目录路径（用户名 Alice）']]
 
 
 @pytest.mark.parametrize('name,kind', [
@@ -351,15 +356,35 @@ def test_release_archives_are_checked_inside(tmp_path):
     with zipfile.ZipFile(bad, 'w') as bundle:
         bundle.writestr('app/config.txt', f'token={ELEVEN}'); bundle.writestr('app/workspace.json', '{}')
         bundle.writestr('app/song.wav', b'RIFF0000'); bundle.writestr('app/log.txt', fake('C:\\<U>\\Builder\\src\\x.py'))
+        bundle.writestr('app/built.json', fake('{"python": "C:\\\\<U>\\\\kanade2\\\\venv"}'))
+        bundle.writestr('app/notes.txt', 'E:\\Home\\kanade2\\cache')
+        bundle.writestr('src/vendor/aegisub/tests/sample.ass', '[Script Info]')
     (tmp_path / 'broken.zip').write_bytes(b'not a zip')
     section = check.check_archives([good], ROOT)
     assert section['problems'] == [] and section['warnings'] == [] and '文件 2 个' in section['checked']
-    section = check.check_archives([bad, tmp_path / 'broken.zip'], ROOT, own=((), ''))
+    section = check.check_archives([bad, tmp_path / 'broken.zip'], ROOT, own=([b'E:\\Home\\kanade2'], 'kanade2'))
     whats = {x['where']: x['what'] for x in section['problems']}
     assert whats['bad.zip!app/config.txt:1'].startswith('疑似ElevenLabs 式密钥') and '工作区设置' in whats['bad.zip!app/workspace.json']
-    assert '用户名 Builder' in whats['bad.zip!app/log.txt:1'] and '无法读取' in whats[str(tmp_path / 'broken.zip')]
+    assert whats['bad.zip!app/built.json:1'] == '含本机用户名路径' and whats['bad.zip!app/notes.txt:1'] == '含本机个人目录路径'
+    assert '无法读取' in whats[str(tmp_path / 'broken.zip')] and not any('log.txt' in x for x in whats)
+    assert '别人的目录路径 1 处（1 个文件' in section['checked'] and '上游源码自带的测试音视频或字幕 1 个' in section['checked']
     assert [x['where'] for x in section['warnings']] == ['bad.zip!app/song.wav']
     assert check.check_archives([], ROOT)['checked'] == '没有找到发行包，跳过'
+
+
+def test_third_party_build_and_example_paths_do_not_fail_a_release(tmp_path):
+    """The first 0.32.0 freeze failed on 772 such paths: example output in the
+    upstream threadpoolctl wheel's metadata (its author's home folder), compiled
+    DLLs (their build machine's Administrator folder) and the standard library.
+    None is the person's; none can be changed."""
+    archive = tmp_path / 'ShengaoKaraoke-0.32.0-final-win64.zip'
+    with zipfile.ZipFile(archive, 'w') as bundle:
+        bundle.writestr('x/vocal-engine/licenses/threadpoolctl/METADATA.txt',
+                        '"filepath": "/ho' + 'me/ogrisel/miniconda3/envs/tmp/lib/libmkl_rt.so",\n')
+        bundle.writestr('x/vocal-engine/_internal/libcrypto-3-x64.dll',
+                        fake('\0OPENSSLDIR: "C:\\<U>\\Administrator\\ssl"\0C:\\<U>\\ADMINI~1\\AppData\\Local\\Temp\\b\0').encode())
+    section = check.check_archives([archive], ROOT, own=([b'C:\\' + U.encode() + b'\\kanade2'], 'kanade2'))
+    assert section['problems'] == [] and '别人的目录路径 3 处（2 个文件' in section['checked']
 
 
 def test_diagnostics_report_hides_made_up_private_data():

@@ -92,9 +92,20 @@ def make_release(root, version=VERSION):
     return names
 
 
+def make_built_parts(root):
+    """The vocal engine and native modules the build step packages but does not make."""
+    for name in ('desktop/vocal_engine.py', 'desktop/alignment_engine.py', 'desktop/audio_contract.py',
+                 'desktop/shengao/process_tree.py', 'desktop/vocal-requirements.lock', 'scripts/build-vocal-engine.py',
+                 'scripts/vocal_source_state.py', 'scripts/python_tls_resources.py', 'scripts/vocal_build_environment.py'):
+        write(root / name, name + '\n')
+    state = load('vocal_source_state_helper', 'vocal_source_state.py').state(root)
+    write(root / 'build/vocal-dist/shengao-vocals/engine-sources.json', json.dumps(state, indent=2))
+    for name in ('shengao-audio.dll', 'shengao-render.dll', 'shengao-view.dll'): write(root / 'build/desktop' / name, b'MZ')
+
+
 @pytest.fixture
 def tree(tmp_path):
-    make_tree(tmp_path); make_package(tmp_path)
+    make_tree(tmp_path); make_package(tmp_path); make_built_parts(tmp_path)
     return tmp_path
 
 
@@ -338,6 +349,22 @@ def test_preconditions_stop_before_any_step(freeze, tree, case, capsys):
     assert stub.calls == []
     out = capsys.readouterr().out
     assert {'not-windows': 'Windows', 'dirty': '没提交', 'released': 'dist 里已有', 'frozen': '已经冻结过'}[case] in out
+
+
+@pytest.mark.parametrize('case', ['vocal-stale', 'vocal-missing', 'native-missing'])
+def test_build_inputs_are_checked_before_the_long_regression(freeze, tree, case, capsys):
+    """The first 0.32.0 run found the vocal engine stale only at step 2, after the full
+    regression: the version number is one of the engine's source fingerprints."""
+    if case == 'vocal-stale': write(tree / 'desktop/shengao/__init__.py', "__version__ = '0.32.0'  # changed\n")
+    if case == 'vocal-missing': (tree / 'build/vocal-dist/shengao-vocals/engine-sources.json').unlink()
+    if case == 'native-missing': (tree / 'build/desktop/shengao-view.dll').unlink()
+    stub = Stub(tree)
+    assert freeze.freeze(tree, [], run=stub, git=Git(), windows=True) == 2
+    assert freeze.freeze(tree, ['--resume'], run=stub, git=Git(), windows=True) == 2
+    assert stub.calls == []
+    out = capsys.readouterr().out
+    assert {'vocal-stale': 'build-vocal-engine.py', 'vocal-missing': '没有找到构建好的人声引擎',
+            'native-missing': 'shengao-view.dll'}[case] in out and '还不能开始' in out
 
 
 def test_fresh_run_clears_an_unfinished_attempt(freeze, tree):
