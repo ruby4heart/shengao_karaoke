@@ -281,6 +281,9 @@ DEEP = 'sk-' + '9a0b' * 8
 # Made-up home folders and key headers are assembled at run time so this file itself passes the scan.
 U = 'Us' + 'ers'
 PRIVATE = '-----BEGIN RSA ' + 'PRIVATE KEY-----'
+FOOTER = PRIVATE.replace('BEGIN', 'END')
+BODY = ['MIIEow' + 'A' * 58, 'B' * 64, 'Cg==']
+KEY = '\n'.join([PRIVATE, *BODY, FOOTER]) + '\n'
 
 
 def fake(text):
@@ -289,13 +292,33 @@ def fake(text):
 
 def test_key_patterns_are_found_but_never_repeated():
     data = (f'a = "{ELEVEN}"\nb={DEEP}\nAuthorization: Bearer {"x" * 30}\nxi-api-key: {"k" * 24}\n'
-            f'ghp_{"A" * 36}\nAKIA{"B" * 16}\n{PRIVATE}\n').encode()
+            f'ghp_{"A" * 36}\nAKIA{"B" * 16}\n{KEY}').encode()
     found = check.secrets_in(data, 'f.py')
     assert [x['where'] for x in found] == ['f.py:1', 'f.py:2', 'f.py:3', 'f.py:4', 'f.py:5', 'f.py:6', 'f.py:7']
     assert not any(ELEVEN in x['what'] or DEEP in x['what'] for x in found)
     assert check.secrets_in(b'xsk_' + b'5e' * 24 + b' sk-short dk-live-0123', 'f') == []
     [saved] = check.secrets_in(b'..my-own-key-123..', 'r.json', [('DeepSeek', 'my-own-key-123')])
     assert 'DeepSeek' in saved['what'] and 'my-own-key-123' not in saved['what']
+
+
+def test_a_private_key_is_a_whole_pem_block():
+    """The second 0.32.0 freeze failed on Qt's network DLLs: they carry the
+    headers as format constants, one after another, with no key."""
+    def keys(text):
+        return [x['where'] for x in check.secrets_in(text.encode(), 'f')]
+    plain = PRIVATE.replace('RSA ', '')
+    assert keys(KEY) == ['f:1'] and keys('x\n' + KEY.replace('\n', '\r\n')) == ['f:2']
+    # Pasted into code or JSON: quotes, \n escapes, commas and line breaks around the body.
+    assert keys('k = "' + '\\n'.join([PRIVATE, *BODY, FOOTER]) + '"') == ['f:1']
+    assert keys('const char* k =\n    "' + '\\n"\n    "'.join([plain, *BODY, plain.replace('BEGIN', 'END')]) + '\\n";') == ['f:2']
+    assert keys('["' + '", "'.join([PRIVATE, *BODY, FOOTER]) + '"]') == ['f:1']
+    encrypted = PRIVATE + '\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-256-CBC,0A1B2C3D\n\n' + '\n'.join(BODY) + '\n' + FOOTER
+    assert keys(encrypted) == ['f:1']
+    for not_a_key in [PRIVATE, PRIVATE + '\n', '\0'.join([PRIVATE, plain, '', plain.replace('BEGIN', 'END'), 'END PUBLIC KEY']),
+                      '"' + plain + '\\n…\\n' + plain.replace('BEGIN', 'END') + '\\n"',
+                      PRIVATE + '\nMIIEow\n' + FOOTER, '\n'.join([PRIVATE, *BODY, plain.replace('BEGIN', 'END')]),
+                      PRIVATE + ' starts a key and ' + FOOTER + ' ends it', '\n'.join([PRIVATE, *BODY])]:
+        assert keys(not_a_key) == [], not_a_key
 
 
 def test_personal_paths_are_found_with_placeholders_and_redaction_fixtures_allowed():
@@ -359,6 +382,7 @@ def test_release_archives_are_checked_inside(tmp_path):
         bundle.writestr('app/built.json', fake('{"python": "C:\\\\<U>\\\\kanade2\\\\venv"}'))
         bundle.writestr('app/notes.txt', 'E:\\Home\\kanade2\\cache')
         bundle.writestr('src/vendor/aegisub/tests/sample.ass', '[Script Info]')
+        bundle.writestr('app/server.pem', KEY); bundle.writestr('src/vendor/aegisub/boost/example/ssl/server.pem', KEY + KEY)
     (tmp_path / 'broken.zip').write_bytes(b'not a zip')
     section = check.check_archives([good], ROOT)
     assert section['problems'] == [] and section['warnings'] == [] and '文件 2 个' in section['checked']
@@ -368,6 +392,8 @@ def test_release_archives_are_checked_inside(tmp_path):
     assert whats['bad.zip!app/built.json:1'] == '含本机用户名路径' and whats['bad.zip!app/notes.txt:1'] == '含本机个人目录路径'
     assert '无法读取' in whats[str(tmp_path / 'broken.zip')] and not any('log.txt' in x for x in whats)
     assert '别人的目录路径 1 处（1 个文件' in section['checked'] and '上游源码自带的测试音视频或字幕 1 个' in section['checked']
+    assert whats['bad.zip!app/server.pem:1'].startswith('疑似私钥') and not any('vendor' in x for x in whats)
+    assert '上游源码示例和测试自带的私钥 2 个' in section['checked']
     assert [x['where'] for x in section['warnings']] == ['bad.zip!app/song.wav']
     assert check.check_archives([], ROOT)['checked'] == '没有找到发行包，跳过'
 
@@ -376,13 +402,16 @@ def test_third_party_build_and_example_paths_do_not_fail_a_release(tmp_path):
     """The first 0.32.0 freeze failed on 772 such paths: example output in the
     upstream threadpoolctl wheel's metadata (its author's home folder), compiled
     DLLs (their build machine's Administrator folder) and the standard library.
-    None is the person's; none can be changed."""
+    None is the person's; none can be changed. The second failed on the PEM
+    headers Qt's network DLLs keep as constants."""
     archive = tmp_path / 'ShengaoKaraoke-0.32.0-final-win64.zip'
     with zipfile.ZipFile(archive, 'w') as bundle:
         bundle.writestr('x/vocal-engine/licenses/threadpoolctl/METADATA.txt',
                         '"filepath": "/ho' + 'me/ogrisel/miniconda3/envs/tmp/lib/libmkl_rt.so",\n')
         bundle.writestr('x/vocal-engine/_internal/libcrypto-3-x64.dll',
                         fake('\0OPENSSLDIR: "C:\\<U>\\Administrator\\ssl"\0C:\\<U>\\ADMINI~1\\AppData\\Local\\Temp\\b\0').encode())
+        bundle.writestr('x/_internal/PySide6/Qt6Network.dll', ('\0' + PRIVATE + '\0' + PRIVATE.replace('RSA', 'EC') + '\0\0\0'
+                                                              + PRIVATE.replace('RSA ', '') + '\0\0' + FOOTER + '\0').encode())
     section = check.check_archives([archive], ROOT, own=([b'C:\\' + U.encode() + b'\\kanade2'], 'kanade2'))
     assert section['problems'] == [] and '别人的目录路径 3 处（2 个文件' in section['checked']
 

@@ -14,7 +14,9 @@ Four places are checked, each on its own:
   and not ours to change; our own files are the tracked ones, already held to
   the full rule above. They are counted instead. A media file that is not
   byte-identical to a published one is listed for checking rather than failed
-  outright, except upstream test files under a vendor folder.
+  outright, except upstream test files under a vendor folder. The source
+  archive carries whole third-party trees under vendor, whose examples and
+  tests ship sample private keys; those are counted too.
 * Diagnostics: a report built from a made-up home full of fake keys, lyrics,
   e-mail addresses and personal paths contains none of them; the report from
   this computer's own home contains none of its saved keys.
@@ -55,12 +57,19 @@ KEYS = [
     ('GitHub 令牌', [b'ghp_', b'gho_', b'ghu_', b'ghs_', b'ghr_', b'github_pat_'],
      re.compile(rb'(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})'), True, False),
     ('AWS 访问密钥', [b'AKIA'], re.compile(rb'AKIA[0-9A-Z]{16}(?![0-9A-Z])'), True, False),
-    ('私钥', [b'-----BEGIN '], re.compile(rb'-----BEGIN [A-Z ]{0,20}PRIVATE KEY-----'), False, False),
     ('服务请求头里的密钥', [b'xi-api-key', b'ocp-apim-subscription-key'],
      re.compile(rb'(?i)(?:xi-api-key|ocp-apim-subscription-key)["\']?\s*[:=]\s*["\']?[A-Za-z0-9]{20,}'), False, True),
     ('Bearer 令牌', [b'authorization'],
      re.compile(rb'(?i)authorization["\']?\s*[:=]\s*["\']?bearer\s+[A-Za-z0-9._~+/-]{24,}'), False, True),
 ]
+# A private key is a whole PEM block. The header alone is a format constant
+# that TLS libraries (Qt, OpenSSL) and their documentation carry, not a key.
+PEM_HEAD = re.compile(rb'-----BEGIN ([A-Z ]{0,20}PRIVATE KEY)-----')
+PEM_SPAN = 16384
+# Encrypted keys' header fields; line breaks, quotes and \n escapes of a key pasted into code or JSON.
+PEM_FIELDS = re.compile(rb'(?:Proc-Type|DEK-Info):[^\r\n"\\]*')
+PEM_WRAP = re.compile(rb'\\+[nr]|[\s"\',]')
+BASE64 = re.compile(rb'[A-Za-z0-9+/=]+')
 PLACEHOLDERS = {'public', 'default', 'all users', 'default user', 'user', 'users', 'username', 'yourname', 'name', 'me',
                 '用户', '用户名', '你的用户名', '〔用户〕'}
 USER_NAME = re.compile(rb'[^\\/\s<>%{}"\'*?|:,;]+')
@@ -128,9 +137,22 @@ def _word_start(data, offset):
     return offset == 0 or not data[offset - 1:offset].isalnum()
 
 
-def secrets_in(data, where, keys=()):
-    """Key-shaped text and saved keys in one file's bytes."""
-    found = []; lower = None
+def private_keys(data):
+    """Offsets of whole PEM private keys: header, base64 body, the matching footer."""
+    found = []
+    for offset in _anchors(data, [b'-----BEGIN ']):
+        head = PEM_HEAD.match(data, offset)
+        if not head: continue
+        end = data.find(b'-----END ' + head.group(1) + b'-----', head.end(), head.end() + PEM_SPAN)
+        if end < 0: continue
+        body = PEM_WRAP.sub(b'', PEM_FIELDS.sub(b'', data[head.end():end]))
+        if len(body) >= 64 and BASE64.fullmatch(body): found.append(offset)
+    return found
+
+
+def secrets_in(data, where, keys=(), pem=True):
+    """Key-shaped text and saved keys in one file's bytes (private keys unless pem is false)."""
+    found = [(offset, '疑似私钥（-----…）') for offset in private_keys(data)] if pem else []; lower = None
     for title, anchors, pattern, word, folded in KEYS:
         if folded and lower is None: lower = data.lower()
         for offset in _anchors(data, anchors, lower if folded else None):
@@ -250,6 +272,7 @@ def public_hashes(root):
 def check_archives(paths, root, keys=(), own=None):
     own = own or personal(); known = public_hashes(root)
     problems = []; warnings = []; entries = 0; skipped = 0; names = []; others = 0; other_files = 0; upstream = 0
+    samples = 0
     for archive in paths:
         archive = Path(archive); names.append(archive.name)
         try:
@@ -261,19 +284,21 @@ def check_archives(paths, root, keys=(), own=None):
                     if kind: problems.append(finding(where, f'不应进入发行包的{kind}'))
                     if info.file_size > LIMIT:
                         skipped += 1; continue
-                    data = bundle.read(info)
+                    data = bundle.read(info); vendor = 'vendor' in Path(info.filename).parts[:-1]
                     if Path(info.filename).suffix.lower() in MEDIA and hashlib.sha256(data).hexdigest() not in known:
-                        if 'vendor' in Path(info.filename).parts[:-1]: upstream += 1
+                        if vendor: upstream += 1
                         else: warnings.append(finding(where, '音视频或字幕与公开演示文件不一致，请确认来源'))
                     mine, theirs = personal_paths(data, where, own)
-                    problems += secrets_in(data, where, keys) + mine
+                    problems += secrets_in(data, where, keys, pem=not vendor) + mine
+                    if vendor: samples += len(private_keys(data))
                     others += len(theirs); other_files += bool(theirs)
         except (OSError, zipfile.BadZipFile) as error:
             problems.append(finding(archive, f'发行包无法读取（{error}）'))
     checked = (f'{len(names)} 个发行包（{"、".join(names)}），文件 {entries} 个' +
                (f'，超过 64 MB 未读内容 {skipped} 个' if skipped else '') +
                (f'；第三方文件里别人的目录路径 {others} 处（{other_files} 个文件，上游构建或示例留下的，不计为问题）' if others else '') +
-               (f'；vendor 里上游源码自带的测试音视频或字幕 {upstream} 个' if upstream else '')) if names else '没有找到发行包，跳过'
+               (f'；vendor 里上游源码自带的测试音视频或字幕 {upstream} 个' if upstream else '') +
+               (f'；vendor 里上游源码示例和测试自带的私钥 {samples} 个' if samples else '')) if names else '没有找到发行包，跳过'
     return {'title': '发行资产', 'checked': checked, 'problems': problems, 'warnings': warnings}
 
 
