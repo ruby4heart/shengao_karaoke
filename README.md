@@ -2,7 +2,7 @@
 
 Windows日语卡拉OK字幕制作软件，使用独立Qt工作台，面向个人非商业制作，尚未达到完整1.0。
 
-**0.32（待冻结发行）：时间轴精修、可靠保存与完整导出。** 包含0.31的全部内容（0.31.0只推送了标签，没有发布Release），以及之后的起点与尾音精修和误差测量、保存与恢复、完整导出、故障恢复与隐私、可选优化、许可与首次使用指南。见[0.32发布说明](docs/V032-RELEASE-NOTES.md)。发布前须在Windows上运行一条命令的冻结验收（`scripts/run-release-freeze.py`，见[构建说明](docs/DESKTOP-BUILD.md)），全部通过后才打标签、上传附件。
+**0.32.0：时间轴精修、可靠保存与完整导出。** 包含0.31的全部内容（0.31.0只推送了标签，没有发布Release），以及之后的起点与尾音精修和误差测量、保存与恢复、完整导出、故障恢复与隐私、可选优化、许可与首次使用指南。见[0.32发布说明](docs/V032-RELEASE-NOTES.md)。2026-11-20在Windows上通过15步发布前冻结（`scripts/run-release-freeze.py`，见[构建说明](docs/DESKTOP-BUILD.md)）后发布为[GitHub预发布版](https://github.com/ruby4heart/shengao_karaoke/releases/tag/v0.32.0)，四份附件的远端SHA256与匿名下载已核对。
 
 **0.31工作台功能**：共用状态与真实进度、可配置Aegisub键位和输入保护、可选本句跟唱打点、GPU预览与后台并行数选择。1366项当前源码回归、开发版及正常／150%独立包各471项、两档GPU各35项、509项依赖、12组合成与30组实际音乐绘图零差异通过。见[版本验收](docs/V031-ACCEPTANCE.md)。发行状态以[GitHub Releases](https://github.com/ruby4heart/shengao_karaoke/releases)为准；归档、标签、四份附件与匿名下载须另外核对。性能达标留到最终阶段。
 
@@ -26,7 +26,7 @@ Windows日语卡拉OK字幕制作软件，使用独立Qt工作台，面向个人
 
 **0.24.0 复用已校对副歌**：选择已经确认的来源句，复用分词、假名与罗马音，按目标段的实际歌声重新生成时间候选；不复制来源节奏、锁定或确认。目标人工内容、译文和原文保持，先审核，可保存和一步撤销；取消或失败保留候选及检查点。来源变化时不采用旧建议。此操作在本机执行，不使用 API 额度，歌声模型仍限个人非商业用途（CC BY-NC-SA 4.0）。
 
-当前0.30.0使用第14版工程，读取1–14。0.29及更旧程序不能打开新版，请另存工程副本。歌曲标识、音节拆合、读音、时间、配色与确认继续保留，个人词典只在本机。
+当前0.32.0使用第14版工程，读取1–14。0.29及更旧程序不能打开新版，请另存工程副本。歌曲标识、音节拆合、读音、时间、配色与确认继续保留，个人词典只在本机。
 
 说明见 [第一次制作](docs/DESKTOP-USER-GUIDE.md)、[0.24.0 验收范围](docs/V024-ACCEPTANCE.md)、[0.23.0 整首顺序](docs/V023-ACCEPTANCE.md)、[完整待办](docs/WORKFLOW-TODO.md)、[构建步骤](docs/DESKTOP-BUILD.md)。功能版本按完整工作阶段合并多个相关目标；旧包及原始 Aegisub 保留。自动候选仍需试听，整首成品与真人新手验收继续实施。
 
@@ -54,6 +54,6 @@ API 密钥由当前 Windows 用户的 DPAPI 加密保存在本机，不进入工
 
 本仓库包含应用代码、测试、原生适配、文档和演示。请下载 Release 附带的完整源码 ZIP 获取匹配的第三方资源，再按 [构建步骤](docs/DESKTOP-BUILD.md) 操作。依赖说明见 [vendor/GIT-SOURCE-NOTES.md](vendor/GIT-SOURCE-NOTES.md)。
 
-当前变更见[0.30.0说明](docs/releases/0.30.0.md)与[验收范围](docs/V030-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
+当前变更见[0.32.0说明](docs/V032-RELEASE-NOTES.md)；上一公开版见[0.30.0说明](docs/releases/0.30.0.md)与[验收范围](docs/V030-ACCEPTANCE.md)。历史验收资料保留在 `docs/`；[0.7.0 旧 README](docs/README-0.7-HISTORY.md) 仅供追溯，不作为当前操作说明。
 
 Hello Devin!
